@@ -27,7 +27,7 @@ fig.height3 <- 600
 fig.width4 <- 1380
 fig.height4 <- 450
 fig.width5 <- 1380
-fig.height5 <- 600
+fig.height5 <- 300
 fig.width6 <- 900
 fig.height6 <- 550
 p0 <- function(x) {formatC(x, format="f", digits=1)}
@@ -210,8 +210,9 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                   tabPanel("2 xxxxxxxxxxx", value=3, 
                 h4("xxxxxxxxxxxxxxxxxx."),
                 h4(paste("Figure 2. xxxxxxxxxxxxxxxxxx")), 
-                                           div(plotOutput("diff3", width=fig.width5, height=fig.height5)),
-                                           
+                
+                 div(plotOutput("diff", width=fig.width5, height=fig.height5)),
+                 div(plotOutput("diff2", width=fig.width5, height=fig.height5)),                     
                 fluidRow(
                   column(width = 7, offset = 0, style='padding:1px;',
                          h4("xxxxxxxxxxxxxxx"), 
@@ -225,12 +226,12 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                   tabPanel("3 xxxxxxxxxxxx", value=3, 
                                            h4("xxxxxxxxxxxxxxxxxxxxxx."),
                                            h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
-                                           div(plotOutput("diff4", width=fig.width5, height=fig.height5)),
-                                           
+                                           div(plotOutput("reg.plot", width=fig.width5, height=fig.height5)),
+                                         
                                            fluidRow(
                                              column(width = 7, offset = 0, style='padding:1px;',
                                                     h4("xxxxxxxxxxxxxxxxxxxxxn"), 
-                                                    div( verbatimTextOutput("reg.summary4"))
+                                                   # div( verbatimTextOutput("reg.summary4"))
                                              )),
                                            
                                            
@@ -383,7 +384,7 @@ server <- shinyServer(function(input, output   ) {
         
     })
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # tab 1 one sample mean estimation
+    # tab 1 simulate po model
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     mcmc <- reactive({
         
@@ -393,12 +394,9 @@ server <- shinyServer(function(input, output   ) {
         levz <- sample$lev
         or1 <- sample$or1
         or2 <- sample$or2
+   
         
-        
-        
-        #set.seed(1839)
-        
-        x1 <- 1*(runif(n)<0.5)
+        treatment <- 1*(runif(n)<0.5)  
         
         # set up baseline distribution of the version of outcome, even distribution
     
@@ -406,8 +404,8 @@ server <- shinyServer(function(input, output   ) {
         prbs <- prbs/sum(prbs)                  # all equal 
         
         # baseline, select a baseline for everyone
-        x2 <- sample(1:(length(prbs)), n, prob=prbs, replace=TRUE)
-        barplot( table(x2))
+        baseline <- sample(1:(length(prbs)), n, prob=prbs, replace=TRUE)
+      #  barplot( table(baseline))
         
         
         b1 <- or1   # odds ratio 2.7    Treastment OR
@@ -434,7 +432,7 @@ server <- shinyServer(function(input, output   ) {
         
         l0 <- matrix(1, nrow = n, ncol = levz)  # make a space for all patients and levels
         
-        lin <- b1 * x1 +  b2 * x2               # make a linear combination
+        lin <- b1 * treatment +  b2 * baseline               # make a linear combination
         
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   # pop l0 with
         
@@ -473,17 +471,17 @@ server <- shinyServer(function(input, output   ) {
         
         
         
-        dat <- data.frame(x1, x2, y = factor(y))
+        dat <- data.frame(treatment, baseline, y = factor(y))
         d <<- datadist(dat)
         options(datadist="d")
         
        
-        f1 <- lrm(y ~x1 + x2, data=dat)
+        f1 <- lrm(y ~treatment + baseline, data=dat)
         
        sf1 <- summary(f1, antilog=TRUE, verbose=FALSE)
     
         
-        return(list(res=f1 , sf1=sf1)) 
+        return(list(res=f1 , sf1=sf1 , dat=dat)) 
         
     })
     
@@ -491,101 +489,158 @@ server <- shinyServer(function(input, output   ) {
     # tab 1 one sample mean ggplot
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     
-    output$diff <- renderPlot({         
-
-      # sample <- random.sample()
-      # mu1 <- sample$ctr.alpha
-      # sd1 <- sample$ctr.beta
-      # n    <- sample$n1
-      # 
-      # A <- mcmc()$A
-      # B <- mcmc()$B
-      # C <- mcmc()$C
-      # 
-      # foo <- cbind(A,B,C)
-      # foo1 <- reshape::melt(foo)
-      # 
-      # levels(foo1$X2)
-      # 
-      # Ae <-  est <- quantile(A, c(.025,.5,.975)) 
-      # A <-  paste("Frequentist : Median",p3(est[2][[1]]),", 95%CI (", p3(est[1][[1]]) ,", ",  p3(est[3][[1]]) ,")")  
-      # 
-      # Be <-   est <- quantile(B, c(.025,.5,.975))  
-      # B <-  paste("Bayesian : Median",p3(est[2][[1]]),", 95%CI (", p3(est[1][[1]]) ,", ",  p3(est[3][[1]]) ,")") 
-      # 
-      # Ce<-  est <- quantile(C, c(.025,.5,.975))  
-      # C <-  paste("Bayesian [2] : Median",p3(est[2][[1]]),", 95%CI (", p3(est[1][[1]]) ,", ",  p3(est[3][[1]]) ,")") 
-      # 
-      # # make a dataset to add lines to ggplot facets
-      # 
-      # dummy2 <- data.frame(X2=c(paste("",A),
-      #                           paste("",B),
-      #                           paste("",C)
-      # ),  
-      # q1 =  c(Ae[1], Be[1], Ce[1]),
-      # q50 = c(Ae[2], Be[2], Ce[2]),
-      # q3 =  c(Ae[3], Be[3], Ce[3])
-      # ) 
-      # 
-      # 
-      # levels(foo1$X2) <- c(paste("",A),
-      #                      paste("",B),
-      #                      paste("",C) 
-      # )
-      # 
-      #  r <-  mu1+5* sd1
-      #  p <-  seq(-r, r, sd1/n) 
-      # 
-      # g0 <- ggplot(data=foo1, aes(x = value)) +#
-      #   geom_vline(data = dummy2, aes(xintercept = q1,  colour="red", linetype = "dotdash")) +
-      #   geom_vline(data = dummy2, aes(xintercept = q50, colour="red", linetype = "dotdash")) +
-      #   geom_vline(data = dummy2, aes(xintercept = q3,  colour="red", linetype = "dotdash")) +
-      #   geom_vline( aes(xintercept = mu1,  colour="black", linetype = "dash")) +
-      #   geom_histogram( aes(y = ..density..), bins=100, colour="black" , fill=rainbow(300))+     ylab("")+
-      #   geom_density(alpha = 0.1, fill = "red") +
-      #   facet_wrap(X2~ .) 
-      # 
-      # 
-      # g0 <- g0  + scale_x_continuous(breaks= p, 
-      #                                xlab("Mean"),
-      #                                oob=discard) +
-      #   scale_y_continuous(breaks = NULL) +
-      #   
-      #   theme_bw()  
-      # 
-      # g0 <- g0 + theme(#axis.line=element_blank(),
-      #   #axis.text.x=element_blank(),
-      #   #axis.text.y=element_blank(),
-      #   #axis.ticks=element_blank(),
-      #   #axis.title.x=element_blank(),
-      #   axis.text=element_text(size=12),
-      #   axis.title=element_text(size=12,face="bold"),
-      #   #axis.title.y=element_blank(),
-      #   legend.position="none",
-      #   #anel.background=element_blank(),
-      #   #panel.grid.major=element_blank(),
-      #   #panel.grid.minor=element_blank(),
-      #   # plot.background=element_blank())
-      #   #plot.margin = unit(c(1,1,1,1), "cm")
-      #   plot.title = element_text(size = 16),
-      #   strip.text.x = element_text(size = 16, colour = "black", angle = 0),
-      #   strip.background = element_rect(fill="ivory"),
-      #   panel.border = element_blank(),
-      #   panel.grid.major = element_blank(), 
-      #   panel.grid.minor = element_blank(),
-      #   panel.background = element_blank(), 
-      #   axis.line = element_line(colour = "black")
-      # )
-      # 
-      # g0 <- g0 + labs(#title = " ",
-      #                 #subtitle = " ",
-      #                 caption = "The dotted lines indicate the median, 2.5 and 97.5 percentiles, the red line is the true population value" 
-      #   ) 
-      # 
-      # print(g0)
-
+    output$diff <- renderPlot({
+      
+      sample <- random.sample()
+      levz <- sample$lev
+      
+      dat <- mcmc()$dat
+      d <- dat
+      
+      b1 <- barplot(table(d$baseline), las=1, main = ("Baseline distribution of outcome response" ), 
+              xlab="Ordinal category", ylab = "Count", col=rainbow(50))
+      
+      
     })
   
+    
+    
+    output$diff2 <- renderPlot({
+      
+      sample <- random.sample()
+      levz <- sample$lev
+      
+      dat <- mcmc()$dat
+      d <- dat
+ 
+      b2 <- barplot(table(d$y), las=1, main = ("Distribution of outcome responses" ), 
+                    xlab="Ordinal category", ylab = "Count", col=rainbow(50))
+      
+    })
+    
+    
+    
+    output$diff3 <- renderPlot({
+      
+      sample <- random.sample()
+      levz <- sample$lev
+      
+      dat <- mcmc()$dat
+      d <- dat
+      
+      b2 <- barplot(table(d$y), las=1, main = ("Distribution of outcome responses" ), 
+                    xlab="Ordinal category", ylab = "Count", col=rainbow(50))
+      
+    })
+    
+    
+    
+    
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # not used replaced by diff, ggplot 
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
+    
+    output$reg.plot <- renderPlot({         
+      
+      # Get the current regression data
+      sample <- random.sample()
+      levz <- sample$lev
+      n   <- sample$n
+      
+      dat <- mcmc()$dat
+      f <- dat
+      f <-  (as.data.frame(table(f$y)))
+
+      f$Percentage <- round(f$Freq / sum(f$Freq)*100,1)
+      
+      z <- f  # data set for plot
+      variable <- "Freq"  # variable of interest
+      pN <- sum(f$Freq)  # 
+      pN <- format(pN, big.mark=","
+                   ,scientific=FALSE)
+      roundUp <- function(x) 10^ceiling(log10(x))/2
+      gupper <- roundUp((max(f$Freq)))  # plot upper limit
+      glower <- 0                 # plot lower limit
+      gstep <- 25                   # grid steps
+      
+      # text for plot
+      ylabel <- "Counts" 
+      
+      z$N <- z$Freq
+   
+      
+      
+      
+      Gplotx <- function(data,  l1,l2,l3 ) {
+        
+        mlimit=l1
+        
+        # p1 <- ggplot(data = data, aes(x = reorder(eval(parse(text=varr)), N), y = N, 
+        #                               fill = eval(parse(text=varr)))) + 
+        #   
+          p1 <- ggplot(data = data, aes(x =  Var1, y = N, fill = Var1)) + 
+          
+          #geom_hline(yintercept=seq(l2, mlimit, by=l3),linetype =3, size=0.3,
+        #             alpha=1, color='brown') +
+          
+          geom_bar(stat = "identity", width =0.7) 
+        
+        
+        p1 <- p1 + ggtitle( paste("Horizontal bar plot with counts and percentages, N =",pN), ) +
+          theme(plot.title = element_text(size = 20, face = "bold")) +
+          
+          coord_flip()
+        
+        p1 <- p1 + ylab(ylabel ) + 
+          
+          xlab(" ") +
+          
+          guides(fill=guide_legend(title=paste0("(",2,"-digit - ICD9 code)")), size = 14) 
+        
+        p1 <- p1 + geom_text(aes(label=paste0(format(N, big.mark=","
+                                                     ,scientific=FALSE)," (",Percentage,"%)")),position = "stack", 
+                             hjust=-0.2, size = 4.2, check_overlap = F)
+        
+        p1 <- p1 + scale_y_continuous(limits = c(0, mlimit)) 
+        
+        p1 <- p1 + theme(panel.background=element_blank(),
+                         plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
+                         legend.text=element_text(size=12),
+                         legend.title=element_text(size=14),
+                         axis.text.x = element_text(size=13),
+                         axis.text.y = element_text(size=15),
+                         axis.line.x = element_line(color="black"),
+                         axis.line.y = element_line(color="black"),
+                         axis.title = element_text(size = 20) , 
+                         plot.caption=element_text(hjust = 0, size = 7))
+        
+        g <- p1 + theme(legend.position="none")
+        
+        
+      }
+      
+      gx <- Gplotx(data = z,   l1=gupper,l2=glower,l3=gstep ) 
+      
+      
+      print(gx)
+      
+      
+      
+    })
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     
     
@@ -800,7 +855,7 @@ server <- shinyServer(function(input, output   ) {
     # NOT USED REPLACED BY FACET PLOT!!!!!!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     
-    output$diff2 <- renderPlot({         
+    #output$diff2 <- renderPlot({         
 # 
 #         f <- cor1()$f
 #         b  <- cor1()$b
@@ -951,7 +1006,7 @@ server <- shinyServer(function(input, output   ) {
 # 
 #         gridExtra::grid.arrange(pL1,  pL2, pL3,  pL4, nrow=2) 
         
-    })
+ #   })
         
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # correlation plot tab 2
