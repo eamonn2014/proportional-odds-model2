@@ -20,6 +20,8 @@ library(rms)
 options(max.print=1000000)    
 fig.width <- 400
 fig.height <- 300
+fig.width1 <- 1380
+fig.height1 <- 700
 fig.width2 <- 1400
 fig.height2 <- 300
 fig.width3 <- 1400  
@@ -27,8 +29,8 @@ fig.height3 <- 600
 fig.width4 <- 1380
 fig.height4 <- 450
 fig.width5 <- 1380
-fig.height5 <- 300
-fig.width6 <- 900
+fig.height5 <- 225
+fig.width6 <- 400
 fig.height6 <- 550
 p0 <- function(x) {formatC(x, format="f", digits=1)}
 p1 <- function(x) {formatC(x, format="f", digits=1)}
@@ -82,7 +84,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                   
                                   h4("Instructions: The first input below is the number of total patients randomised 1:1 to treatment vrs placebo. 
                                      The next input is the number of ordinal levels in the response. This is followed by the 
-                                     treatment proportional odds ratio. the last input is the proportional odds ratio for the baseline version of the outcome.
+                                     treatment proportional odds ratio. The last input is the proportional odds ratio for the baseline version of the outcome.
                                      The baseline distribution of this is set so that there is equal probability of membership of each category/level."),
                                   div(
                                       
@@ -99,7 +101,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                       tags$hr(),
                                      
                                       textInput('levels', 
-                                      div(h5(tags$span(style="color:blue", "Number of ordinal categories in response"))), "30"),
+                                      div(h5(tags$span(style="color:blue", "Number of ordinal categories in response"))), "15"),
                                       
                                       textInput('or1', 
                                       div(h5(tags$span(style="color:blue", "Treatment odds ratio"))), "1.2"),
@@ -190,16 +192,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                  # h4(htmlOutput("textWithNumber1",) ),
                                   ) ,
                                   
-                                  
-                                  
-                                  
-                                  
-                                  
-                                  
-                                  
-                                  
-                                  
-                                  
+                        
                                   ################
                                   
                                   
@@ -207,12 +200,15 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                   
                                   
                                   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                                  tabPanel("2 xxxxxxxxxxx", value=3, 
+                                  tabPanel("2 Barplot", value=3, 
                 h4("xxxxxxxxxxxxxxxxxx."),
-                h4(paste("Figure 2. xxxxxxxxxxxxxxxxxx")), 
+                #h4(paste("Figure 2. xxxxxxxxxxxxxxxxxx")), 
                 
-                 div(plotOutput("diff", width=fig.width5, height=fig.height5)),
-                 div(plotOutput("diff2", width=fig.width5, height=fig.height5)),                     
+                 div(plotOutput("diff",  width=fig.width5, height=fig.height5)),
+                 div(plotOutput("diff2", width=fig.width5, height=fig.height5)),     
+                 div(plotOutput("diff3", width=fig.width5, height=fig.height5)),  
+                h4(paste("Figure 1. Barplots of counts in ordinal variable, baseline, outcome separately for treated and placebo patients (not very informative unless 
+                         you select a large number of patients and large treatment odds ratio) ")), 
                 fluidRow(
                   column(width = 7, offset = 0, style='padding:1px;',
                          h4("xxxxxxxxxxxxxxx"), 
@@ -223,10 +219,10 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                 
                                   ),
                 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                                  tabPanel("3 xxxxxxxxxxxx", value=3, 
+                                  tabPanel("3 Barplot", value=3, 
                                            h4("xxxxxxxxxxxxxxxxxxxxxx."),
                                            h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
-                                           div(plotOutput("reg.plot", width=fig.width5, height=fig.height5)),
+                                           div(plotOutput("reg.plot", width=fig.width1, height=fig.height1)),
                                          
                                            fluidRow(
                                              column(width = 7, offset = 0, style='padding:1px;',
@@ -237,7 +233,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                            
                                   ),
                 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                tabPanel("4 xxxxxxxxx", value=3, 
+                tabPanel("4 Linear model", value=3, 
                          h4("xxxxxxxxxxxxxxx"),
                          
                          fluidRow(
@@ -251,8 +247,24 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                            ) ,
                 
                 
+                fluidRow(
+                  column(width = 6, offset = 0, style='padding:1px;',
+                         h4("ANCOVA model"), 
+                         div( verbatimTextOutput("reg.summary4") )
+                  ) ,
+                  
+                  fluidRow(
+                    column(width = 5, offset = 0, style='padding:1px;',
+                        #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
+                         div( verbatimTextOutput("reg.summary5")),
+                           
+                          # h4(htmlOutput("textWithNumber",) ),
+                    ))),
+                
+                
+                
                 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~NEW
-                tabPanel("5 xxxxxxxxxxxxxxxx", fluid = TRUE, width = 4,
+                tabPanel("5 Assumptions", fluid = TRUE, width = 4,
                          
                          h4(("Upload your own data for correlation analysis. Requires 2 columns of numeric data. Select 'Header' 
                          if your data columns have names. 
@@ -331,7 +343,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                              #plotOutput("plotx"),
                              tags$hr(),
                              h4("Correlation and 95% confidence interval from R cor.test function"), 
-                             div( verbatimTextOutput("reg.summary5")),
+                             #div( verbatimTextOutput("reg.summary5")),
                              tags$hr(),
                              h4("Print the data listing"),
                              tableOutput("contents") 
@@ -372,9 +384,7 @@ server <- shinyServer(function(input, output   ) {
         n1y1 <- log(as.numeric(unlist(strsplit(input$or1,","))))   # user enter odds , need log for the maths
         # R
         n2y2 <- log(as.numeric(unlist(strsplit(input$or2,","))))    # user enter odds , need log for the maths
-        
-   
-        
+  
         return(list(  
             n=trt[1],  
             lev=ctr[1],
@@ -384,40 +394,33 @@ server <- shinyServer(function(input, output   ) {
         
     })
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # tab 1 simulate po model
+    # tab 1 simulate po model data and analyse
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     mcmc <- reactive({
         
         sample <- random.sample()
         
-        n   <- sample$n
+        n    <- sample$n
         levz <- sample$lev
-        or1 <- sample$or1
-        or2 <- sample$or2
-   
+        b1  <- sample$or1
+        b2  <- sample$or2
         
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Parameters 
+        
+        # treatment assignment 1:1 
         treatment <- 1*(runif(n)<0.5)  
         
         # set up baseline distribution of the version of outcome, even distribution
-    
         prbs <- sample(1:1,levz,replace=T)
         prbs <- prbs/sum(prbs)                  # all equal 
-        
         # baseline, select a baseline for everyone
         baseline <- sample(1:(length(prbs)), n, prob=prbs, replace=TRUE)
-      #  barplot( table(baseline))
-        
-        
-        b1 <- or1   # odds ratio 2.7    Treastment OR
-        b2 <- or2   # is odds ratio of 1 , 50:50   # effect of baseline OR
-        
-        
-        
-        
-        # generalising, might be hard to understand later.
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ turn probs into logitsw
-        #  levz <- length(prbs)                                # total number of levels in y
-        
+   
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Steps to generate a dataset
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ turn probs into logits 
+        #  1. using the true probability of each category, calculate the levels-1 cummulative logits
         glevz <- levz-1
         
         b0 <- rep(NA, glevz)
@@ -427,39 +430,38 @@ server <- shinyServer(function(input, output   ) {
           b0[i] <-  logit(1-sum(prbs[1:i])) 
           
         }
-        
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # 2. create an empty matrix columns are the categories and rows samples
         l0 <- matrix(1, nrow = n, ncol = levz)  # make a space for all patients and levels
         
-        lin <- b1 * treatment +  b2 * baseline               # make a linear combination
-        
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   # pop l0 with
-        
+        # 3. for each patient calculate linear predictor, not including 1 yest
+        lin <- b1 * treatment +  b2 * baseline   # make a linear combination
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
+        # 4. combine 1 and 3 into the matrix 2.
         for (i in 2:levz) {
           
           l0[,i] <- inv_logit(b0[i-1] + lin)
           
         }   
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # 5. make another matrix preparing for calculating the probabilites of membership
+        fi<- matrix(1, nrow = n, ncol = levz)  
         
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
-        fi<- matrix(1, nrow = n, ncol = levz) # make a space for all patients and levels
-        
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # 6. Do the calculations, on the columns  
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         for (i in 2:levz) {
           
           fi[,i-1] <-    l0[,i-1] - l0[,i]   # 1-2; 2-3; 3-4; 4-5; 
           
         } 
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # add in the last column which need no manipulation...prob in highest level.
         fi[,levz] <- l0[, levz]
         
         # check .. should all sum to prob =1
         apply(fi, 1, sum)
-       
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~now to get the response....
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # for each patient sample 1 level based on the probabilities associated with each level
         y <- c()
         for (i in 1:n) {
           y[i] <- sample(
@@ -468,25 +470,22 @@ server <- shinyServer(function(input, output   ) {
             prob = c(fi[i,])
           )
         }
-        
-        
-        
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # put the data together
         dat <- data.frame(treatment, baseline, y = factor(y))
+        
+        # use harrell's po function analyse the data
         d <<- datadist(dat)
-        options(datadist="d")
-        
-       
+        options(datadist="d") 
         f1 <- lrm(y ~treatment + baseline, data=dat)
-        
-       sf1 <- summary(f1, antilog=TRUE, verbose=FALSE)
+        sf1 <- summary(f1, antilog=TRUE, verbose=FALSE)
     
-        
         return(list(res=f1 , sf1=sf1 , dat=dat)) 
-        
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     })
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # tab 1 one sample mean ggplot
+    # tab 2 barplot
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     
     output$diff <- renderPlot({
@@ -497,14 +496,18 @@ server <- shinyServer(function(input, output   ) {
       dat <- mcmc()$dat
       d <- dat
       
-      b1 <- barplot(table(d$baseline), las=1, main = ("Baseline distribution of outcome response" ), 
-              xlab="Ordinal category", ylab = "Count", col=rainbow(50))
+      ym <- max(c(as.vector(table(dat$y)), as.vector(table(dat$baseline))))
+      
+      b1 <- barplot(table(d$baseline), las=1, main = ("Baseline distribution of outcome response all patients" ), 
+              xlab="Ordinal category", ylab = "Count", col=rainbow(50), ylim =c(0,ym))
       
       
     })
   
-    
-    
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # tab 2 barplot
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     output$diff2 <- renderPlot({
       
       sample <- random.sample()
@@ -513,12 +516,18 @@ server <- shinyServer(function(input, output   ) {
       dat <- mcmc()$dat
       d <- dat
  
-      b2 <- barplot(table(d$y), las=1, main = ("Distribution of outcome responses" ), 
-                    xlab="Ordinal category", ylab = "Count", col=rainbow(50))
+      ym <- max(c(as.vector(table(dat$y)), as.vector(table(dat$baseline))))
+      
+      d <- d[d$treatment %in% 1,]
+      
+      treat <- barplot(table(d$y), las=1, main = ("Distribution of outcome responses treated patients only" ), 
+                    xlab="Ordinal category", ylab = "Count", col=rainbow(50), ylim =c(0,ym))
       
     })
     
-    
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # tab 2 barplot
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     
     output$diff3 <- renderPlot({
       
@@ -528,16 +537,17 @@ server <- shinyServer(function(input, output   ) {
       dat <- mcmc()$dat
       d <- dat
       
-      b2 <- barplot(table(d$y), las=1, main = ("Distribution of outcome responses" ), 
-                    xlab="Ordinal category", ylab = "Count", col=rainbow(50))
+      ym <- max(c(as.vector(table(dat$y)), as.vector(table(dat$baseline))))
+      
+      d <- d[d$treatment %in% 0,]
+      
+      treat <- barplot(table(d$y), las=1, main = ("Distribution of outcome responses placebo patients only" ), 
+                       xlab="Ordinal category", ylab = "Count", col=rainbow(50), ylim =c(0,ym))
       
     })
-    
-    
-    
-    
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # not used replaced by diff, ggplot 
+    #   ggplot barplot from by barplot app
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
     
     output$reg.plot <- renderPlot({         
@@ -548,62 +558,53 @@ server <- shinyServer(function(input, output   ) {
       n   <- sample$n
       
       dat <- mcmc()$dat
-      f <- dat
-      f <-  (as.data.frame(table(f$y)))
+      f <-   dat
+      f <-   as.data.frame(table(f$y))
 
       f$Percentage <- round(f$Freq / sum(f$Freq)*100,1)
       
-      z <- f  # data set for plot
+      z <- f              # data set for plot
       variable <- "Freq"  # variable of interest
-      pN <- sum(f$Freq)  # 
+      pN <- sum(f$Freq)   
       pN <- format(pN, big.mark=","
                    ,scientific=FALSE)
       roundUp <- function(x) 10^ceiling(log10(x))/2
       gupper <- roundUp((max(f$Freq)))  # plot upper limit
-      glower <- 0                 # plot lower limit
-      gstep <- 25                   # grid steps
+      gupper <- ceiling((max(f$Freq)))  # plot upper limit
+      glower <- 0                       # plot lower limit
+      gstep <- 5                        # grid steps
       
       # text for plot
       ylabel <- "Counts" 
       
       z$N <- z$Freq
-   
-      
-      
-      
+
       Gplotx <- function(data,  l1,l2,l3 ) {
         
         mlimit=l1
-        
-        # p1 <- ggplot(data = data, aes(x = reorder(eval(parse(text=varr)), N), y = N, 
-        #                               fill = eval(parse(text=varr)))) + 
-        #   
+
           p1 <- ggplot(data = data, aes(x =  Var1, y = N, fill = Var1)) + 
           
-          #geom_hline(yintercept=seq(l2, mlimit, by=l3),linetype =3, size=0.3,
-        #             alpha=1, color='brown') +
-          
-          geom_bar(stat = "identity", width =0.7) 
+            geom_bar(stat = "identity", width =0.7) 
         
-        
-        p1 <- p1 + ggtitle( paste("Horizontal bar plot with counts and percentages, N =",pN), ) +
+          p1 <- p1 + ggtitle( paste("Horizontal bar plot with counts and percentages, N =",pN), ) +
           theme(plot.title = element_text(size = 20, face = "bold")) +
           
           coord_flip()
         
-        p1 <- p1 + ylab(ylabel ) + 
+          p1 <- p1 + ylab(ylabel ) + 
           
-          xlab(" ") +
+          xlab("Ordinal categories") +
           
           guides(fill=guide_legend(title=paste0("(",2,"-digit - ICD9 code)")), size = 14) 
         
-        p1 <- p1 + geom_text(aes(label=paste0(format(N, big.mark=","
+         p1 <- p1 + geom_text(aes(label=paste0(format(N, big.mark=","
                                                      ,scientific=FALSE)," (",Percentage,"%)")),position = "stack", 
                              hjust=-0.2, size = 4.2, check_overlap = F)
         
-        p1 <- p1 + scale_y_continuous(limits = c(0, mlimit)) 
+         p1 <- p1 + scale_y_continuous(limits = c(0, mlimit)) 
         
-        p1 <- p1 + theme(panel.background=element_blank(),
+         p1 <- p1 + theme(panel.background=element_blank(),
                          plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
                          legend.text=element_text(size=12),
                          legend.title=element_text(size=14),
@@ -614,40 +615,18 @@ server <- shinyServer(function(input, output   ) {
                          axis.title = element_text(size = 20) , 
                          plot.caption=element_text(hjust = 0, size = 7))
         
-        g <- p1 + theme(legend.position="none")
-        
+        g <- p1 + theme(legend.position="none") 
         
       }
       
       gx <- Gplotx(data = z,   l1=gupper,l2=glower,l3=gstep ) 
       
-      
       print(gx)
-      
-      
       
     })
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # not used replaced by diff, ggplot 
+    # text 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
     
     output$textWithNumber <- renderText({ 
@@ -677,25 +656,15 @@ server <- shinyServer(function(input, output   ) {
                    , tags$span(style="color:red",  ) ,
                    
                    ""))    
-        
-       
-     
+
     })
     
-     
-    
- 
+
     output$textWithNumber1 <- renderText({ 
       
       A <- mcmc()$res     
       
-      
-     # sample <- random.sample()
-  #    levz <- sample$lev  
-      
-             
-       
-      
+   
     })
     
     
@@ -708,7 +677,7 @@ server <- shinyServer(function(input, output   ) {
     # not used replaced by diff, ggplot 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    output$diffx <- renderPlot({         
+   # output$diffx <- renderPlot({         
       
       # z <- mcmc()$A
       # mu1 <- mcmc()$mu1
@@ -762,7 +731,7 @@ server <- shinyServer(function(input, output   ) {
       # 
       # par(mfrow=c(1,1))
       
-    })
+    #})
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -783,73 +752,43 @@ server <- shinyServer(function(input, output   ) {
     # correlation Efron data
     output$reg.summary4 <- renderPrint({
       
-     # return(print(ruben()$z2, digits=4))
+     return(print(lmx()$linear, digits=4))
       
     })
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # correlation user data
     output$reg.summary5 <- renderPrint({
       
-   #   return(print(usercor()$z1, digits=4))
+     return(print(lmx()$an, digits=4))
       
     })
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # run the correlation analysis for tab 2
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     
-    cor1 <- reactive({
+  lmx <- reactive({
         
-        # sample <- random.sample()
-        # 
-        # n    <- sample$n1
-        # r    <- sample$n2
-        # reps <- sims <- sample$sims
-        # 
-        # 
-        # CorrNorm <- function(n, rho) {
-        #     X1 = rnorm(n); X2 = rnorm(n)
-        #     Z = cbind(X1, rho*X1+sqrt(1-rho^2)*X2)
-        #     return(Z)
-        # } 
-        # 
-        # z <- CorrNorm(n=n,rho=r)
-        # z1 <- cor.test(z[,1],z[,2])
-        # # z1 <- c(unlist(z1$estimate), unlist(z1$conf.int)[1:2])
-        # # names(z1) <- c("Estimate","Lower","Upper")
-        # 
-        # 
-        # xx <- as.integer(as.vector(z1$parameter)+2) 
-        # z1 <- c( (xx), unlist(z1$estimate), unlist(z1$conf.int)[1:2])
-        # names(z1) <- c("N","Estimate","Lower","Upper")
-        # 
-        # 
-        # 
-        # data.set <- data.frame(z[,1],z[,2])
-        # #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # sboot <- function() {
-        #     cor(data.set[sample(1:n, replace=T),])[1,2]
-        # }
-        # #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # bboot <- function() {
-        #     cov.wt(data.set, diff(c(0,sort(runif(n-1)),1)), cor=T)$cor[1,2]
-        # }
-        # #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # X <- matrix(c(z[,1],z[,2]), length(z[,1]), 2)
-        # BB <- BayesianBootstrap(X=X, n=sims,
-        #                         Method=function(x,w) cov.wt(x, w, cor=TRUE)$cor[1,2]) 
-        # #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # # Using the weighted correlation (corr) from the boot package.
-        # b4 <- bayesboot(data.set, corr, R = sims, use.weights = TRUE)
-        # #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # 
-        # f <- replicate(sims, sboot())
-        # b <- replicate(sims, bboot())
-        # BB <- unlist(BB)
-        # xx1 <- b4$V1
-        # 
-        # return(list(f=f, b=b, BB=BB, xx1=xx1, z1=z1)) 
+          #sample <- random.sample()
+
+          dat <- mcmc()$dat
+
+          dat$y <- as.numeric(as.character(dat$y))
+          
+          f <- lm(y ~treatment + baseline, data=dat)
+          
+          linear <- summary(f)
+          
+          
+           d <<- datadist(dat)
+           options(datadist="d")
+           linear <- ols(y ~treatment + (baseline), data=dat)
+           an <- anova(linear)
+          
+           return(list(linear=linear , an=an)) 
+          
+          #return(list(linear=linear ))
         
-    })
+   })
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # NOT USED REPLACED BY FACET PLOT!!!!!!
@@ -1011,7 +950,7 @@ server <- shinyServer(function(input, output   ) {
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # correlation plot tab 2
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    output$diff3 <- renderPlot({         
+    #output$diff3 <- renderPlot({         
           
     #       f <- cor1()$f
     #       b  <- cor1()$b
@@ -1453,7 +1392,7 @@ server <- shinyServer(function(input, output   ) {
     #         print(g0)
             
             
-        })
+      #  })
         
         
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
