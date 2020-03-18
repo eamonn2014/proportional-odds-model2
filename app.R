@@ -241,26 +241,26 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                          DT::dataTableOutput("tablex"),width = 6)
                          ),
                          
+                         fluidRow(
+                           column(width = 6, offset = 0, style='padding:1px;',
+                                  h4("ANCOVA model"), 
+                                  div( verbatimTextOutput("reg.summary4") )
+                           ) ,
+                           
+                           fluidRow(
+                             column(width = 5, offset = 0, style='padding:1px;',
+                                    #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
+                                    div( verbatimTextOutput("reg.summary5")),
+                                    
+                                    # h4(htmlOutput("textWithNumber",) ),
+                             ))),
                          
                          
           
                            ) ,
                 
                 
-                fluidRow(
-                  column(width = 6, offset = 0, style='padding:1px;',
-                         h4("ANCOVA model"), 
-                         div( verbatimTextOutput("reg.summary4") )
-                  ) ,
-                  
-                  fluidRow(
-                    column(width = 5, offset = 0, style='padding:1px;',
-                        #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
-                         div( verbatimTextOutput("reg.summary5")),
-                           
-                          # h4(htmlOutput("textWithNumber",) ),
-                    ))),
-                
+               
                 
                 
                 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~NEW
