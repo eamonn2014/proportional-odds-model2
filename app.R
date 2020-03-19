@@ -87,7 +87,8 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                 h4("Instructions: The first input below is the number of total patients randomised 1:1 to treatment vrs placebo. 
                                      The next input is the number of ordinal levels in the response. This is followed by the 
                                      treatment proportional odds ratio. The last input is the proportional odds ratio for the baseline version of the outcome.
-                                     The baseline distribution of this is set so that there is equal probability of membership of each category/level."),
+                                     The distribution of the baseline version of the outcome can be specified by selecting a Beta distribution that approximates that 
+                                   which is expected."),
                                 div(
                                   
                                   tags$head(
@@ -103,7 +104,8 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                   
                                   tags$hr(),
                                   textInput('dist', 
-                                            div(h5(tags$span(style="color:blue", "distribution of baseline"))), "1,1"),
+                                            div(h5(tags$span(style="color:blue", "Approximate the distribution of the baseline version of the response by specifying
+                                                             Beta shape parameters"))), "1,1"),
                                   
                                   textInput('levels', 
                                             div(h5(tags$span(style="color:blue", "Number of ordinal categories in response"))), "15"),
@@ -162,7 +164,10 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               
                               tabPanel("0 Proportional odds model", value=7, 
-                                       h4("  (when all other variables are set to zero)"),
+                                       h4("The distribution of the baseline version of the response variable is specified here.
+                                          By selecting a beta distribution using the shape parameters on the left
+                                          the expected baseline counts in categories can be approximated. The default is Beta(1,1)
+                                          which is a uniform distribution, all categories have an equal probability of occurance."),
                                        
                                        #    h4(paste("Figure 1. Bayesian and frequentist bootstrap distributions, estimating one sample mean")), 
                                        #   div(plotOutput("diff", width=fig.width4, height=fig.height4)),       
@@ -280,7 +285,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               ),
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               tabPanel("4 Linear model", value=3, 
-                                       h4("xxxxxxxxxxxxxxx"),
+                                       h4("ANCOVA model"),
                                        
                                        fluidRow(
                                          column(
@@ -289,7 +294,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        
                                        fluidRow(
                                          column(width = 6, offset = 0, style='padding:1px;',
-                                                h4("ANCOVA model"), 
+                                                #h4("ANCOVA model"), 
                                                 div( verbatimTextOutput("reg.summary4") )
                                          ) ,
                                          
@@ -653,8 +658,9 @@ server <- shinyServer(function(input, output   ) {
       p1 <- ggplot(data = data, aes(x =  Var1, y = N, fill = Var1)) + 
         
         geom_bar(stat = "identity", width =0.7) 
-      
       p1 <- p1 + ggtitle( paste("Horizontal bar plot with counts and percentages, N =",pN), ) +
+        
+   
         theme(plot.title = element_text(size = 20, face = "bold")) +
         
         coord_flip()
@@ -712,8 +718,8 @@ server <- shinyServer(function(input, output   ) {
       ggplot(aes(x_values))+
       stat_function(fun=dbeta, args=list(shape1=shape1.,shape2=shape2.)) +
 
-      labs(title=paste0(c("Beta distribution, shape 1 parameter =", shape1.,", shape 2 paramter=", shape2.,""), collapse=" "), 
-           x = " ",
+      labs(title=paste0(c("Beta distribution, shape 1 =", shape1.,", shape 2 =", shape2.,""), collapse=" "), 
+           x = "Latent underlying distribution of baseline version of response ",
            y = "Degree of belief",
            #subtitle =paste0(c("Note probabilites", prob," are equivalent to log odds: -4,-2, 0 ,2, 4 "), collapse=", "),
            caption = "") +
@@ -727,29 +733,24 @@ server <- shinyServer(function(input, output   ) {
         # axis.ticks.y=element_blank(),
         # https://stackoverflow.com/questions/46482846/ggplot2-x-axis-extreme-right-tick-label-clipped-after-insetting-legend
         # stop axis being clipped
-        plot.title=element_text(size = 18), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"),
-        legend.text=element_text(size=14),
+
+        
+        
+        
+        
+        plot.title=element_text(size = 20, face = "bold"), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
+        legend.text=element_text(size=12),
         legend.title=element_text(size=14),
-        legend.position="none",
-        axis.text.x  = element_text(size=15),
-        #axis.text.y  = element_text(size=15),
-        axis.line.x = element_line(color="black"),
-        axis.line.y = element_line(color="black"),
-        # axis.title.x=element_blank(),
-        # axis.text.x=element_blank(),
-        # axis.ticks.x=element_blank())
+        axis.text.x = element_text(size=13),
         axis.title.y=element_blank(),
         axis.text.y=element_blank(),
         axis.ticks.y=element_blank(),
-        plot.caption=element_text(hjust = 0, size = 7),
-        strip.text.x = element_text(size = 16, colour = "black", angle = 0),
-        #axis.title.y = element_text(size = rel(1.5), angle = 90),
-        axis.title.x = element_text(size = rel(1.5), angle = 0),
-        panel.grid.major.x = element_line(color = "grey80", linetype="dotted", size = 1),
-        panel.grid.major.y = element_line(color = "grey80", linetype="dotted", size = 1),
-        strip.background = element_rect(colour = "black", fill = "#ececf0"),
-        panel.background = element_rect(fill = '#ececf0', colour = '#ececf0'),
-        plot.background = element_rect(fill = '#ececf0', colour = '#ececf0')
+        axis.line.x = element_line(color="black"),
+        axis.line.y = element_line(color="black"),
+        axis.title = element_text(size = 20) , 
+        plot.caption=element_text(hjust = 0, size = 7)
+     
+        
       )
     
   
@@ -801,7 +802,7 @@ server <- shinyServer(function(input, output   ) {
         
         geom_bar(stat = "identity", width =0.7) 
       
-      p1 <- p1 + ggtitle( paste("Horizontal bar plot with counts and percentages, N =",pN), ) +
+      p1 <- p1 + ggtitle( paste("Theorized dist. of baseline version of response, N =",pN), ) +
         theme(plot.title = element_text(size = 20, face = "bold")) #+
         
       #  coord_flip()
