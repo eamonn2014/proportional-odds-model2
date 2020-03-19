@@ -105,7 +105,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                   tags$hr(),
                                   textInput('dist', 
                                             div(h5(tags$span(style="color:blue", "Approximate the distribution of the baseline version of the response by specifying
-                                                             Beta shape parameters"))), "1,1"),
+                                                             Beta shape parameters"))), "2,1"),
                                   
                                   textInput('levels', 
                                             div(h5(tags$span(style="color:blue", "Number of ordinal categories in response"))), "15"),
@@ -162,12 +162,25 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                    ")),
                               
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                              
+                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                              tabPanel("test", value=3, 
+                                       h4("xxxxxxxxxxxxxxxxxxxxxx."),
+                                       h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
+                                       div(plotOutput("reg.plot99", width=fig.width1, height=fig.height1)),
+                                       
+                                       fluidRow(
+                                         column(width = 7, offset = 0, style='padding:1px;',
+                                                h4("xxxxxxxxxxxxxxxxxxxxxn"), 
+                                                # div( verbatimTextOutput("reg.summary4"))
+                                         )),
+                                       
+                                       
+                              ),
+                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               tabPanel("0 Proportional odds model", value=7, 
                                        h4("The distribution of the baseline version of the response variable is specified here.
-                                          By selecting a beta distribution using the shape parameters on the left
-                                          the expected baseline counts in categories can be approximated. The default is Beta(1,1)
-                                          which is a uniform distribution, all categories have an equal probability of occurance."),
+                                          By selecting a beta distribution using the shape parameters on the
+                                          the expected baseline counts in categories can be approximated. The default is Beta(2,1)."),
                                        
                                        #    h4(paste("Figure 1. Bayesian and frequentist bootstrap distributions, estimating one sample mean")), 
                                        #   div(plotOutput("diff", width=fig.width4, height=fig.height4)),       
@@ -186,16 +199,16 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        fluidRow(
                                          column(width = 6, offset = 0, style='padding:1px;',
                                                 #h4("Proportional odds model"), 
-                                               # div( verbatimTextOutput("reg.summary2") )
-                                               div(plotOutput("beta",  width=fig.width7, height=fig.height7)),
+                                                # div( verbatimTextOutput("reg.summary2") )
+                                                div(plotOutput("beta",  width=fig.width7, height=fig.height7)),
                                          ) ,
                                          
                                          fluidRow(
                                            column(width = 5, offset = 0, style='padding:1px;',
-                                                 # h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
-                                                 # div( verbatimTextOutput("reg.summary3")),
-                                                 div(plotOutput("reg.plotx",  width=fig.width7, height=fig.height7)) 
-                                                #  h4(htmlOutput("textWithNumber",) ),
+                                                  # h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
+                                                  # div( verbatimTextOutput("reg.summary3")),
+                                                  div(plotOutput("reg.plotx",  width=fig.width7, height=fig.height7)) 
+                                                  #  h4(htmlOutput("textWithNumber",) ),
                                            ))),
                                        
                                        
@@ -619,14 +632,14 @@ server <- shinyServer(function(input, output   ) {
   })
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  #   ggplot barplot from by barplot app
+  #   ggplot barplot on side
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
   
   output$reg.plot <- renderPlot({         
     
     # Get the current regression data
-  #  sample <- random.sample()
-   # levz <- sample$lev
+    #  sample <- random.sample()
+    # levz <- sample$lev
     #n   <- sample$n
     
     dat <- mcmc()$dat
@@ -660,7 +673,7 @@ server <- shinyServer(function(input, output   ) {
         geom_bar(stat = "identity", width =0.7) 
       p1 <- p1 + ggtitle( paste("Horizontal bar plot with counts and percentages, N =",pN), ) +
         
-   
+        
         theme(plot.title = element_text(size = 20, face = "bold")) +
         
         coord_flip()
@@ -700,7 +713,7 @@ server <- shinyServer(function(input, output   ) {
   
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # text 
+  # beta dist plot 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~     
   
   output$beta <- renderPlot({        
@@ -717,7 +730,7 @@ server <- shinyServer(function(input, output   ) {
     data.frame(x_values) %>%
       ggplot(aes(x_values))+
       stat_function(fun=dbeta, args=list(shape1=shape1.,shape2=shape2.)) +
-
+      
       labs(title=paste0(c("Beta distribution, shape 1 =", shape1.,", shape 2 =", shape2.,""), collapse=" "), 
            x = "Latent underlying distribution of baseline version of response ",
            y = "Degree of belief",
@@ -733,7 +746,7 @@ server <- shinyServer(function(input, output   ) {
         # axis.ticks.y=element_blank(),
         # https://stackoverflow.com/questions/46482846/ggplot2-x-axis-extreme-right-tick-label-clipped-after-insetting-legend
         # stop axis being clipped
-
+        
         
         
         
@@ -749,18 +762,18 @@ server <- shinyServer(function(input, output   ) {
         axis.line.y = element_line(color="black"),
         axis.title = element_text(size = 20) , 
         plot.caption=element_text(hjust = 0, size = 7)
-     
+        
         
       )
     
-  
+    
     
   })
   
   
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  #   ggplot barplot from by barplot app
+  #   ggplot barplot of beta distribution
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
   
   output$reg.plotx <- renderPlot({         
@@ -804,7 +817,7 @@ server <- shinyServer(function(input, output   ) {
       
       p1 <- p1 + ggtitle( paste("Theorized dist. of baseline version of response, N =",pN), ) +
         theme(plot.title = element_text(size = 20, face = "bold")) #+
-        
+      
       #  coord_flip()
       
       p1 <- p1 + ylab(ylabel ) + 
@@ -815,7 +828,7 @@ server <- shinyServer(function(input, output   ) {
       
       p1 <- p1 + geom_text(aes(label=paste0(format(N, big.mark=","
                                                    ,scientific=FALSE)," (",Percentage,"%)")),position = "stack", 
-                        , vjust=-1.0,  hjust=.5, size = 3.1, check_overlap = F)
+                           vjust=-1.0,  hjust=.5, size = 3.1, check_overlap = F)
       
       p1 <- p1 + scale_y_continuous(limits = c(0, mlimit)) 
       
@@ -843,6 +856,112 @@ server <- shinyServer(function(input, output   ) {
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # text 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # side by side ggplot
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
+  
+  output$reg.plot99 <- renderPlot({         
+    
+    # Get the current regression data
+    sample <- random.sample()
+    levz <- sample$lev
+    n   <- sample$n
+    
+    dat <- mcmc()$dat
+    
+    f <-   dat
+    f <-   as.data.frame(table(f$y, f$treatment))
+    
+    f$Percentage <- round(f$Freq / sum(f$Freq)*100,1)
+    
+    
+    library(dplyr)
+    res <- group_by(f, Var1) %>% mutate(percent = 100*Freq/sum(Freq))
+    
+    
+    
+    z <- res             # data set for plot
+    variable <- "Freq"  # variable of interest
+    pN <- sum(f$Freq)   
+    pN <- format(pN, big.mark=","
+                 ,scientific=FALSE)
+    roundUp <- function(x) 10^ceiling(log10(x))/2
+    gupper <- roundUp((max(f$Freq)))  # plot upper limit
+    gupper <- ceiling((max(f$Freq)))  # plot upper limit
+    glower <- 0                       # plot lower limit
+    gstep <- 5                        # grid steps
+    
+    # text for plot
+    ylabel <- "Counts" 
+    
+    z$N <- z$Freq
+    
+   # levels(z$Var1)
+    
+    z$Var2 <- factor(z$Var2 , levels = c("0", "1"),
+                      labels = c("Placebo", "Treatment")
+    )
+    
+    
+    
+    
+    
+    Gplotx <- function(data,  l1,l2,l3 ) {
+      
+      mlimit=l1
+      
+      p1 <- ggplot(data = data, aes(x =  Var1, y = N, fill = Var1)) + 
+        
+        geom_bar(stat = "identity", width =0.7) 
+      
+      p1 <- p1 + ggtitle( paste("Observed responses at follow up in trial arms, N =",pN), ) +
+        theme(plot.title = element_text(size = 20, face = "bold")) #+
+      
+      #  coord_flip()
+      
+      p1 <- p1 + ylab(ylabel ) + 
+        
+        coord_flip() +
+        
+        xlab("Ordinal categories") +
+        
+        guides(fill=guide_legend(title=paste0("(",2,"-digit - ICD9 code)")), size = 14) 
+    
+      
+      p1 <- p1 + geom_text(aes(label=paste0(format(N, big.mark=","
+                                                   ,scientific=FALSE)," (",Percentage,"%)")),position = "stack", 
+                           hjust=-0.2, size = 4.2, check_overlap = F)
+      
+      
+      
+      
+      p1 <- p1 + scale_y_continuous(limits = c(0, mlimit)) 
+      
+      p1 <- p1 + theme(panel.background=element_blank(),
+                       plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
+                       legend.text=element_text(size=12),
+                       legend.title=element_text(size=14),
+                       axis.text.x = element_text(size=13),
+                       axis.text.y = element_text(size=15),
+                       axis.line.x = element_line(color="black"),
+                       axis.line.y = element_line(color="black"),
+                       axis.title = element_text(size = 20) , 
+                       plot.caption=element_text(hjust = 0, size = 7),
+                       strip.text = element_text(size=20)
+                       )
+      
+      g <- p1 + theme(legend.position="none") +
+        
+        facet_wrap(Var2~.)
+      
+    }
+    
+    gx <- Gplotx(data = z,   l1=gupper,l2=glower,l3=gstep ) 
+    
+    print(gx)
+    
+  })
+  
   
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
