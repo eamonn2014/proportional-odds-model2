@@ -187,7 +187,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                          
                                          fluidRow(
                                            column(width = 5, offset = 0, style='padding:1px;',
-                                                  h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
+                                                 # h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
                                                  # div( verbatimTextOutput("reg.summary3")),
                                                  div(plotOutput("reg.plotx",  width=fig.width7, height=fig.height7)) 
                                                 #  h4(htmlOutput("textWithNumber",) ),
@@ -419,6 +419,8 @@ server <- shinyServer(function(input, output   ) {
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   random.sample <- reactive({
     
+    foo <- input$resample
+    
     #sample sizes
     dis <- as.numeric(unlist(strsplit(input$dist,",")))
     
@@ -618,9 +620,9 @@ server <- shinyServer(function(input, output   ) {
   output$reg.plot <- renderPlot({         
     
     # Get the current regression data
-    sample <- random.sample()
-    levz <- sample$lev
-    n   <- sample$n
+  #  sample <- random.sample()
+   # levz <- sample$lev
+    #n   <- sample$n
     
     dat <- mcmc()$dat
     f <-   dat
@@ -768,6 +770,7 @@ server <- shinyServer(function(input, output   ) {
     n   <- sample$n
     
     dat <- mcmc()$dat
+    
     f <-   dat
     f <-   as.data.frame(table(f$baseline))
     
@@ -799,9 +802,9 @@ server <- shinyServer(function(input, output   ) {
         geom_bar(stat = "identity", width =0.7) 
       
       p1 <- p1 + ggtitle( paste("Horizontal bar plot with counts and percentages, N =",pN), ) +
-        theme(plot.title = element_text(size = 20, face = "bold")) +
+        theme(plot.title = element_text(size = 20, face = "bold")) #+
         
-        coord_flip()
+      #  coord_flip()
       
       p1 <- p1 + ylab(ylabel ) + 
         
@@ -811,7 +814,7 @@ server <- shinyServer(function(input, output   ) {
       
       p1 <- p1 + geom_text(aes(label=paste0(format(N, big.mark=","
                                                    ,scientific=FALSE)," (",Percentage,"%)")),position = "stack", 
-                           hjust=-0.2, size = 4.2, check_overlap = F)
+                        , vjust=-1.0,  hjust=.5, size = 3.1, check_overlap = F)
       
       p1 <- p1 + scale_y_continuous(limits = c(0, mlimit)) 
       
