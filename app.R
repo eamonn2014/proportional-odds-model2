@@ -109,10 +109,10 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                   
                                   textInput('levels', 
                                             div(h5(tags$span(style="color:blue", "Number of ordinal categories in response"))), "15"),
-                                  
+                                  tags$hr(), 
                                   textInput('or1', 
                                             div(h5(tags$span(style="color:blue", "Treatment odds ratio"))), "1.2"),
-                                  tags$hr(), 
+                                 
                                   
                                   textInput('or2', 
                                             #   div(h5("Number of samples for Correlation (tab 2)")), "10"),
@@ -162,25 +162,11 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                    ")),
                               
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                              tabPanel("test", value=3, 
-                                       h4("xxxxxxxxxxxxxxxxxxxxxx."),
-                                       h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
-                                       div(plotOutput("reg.plot99", width=fig.width1, height=fig.height1)),
-                                       
-                                       fluidRow(
-                                         column(width = 7, offset = 0, style='padding:1px;',
-                                                h4("xxxxxxxxxxxxxxxxxxxxxn"), 
-                                                # div( verbatimTextOutput("reg.summary4"))
-                                         )),
-                                       
-                                       
-                              ),
-                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                              tabPanel("0 Proportional odds model", value=7, 
+                                         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                              tabPanel("1 Baseline version of response", value=7, 
                                        h4("The distribution of the baseline version of the response variable is specified here.
-                                          By selecting a beta distribution using the shape parameters on the
-                                          the expected baseline counts in categories can be approximated. The default is Beta(2,1)."),
+                                          By selecting a beta distribution using the shape parameters the
+                                          expected baseline counts in categories can be approximated. The default is Beta(2,1)."),
                                        
                                        #    h4(paste("Figure 1. Bayesian and frequentist bootstrap distributions, estimating one sample mean")), 
                                        #   div(plotOutput("diff", width=fig.width4, height=fig.height4)),       
@@ -219,7 +205,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               
                               
-                              tabPanel("1 Proportional odds model", value=7, 
+                              tabPanel("2 Proportional odds model", value=7, 
                                        h4("  (when all other variables are set to zero)"),
                                        
                                        #    h4(paste("Figure 1. Bayesian and frequentist bootstrap distributions, estimating one sample mean")), 
@@ -262,6 +248,21 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               
                               
                               
+                              
+                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                              tabPanel("3 Barplots of outcome", value=3, 
+                                       h4("xxxxxxxxxxxxxxxxxxxxxx."),
+                                       h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
+                                       div(plotOutput("reg.plot99", width=fig.width1, height=fig.height1)),
+                                       
+                                       fluidRow(
+                                         column(width = 7, offset = 0, style='padding:1px;',
+                                                h4("xxxxxxxxxxxxxxxxxxxxxn"), 
+                                                # div( verbatimTextOutput("reg.summary4"))
+                                         )),
+                                       
+                                       
+                              ),
                               
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               tabPanel("2 Barplot", value=3, 
@@ -519,7 +520,7 @@ server <- shinyServer(function(input, output   ) {
     # 2. create an empty matrix columns are the categories and rows samples
     l0 <- matrix(1, nrow = n, ncol = levz)  # make a space for all patients and levels
     
-    # 3. for each patient calculate linear predictor, not including 1 yest
+    # 3. for each patient calculate linear predictor, not including step 1 yet
     lin <- b1 * treatment +  b2 * baseline   # make a linear combination
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
     # 4. combine 1 and 3 into the matrix 2.
@@ -876,26 +877,28 @@ server <- shinyServer(function(input, output   ) {
     
     
     library(dplyr)
-    res <- group_by(f, Var1) %>% mutate(percent = 100*Freq/sum(Freq))
+    res <- group_by(f, Var2) %>% mutate(percent = 100*Freq/sum(Freq))
     
+    res$Percentage <- round(res$percent,1)
     
-    
-    z <- res             # data set for plot
+    f <- res             # data set for plot
     variable <- "Freq"  # variable of interest
     pN <- sum(f$Freq)   
     pN <- format(pN, big.mark=","
                  ,scientific=FALSE)
+    
     roundUp <- function(x) 10^ceiling(log10(x))/2
     gupper <- roundUp((max(f$Freq)))  # plot upper limit
-    gupper <- ceiling((max(f$Freq)))  # plot upper limit
+    gupper <- ceiling((max(f$Freq)))+1  # plot upper limit
     glower <- 0                       # plot lower limit
     gstep <- 5                        # grid steps
     
     # text for plot
     ylabel <- "Counts" 
     
-    z$N <- z$Freq
+    f$N <- f$Freq
     
+    z <- f
    # levels(z$Var1)
     
     z$Var2 <- factor(z$Var2 , levels = c("0", "1"),
