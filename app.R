@@ -889,7 +889,7 @@ server <- shinyServer(function(input, output   ) {
     
     roundUp <- function(x) 10^ceiling(log10(x))/2
     gupper <- roundUp((max(f$Freq)))  # plot upper limit
-    gupper <- ceiling((max(f$Freq)))+1.5  # plot upper limit
+    gupper <- ceiling((max(f$Freq)))*1.15  # plot upper limit
     glower <- 0                       # plot lower limit
     gstep <- 5                        # grid steps
     
@@ -939,7 +939,10 @@ server <- shinyServer(function(input, output   ) {
                            hjust=-0.2, size = 4.2, check_overlap = F)
       
       
-      
+      p1 <- p1 + labs(
+              caption = "- Percentages calculated with respect to randomized group" 
+            ) 
+            
       
       p1 <- p1 + scale_y_continuous(limits = c(0, mlimit)) 
       
@@ -952,7 +955,7 @@ server <- shinyServer(function(input, output   ) {
                        axis.line.x = element_line(color="black"),
                        axis.line.y = element_line(color="black"),
                        axis.title = element_text(size = 20) , 
-                       plot.caption=element_text(hjust = 0, size = 7),
+                       plot.caption=element_text(hjust = 0, size = 13),  #left align
                        strip.text = element_text(size=20)
                        )
       
