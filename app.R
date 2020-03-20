@@ -873,7 +873,7 @@ server <- shinyServer(function(input, output   ) {
     f <-   dat
     f <-   as.data.frame(table(f$y, f$treatment))
     
-    f$Percentage <- round(f$Freq / sum(f$Freq)*100,1)
+  #  f$Percentage <- round(f$Freq / sum(f$Freq)*100,1)
     
     
     library(dplyr)
@@ -889,7 +889,7 @@ server <- shinyServer(function(input, output   ) {
     
     roundUp <- function(x) 10^ceiling(log10(x))/2
     gupper <- roundUp((max(f$Freq)))  # plot upper limit
-    gupper <- ceiling((max(f$Freq)))+1  # plot upper limit
+    gupper <- ceiling((max(f$Freq)))+1.5  # plot upper limit
     glower <- 0                       # plot lower limit
     gstep <- 5                        # grid steps
     
@@ -899,10 +899,14 @@ server <- shinyServer(function(input, output   ) {
     f$N <- f$Freq
     
     z <- f
-   # levels(z$Var1)
+
+    NN <- tapply(z$Freq, z$Var2, sum)
     
+    
+    lab1 <- paste0("Placebo N = ",as.vector(NN[1]),"")
+    lab2 <- paste0("Treatment N = ",as.vector(NN[2]),"")
     z$Var2 <- factor(z$Var2 , levels = c("0", "1"),
-                      labels = c("Placebo", "Treatment")
+                      labels = c(lab1, lab2)
     )
     
     
@@ -920,8 +924,7 @@ server <- shinyServer(function(input, output   ) {
       p1 <- p1 + ggtitle( paste("Observed responses at follow up in trial arms, N =",pN), ) +
         theme(plot.title = element_text(size = 20, face = "bold")) #+
       
-      #  coord_flip()
-      
+    
       p1 <- p1 + ylab(ylabel ) + 
         
         coord_flip() +
