@@ -59,7 +59,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                   direction = "bottom"
                 ),
                 
-                h2("The Proportional odds model"), 
+                h2("The Proportional Odds Model"), 
                 
                 h4("The proportional odds model is a recommended approach for modelliing an ordinal response. 
                 Patient reported outcomes are often reported using an ordinal reponse. Often they are analysed using a linear model treating the outcome as continuous. 
@@ -224,12 +224,14 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        
                                        fluidRow(
                                          column(width = 6, offset = 0, style='padding:1px;',
-                                                h4("Proportional odds model"), 
+                                                h4("Proportional odds model lrm function"), 
                                                 div( verbatimTextOutput("reg.summary2") )
                                          ) ,
                                          
                                          fluidRow(
-                                           column(width = 5, offset = 0, style='padding:1px;',
+                                           column(width = 6, offset = 0, style='padding:1px;',
+                                                  h4("Proportional odds model orm function"), 
+                                                  div( verbatimTextOutput("reg.summary1")),
                                                   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
                                                   div( verbatimTextOutput("reg.summary3")),
                                                   
@@ -415,8 +417,31 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                            
                                            
                                          ),
+                                         
                                        )
-                              ) 
+                              ) ,
+                              
+                              
+                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                              tabPanel("6 inference", value=3, 
+                                       h4("xxxxxxxxxxxxxxxxxxxxxx."),
+                                       h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
+                                       div(plotOutput("preds", width=fig.width1, height=fig.height1)),
+                                       
+                                       fluidRow(
+                                         column(width = 7, offset = 0, style='padding:1px;',
+                                                h4("xxxxxxxxxxxxxxxxxxxxxn"), 
+                                                # div( verbatimTextOutput("reg.summary4"))
+                                         )),
+                                       
+                                       
+                              )
+                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                              
+                              
+                              
+                              
+                              
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   END NEW   
                             )
                             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -563,10 +588,143 @@ server <- shinyServer(function(input, output   ) {
     # use harrell's po function analyse the data
     d <<- datadist(dat)
     options(datadist="d") 
-    f1 <- lrm(y ~treatment + baseline, data=dat)
+    f1 <- lrm(y ~treatment + baseline, data=dat )  # would prefer orm here but coeffs dont show up !
+    f2 <- orm(y ~treatment + baseline, data=dat ) 
     sf1 <- summary(f1, antilog=TRUE, verbose=FALSE)
     
-    return(list(res=f1 , sf1=sf1 , dat=dat)) 
+    #f1 <- f1$coefficients 
+    
+    return(list(res= f1  , sf1=sf1 , dat=dat, f2=f2)) 
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  })
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  
+  
+  output$preds <- renderPlot({
+    
+    sample <- random.sample()
+    
+    n    <- sample$n
+    levz <- sample$lev
+    
+         dat <- mcmc()$dat
+    
+  # I can get non cummulative probabilites using clm
+  # Dont know how to do it with rms?
+  require(ordinal)
+  Res.clm <- clm(y ~treatment + baseline, data=dat)
+  summary(Res.clm)
+  
+  newdat <- data.frame(
+    baseline = rep(1:levz),
+    treatment = rep(0:1, each = levz))
+  
+  newdat <- cbind(newdat, predict(Res.clm, newdata=newdat, se.fit=TRUE,
+                                  interval=TRUE, type="prob"))
+  
+  l <- melt(data = newdat, id.vars = c("baseline","treatment") )
+  
+  A<- cbind( newdat[,1:2], newdat[,grep("^fit", colnames(newdat)) ])
+  B<- cbind( newdat[,1:2], newdat[,grep("^lwr", colnames(newdat)) ])
+  C<- cbind( newdat[,1:2], newdat[,grep("^upr", colnames(newdat)) ])
+  
+  lA <- melt(data = A, id.vars = c("baseline","treatment") )
+  lB <- melt(data = B, id.vars = c("baseline","treatment") )
+  lC <- melt(data = C, id.vars = c("baseline","treatment") )
+  
+  lA$variable <- sub('.*(?=.{1}$)', '',  lA$variable  , perl=T)
+  lB$variable <- sub('.*(?=.{1}$)', '',  lB$variable  , perl=T)
+  lC$variable <- sub('.*(?=.{1}$)', '',  lC$variable  , perl=T)
+  
+  l <- cbind(lA,lB,lC)
+  
+  l <- l[,c(1:4,8,12)]
+  
+  names(l) <- c("baseline","treatment","response","estimate","lower", "upper")
+  
+  pd <- position_dodge(0.2) # move them .05 to the left and right
+  
+  # l$baseline <- factor(l$baseline)
+  l$treatment <- factor(l$treatment)
+  br1 <- length(unique(l$baseline))
+  
+  ggplot(l, aes(baseline,estimate, color=treatment)) +
+    geom_point(aes(shape=treatment),size=4, position=pd) + 
+    scale_color_manual(name="treatment",values=c("coral","steelblue")) + 
+    theme_bw() + 
+    scale_x_continuous("baseline", breaks=1:br1, labels=1:br1) + 
+    scale_y_continuous("Probability")   + 
+    geom_errorbar(aes(ymin=lower,ymax=upper),width=0.1,position=pd)
+  
+  
+  l$response <- as.numeric(l$response)
+  l$treatment <- factor(l$treatment)
+  
+  lx <- l[l$baseline %in% 1,]
+ gp <- ggplot(lx, aes(response,estimate, color=treatment)) +
+    geom_point(aes(shape=treatment),size=4, position=pd) + 
+    scale_color_manual(name="treatment",values=c("coral","steelblue")) + 
+    theme_bw() + 
+    scale_x_continuous("response", breaks=1:br1, labels=1:br1) + 
+    scale_y_continuous("Probability")   + 
+    geom_errorbar(aes(ymin=lower,ymax=upper),width=0.1,position=pd)
+  
+  print(gp)
+  
+  
+  })
+  
+   
+  
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~not used
+  
+  
+  
+  
+  
+  
+  
+  predicts <- reactive({
+    
+    sample <- random.sample()
+    
+    f    <- mcmc$res
+    
+    levz <- sample$lev
+    
+    newdat <- data.frame(
+      baseline = rep(1:levz),
+      treatment = rep(0:1, each = levz))
+    
+    L <- predict(f1, newdata=newdat, se.fit=TRUE)
+    #plogis(with(L, linear.predictors + 1.96*cbind(- se.fit, se.fit)))
+    
+    # d <- datadist(newdat)
+    # options(datadist="d")
+ 
+    # L <- predict(f, newdata=newdat, se.fit=TRUE)          #omitted kint= so use 1st intercept
+    plogis(with(L, linear.predictors + 1.96*cbind(-se.fit,se.fit)))
+    predict(f, type="fitted.ind")#[1:5,]   #gets Prob(better) and all others
+    d1 <- newdat
+    predict(f, d1, type="fitted")        # Prob(Y>=j) for new observation
+    predict(f, d1, type="fitted.ind")    # Prob(Y=j)
+    predict(f, d1, type='mean', codes=TRUE) # predicts mean(y) using codes 1,2,3
+    m <- Mean(f, codes=TRUE)
+    lp <- predict(f, d1)
+    m(lp)
+    # Can use function m as an argument to Predict or nomogram to
+    # get predicted means instead of log odds or probabilities
+    dd <- datadist(baseline,treatment); options(datadist='dd')
+    m
+    plot(Predict(f, x1, fun=m), ylab='Predicted Mean')
+    # Note: Run f through bootcov with coef.reps=TRUE to get proper confidence
+    # limits for predicted means from the prop. odds model
+    options(datadist=NULL)
+    
+    
+    return(list(   sf1=sf1 , dat=dat)) 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   })
   
@@ -990,7 +1148,7 @@ server <- shinyServer(function(input, output   ) {
     
     HTML(paste0( "Let's interpret the output on the left. The coefficient alongside y>=2 is "
                  , tags$span(style="color:red", p2( f     [1][[1]]) ) ,
-                 " this is the log odds of having a response in the categories 2 and above, so convert this to a probability "
+                 " this is the log odds of having a response in categories 2 and above, so convert this to a probability "
                  , tags$span(style="color:red", p3(expit(A$coefficients[1][[1]]) )) , 
                  " and subtract from one to give the probability of being in the lowest category "
                  , tags$span(style="color:red", p3(1-  expit(f[1][[1]]) )) ,".",
@@ -1083,10 +1241,14 @@ server <- shinyServer(function(input, output   ) {
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  
+  output$reg.summary1 <- renderPrint({
+    
+    return( (mcmc()$f2 ))
+    
+  })
   output$reg.summary2 <- renderPrint({
     
-    return(print(mcmc()$res, digits=4))
+    return( (mcmc()$res ))
     
   })
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
