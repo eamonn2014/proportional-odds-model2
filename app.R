@@ -598,9 +598,10 @@ server <- shinyServer(function(input, output   ) {
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   })
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # non cummulative predicted probabilities plot run the analysis again
+  # not efficient I know
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  
-  
+
   output$preds <- renderPlot({
     
     sample <- random.sample()
@@ -608,7 +609,7 @@ server <- shinyServer(function(input, output   ) {
     n    <- sample$n
     levz <- sample$lev
     
-         dat <- mcmc()$dat
+    dat <- mcmc()$dat
     
   # I can get non cummulative probabilites using clm
   # Dont know how to do it with rms?
@@ -619,6 +620,7 @@ server <- shinyServer(function(input, output   ) {
   newdat <- data.frame(
     baseline = rep(1:levz),
     treatment = rep(0:1, each = levz))
+  
   
   newdat <- cbind(newdat, predict(Res.clm, newdata=newdat, se.fit=TRUE,
                                   interval=TRUE, type="prob"))
@@ -633,9 +635,9 @@ server <- shinyServer(function(input, output   ) {
   lB <- melt(data = B, id.vars = c("baseline","treatment") )
   lC <- melt(data = C, id.vars = c("baseline","treatment") )
   
-  lA$variable <- sub('.*(?=.{1}$)', '',  lA$variable  , perl=T)
-  lB$variable <- sub('.*(?=.{1}$)', '',  lB$variable  , perl=T)
-  lC$variable <- sub('.*(?=.{1}$)', '',  lC$variable  , perl=T)
+  lA$variable <-  gsub(".*\\.","", lA$variable)    
+  lB$variable <-   gsub(".*\\.","", lB$variable) 
+  lC$variable <-   gsub(".*\\.","", lC$variable)  
   
   l <- cbind(lA,lB,lC)
   
@@ -645,7 +647,6 @@ server <- shinyServer(function(input, output   ) {
   
   pd <- position_dodge(0.2) # move them .05 to the left and right
   
-  # l$baseline <- factor(l$baseline)
   l$treatment <- factor(l$treatment)
   br1 <- length(unique(l$baseline))
   
