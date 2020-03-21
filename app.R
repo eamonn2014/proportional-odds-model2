@@ -14,6 +14,7 @@ library(Hmisc)
 # library(LaplacesDemon)
 # library(bayesboot)
 # library(boot)
+library(reshape)
 library(rms)
 #options(mc.cores = parallel::detectCores())
 #rstan_options(auto_write = TRUE)
@@ -34,6 +35,8 @@ fig.width6 <- 400
 fig.height6 <- 550
 fig.width7 <- 600
 fig.height7 <- 600
+fig.width9 <- 1380
+fig.height9 <- 500
 p0 <- function(x) {formatC(x, format="f", digits=1)}
 p1 <- function(x) {formatC(x, format="f", digits=1)}
 p2 <- function(x) {formatC(x, format="f", digits=2)}
@@ -423,22 +426,46 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               
                               
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                              tabPanel("6 inference", value=3, 
-                                       h4("xxxxxxxxxxxxxxxxxxxxxx."),
-                                       h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
-                                       div(plotOutput("preds", width=fig.width1, height=fig.height1)),
+                              # tabPanel("6 inference", value=3, 
+                              #          h4("xxxxxxxxxxxxxxxxxxxxxx."),
+                              #          h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
+                              #          #div(plotOutput("preds", width=fig.width1, height=fig.height1)),
+                              #          
+                              #          fluidRow(
+                              #            column(width = 7, offset = 0, style='padding:1px;',
+                              #                   h4("xxxxxxxxxxxxxxxxxxxxxn"), 
+                              #                   # div( verbatimTextOutput("reg.summary4"))
+                              #            )),
+                              #          
+                              #          
+                              # ),
+                              
+                              tabPanel("4 Take home messages", 
+                                       
+                                       div(plotOutput("preds", width=fig.width9, height=fig.height9)),
                                        
                                        fluidRow(
-                                         column(width = 7, offset = 0, style='padding:1px;',
-                                                h4("xxxxxxxxxxxxxxxxxxxxxn"), 
-                                                # div( verbatimTextOutput("reg.summary4"))
-                                         )),
+                                         # column(12,
+                                         #        sliderTextInput("pvalue2","Enter a (two-sided) P-Value and see the associated effect size (orange crosses on x axis of Figure 3):",
+                                         #                        
+                                         #                        
+                                         #                        selected=0.01, grid = T, width = '100%'))
+                                         textInput('base', 
+                                                   div(h5(tags$span(style="color:blue", "Enter a patient's baseline category and see their predicted probabilities for response outcomes"))), "1")
+                                         
+                                         
+                                       ),
                                        
-                                       
-                              )
+                                       h4(htmlOutput("textWithNumber4",) ) ,
+                                       width = 30 )
+                              
+                              
+                              
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               
-                              
+                              # textInput('levels', 
+                              #           div(h5(tags$span(style="color:blue", "Number of ordinal categories in response"))), "15"),
+                              # tags$hr(), 
                               
                               
                               
@@ -478,13 +505,17 @@ server <- shinyServer(function(input, output   ) {
     # R
     n2y2 <- log(as.numeric(unlist(strsplit(input$or2,","))))    # user enter odds , need log for the maths
     
+    
+    base<- as.numeric(unlist(strsplit(input$base,",")))
+    
     return(list(  
       n=trt[1],  
       lev=ctr[1],
       or1=n1y1[1], 
       or2=n2y2[1],
       shape1=dis[1], 
-      shape2=dis[2]
+      shape2=dis[2],
+      base=base
     ))
     
   })
@@ -501,6 +532,8 @@ server <- shinyServer(function(input, output   ) {
     b2  <- sample$or2
     shape1  <- sample$shape1
     shape2  <- sample$shape2
+    base  <- sample$base
+    
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Parameters 
     
@@ -608,11 +641,11 @@ server <- shinyServer(function(input, output   ) {
     
     n    <- sample$n
     levz <- sample$lev
-    
+    base <- sample$base
     dat <- mcmc()$dat
     
   # I can get non cummulative probabilites using clm
-  # Dont know how to do it with rms?
+  # Don't know how to do it with rms? yet
   require(ordinal)
   Res.clm <- clm(y ~treatment + baseline, data=dat)
   summary(Res.clm)
@@ -645,33 +678,80 @@ server <- shinyServer(function(input, output   ) {
   
   names(l) <- c("baseline","treatment","response","estimate","lower", "upper")
   
-  pd <- position_dodge(0.2) # move them .05 to the left and right
+  pd <- position_dodge(0.5) # move them .05 to the left and right
   
-  l$treatment <- factor(l$treatment)
-  br1 <- length(unique(l$baseline))
-  
-  ggplot(l, aes(baseline,estimate, color=treatment)) +
-    geom_point(aes(shape=treatment),size=4, position=pd) + 
-    scale_color_manual(name="treatment",values=c("coral","steelblue")) + 
-    theme_bw() + 
-    scale_x_continuous("baseline", breaks=1:br1, labels=1:br1) + 
-    scale_y_continuous("Probability")   + 
-    geom_errorbar(aes(ymin=lower,ymax=upper),width=0.1,position=pd)
-  
+  # l$treatment <- factor(l$treatment)
+  # br1 <- length(unique(l$baseline))
+  # 
+  # ggplot(l, aes(baseline,estimate, color=treatment)) +
+  #   geom_point(aes(shape=treatment),size=4, position=pd) + 
+  #   scale_color_manual(name="treatment",values=c("coral","steelblue")) + 
+  #   theme_bw() + 
+  #   scale_x_continuous("baseline", breaks=1:br1, labels=1:br1) + 
+  #   scale_y_continuous("Probability")   + 
+  #   geom_errorbar(aes(ymin=lower,ymax=upper),width=0.1,position=pd)
+  # 
   
   l$response <- as.numeric(l$response)
   l$treatment <- factor(l$treatment)
   
-  lx <- l[l$baseline %in% 1,]
+  l$treatment <- ifelse( l$treatment %in% 0,"Placebo","Treatment")
+  
+  lx <- l[l$baseline %in% base,]     # user input selects this
+  
  gp <- ggplot(lx, aes(response,estimate, color=treatment)) +
     geom_point(aes(shape=treatment),size=4, position=pd) + 
     scale_color_manual(name="treatment",values=c("coral","steelblue")) + 
     theme_bw() + 
-    scale_x_continuous("response", breaks=1:br1, labels=1:br1) + 
-    scale_y_continuous("Probability")   + 
-    geom_errorbar(aes(ymin=lower,ymax=upper),width=0.1,position=pd)
+    scale_x_continuous( breaks=1:br1, labels=1:br1) +   #"response",
+  #  scale_y_continuous("Probability")   + 
+    geom_errorbar(aes(ymin=lower,ymax=upper),width=0.2,position=pd) 
+ 
+ 
+ gp <- gp + theme(panel.background=element_blank(),
+                  plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
+                  legend.text=element_text(size=12),
+                  #  legend.title=element_text(size=14),
+                  legend.title=element_blank(),
+                  axis.text.x = element_text(size=10),
+                  axis.text.y = element_text(size=10),
+                  axis.line.x = element_line(color="black"),
+                  axis.line.y = element_line(color="black"),
+                  axis.title.y=element_text(size=16),  ###########
+                  axis.title.x=element_text(size=16),  ###########
+                  axis.title = element_text(size = 20) , 
+                  
+                  
+                  
+                  
+                  plot.caption=element_text(hjust = 0, size = 7)) +
+   
+    labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
+        x = "Response category",
+        y = "Predicted probability",
+          #subtitle =paste0(c("Note probabilites", prob," are equivalent to log odds: -4,-2, 0 ,2, 4 "), collapse=", "),
+          caption = "")  #+
+    
+    # guides(fill=guide_legend(title="Treatment"))
+    # 
   
-  print(gp)
+  
+  
+  
+    print(gp)
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
   
   })
@@ -689,43 +769,43 @@ server <- shinyServer(function(input, output   ) {
   
   predicts <- reactive({
     
-    sample <- random.sample()
-    
-    f    <- mcmc$res
-    
-    levz <- sample$lev
-    
-    newdat <- data.frame(
-      baseline = rep(1:levz),
-      treatment = rep(0:1, each = levz))
-    
-    L <- predict(f1, newdata=newdat, se.fit=TRUE)
-    #plogis(with(L, linear.predictors + 1.96*cbind(- se.fit, se.fit)))
-    
-    # d <- datadist(newdat)
-    # options(datadist="d")
- 
-    # L <- predict(f, newdata=newdat, se.fit=TRUE)          #omitted kint= so use 1st intercept
-    plogis(with(L, linear.predictors + 1.96*cbind(-se.fit,se.fit)))
-    predict(f, type="fitted.ind")#[1:5,]   #gets Prob(better) and all others
-    d1 <- newdat
-    predict(f, d1, type="fitted")        # Prob(Y>=j) for new observation
-    predict(f, d1, type="fitted.ind")    # Prob(Y=j)
-    predict(f, d1, type='mean', codes=TRUE) # predicts mean(y) using codes 1,2,3
-    m <- Mean(f, codes=TRUE)
-    lp <- predict(f, d1)
-    m(lp)
-    # Can use function m as an argument to Predict or nomogram to
-    # get predicted means instead of log odds or probabilities
-    dd <- datadist(baseline,treatment); options(datadist='dd')
-    m
-    plot(Predict(f, x1, fun=m), ylab='Predicted Mean')
-    # Note: Run f through bootcov with coef.reps=TRUE to get proper confidence
-    # limits for predicted means from the prop. odds model
-    options(datadist=NULL)
-    
-    
-    return(list(   sf1=sf1 , dat=dat)) 
+    # sample <- random.sample()
+    # 
+    # f    <- mcmc$res
+    # 
+    # levz <- sample$lev
+    # 
+    # newdat <- data.frame(
+    #   baseline = rep(1:levz),
+    #   treatment = rep(0:1, each = levz))
+    # 
+    # L <- predict(f1, newdata=newdat, se.fit=TRUE)
+    # #plogis(with(L, linear.predictors + 1.96*cbind(- se.fit, se.fit)))
+    # 
+    # # d <- datadist(newdat)
+    # # options(datadist="d")
+    # 
+    # # L <- predict(f, newdata=newdat, se.fit=TRUE)          #omitted kint= so use 1st intercept
+    # plogis(with(L, linear.predictors + 1.96*cbind(-se.fit,se.fit)))
+    # predict(f, type="fitted.ind")#[1:5,]   #gets Prob(better) and all others
+    # d1 <- newdat
+    # predict(f, d1, type="fitted")        # Prob(Y>=j) for new observation
+    # predict(f, d1, type="fitted.ind")    # Prob(Y=j)
+    # predict(f, d1, type='mean', codes=TRUE) # predicts mean(y) using codes 1,2,3
+    # m <- Mean(f, codes=TRUE)
+    # lp <- predict(f, d1)
+    # m(lp)
+    # # Can use function m as an argument to Predict or nomogram to
+    # # get predicted means instead of log odds or probabilities
+    # dd <- datadist(baseline,treatment); options(datadist='dd')
+    # m
+    # plot(Predict(f, x1, fun=m), ylab='Predicted Mean')
+    # # Note: Run f through bootcov with coef.reps=TRUE to get proper confidence
+    # # limits for predicted means from the prop. odds model
+    # options(datadist=NULL)
+    # 
+    # 
+    # return(list(   sf1=sf1 , dat=dat)) 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   })
   
