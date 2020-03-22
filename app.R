@@ -352,6 +352,13 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                       
                                     div(plotOutput("predictm", width=fig.width9, height=fig.height9)),
                                       
+                                    
+                                    textInput('kints', 
+                                              div(h5(tags$span(style="color:blue", 
+                                                               "Enter an intercept"))), "2")
+                                    
+                                    
+                             # ),
                                       # fluidRow(
                                       #   
                                       #   textInput('group', 
@@ -550,13 +557,63 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                     ),
                                     
                                   )
-                         ) # end panel
+                         ), # end panel
                               # textInput('levels', 
                               #           div(h5(tags$span(style="color:blue", "Number of ordinal categories in response"))), "15"),
                               # tags$hr(), 
-                              
-                              
-                              
+                         tabPanel("99 check", value=3, 
+                                  h4("xxxxxxxxxxxxxxxxxxxxxx."),
+                                  h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
+                                  div(plotOutput("check", width=fig.width1, height=fig.height1)),
+                                  
+                                  fluidRow(
+                                    column(width = 7, offset = 0, style='padding:1px;',
+                                           h4("xxxxxxxxxxxxxxxxxxxxxn"), 
+                                           # div( verbatimTextOutput("reg.summary4"))
+                                    )),
+                                  
+                                  
+                         ),
+                         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                       
+                         
+                         
+                         
+                         
+                         
+                         
+                         
+                         # herer
+                         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                         tabPanel("7 Data", value=3, 
+                         
+                         
+                         fluidRow(
+                           column(width = 6, offset = 0, style='padding:1px;',
+                                  #h4("ANCOVA model"), 
+                                  DT::dataTableOutput("table1"))
+                            ,
+                           
+                           fluidRow(
+                             column(width = 5, offset = 0, style='padding:1px;',
+                                    #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
+                                    div( verbatimTextOutput("reg.summarz") ),
+                                    
+                                    # h4(htmlOutput("textWithNumber",) ),
+                             )))
+                         )
+                         
+                         
+                         
+                         
+                         
+                         
+                         
+                         
+                         
+                         
+                         
+                         
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   END NEW   
                             )
                             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -599,7 +656,7 @@ server <- shinyServer(function(input, output   ) {
    # group <- (as.numeric(unlist(strsplit(input$group,","))))    
    #  # R
    #  rcat <- (as.numeric(unlist(strsplit(input$rcat,","))))     
-    
+   
     
     return(list(  
       n=trt[1],  
@@ -608,8 +665,8 @@ server <- shinyServer(function(input, output   ) {
       or2=n2y2[1],
       shape1=dis[1], 
       shape2=dis[2],
-      base=base[1]
-      
+      base=base[1]#,
+     # kints=kints[1]
       # group=group[1],
       # rcat=rcat
       # 
@@ -634,6 +691,7 @@ server <- shinyServer(function(input, output   ) {
     #base  <- sample$base
     group  <- sample$group
     rcat  <- sample$rcat
+   # kints  <- sample$kints
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Parameters 
     
@@ -723,11 +781,12 @@ server <- shinyServer(function(input, output   ) {
     options(datadist="d") 
     f1 <- lrm(y ~treatment + baseline, data=dat )  # would prefer orm here but coeffs dont show up !
     f2 <- orm(y ~treatment + baseline, data=dat ) 
+    f3 <- ols(y ~treatment + baseline, data=dat ) 
     sf1 <- summary(f1, antilog=TRUE, verbose=FALSE)
     
     #f1 <- f1$coefficients 
     
-    return(list(res= f1  , sf1=sf1 , dat=dat, f2=f2)) 
+    return(list(res= f1  , sf1=sf1 , dat=dat, f2=f2,f3=f3)) 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   })
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -991,12 +1050,16 @@ server <- shinyServer(function(input, output   ) {
     dat <- mcmc()$dat
     
     levz <- sample$lev
+   
     
+    kints    <-     as.numeric(unlist(strsplit(input$kints,",")))
+    
+     
     m <- Mean(f, codes=TRUE)
     lp <- predict(f, dat)
     m(lp)
   
-    P <- Predict(f, baseline, treatment, fun=m )
+    P <- Predict(f, baseline, treatment, fun=m, kint=kints )
     
     P$treatment <- ifelse(P$treatment %in% 0, "Placebo", "Treatment")
     
@@ -1031,21 +1094,81 @@ server <- shinyServer(function(input, output   ) {
            y = "Predicted Mean",
            subtitle =c("xxxxxxxxxxxxxx"),
            caption = "")
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   })
+  
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  #  
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  
+  
+  
+  
+  output$check <- renderPlot({   
+    
+    sample <- random.sample()
+    n    <- sample$n
+    levz <- sample$lev
+    base <- sample$base
+     
+     
+ 
+    dat <- mcmc()$dat
+    f3 <- mcmc()$f3
+    f2 <- mcmc()$f2
+
+  #  dd <- datadist(dat); options(datadist='dd')
+ 
+    (h <- f2)
+    (f <- f3)
+    
+    mh <- Mean(h) 
+    r <- rbind(ols      = Predict(f, conf.int=FALSE),
+              ordinal   = Predict(h, conf.int=FALSE, fun=mh) 
+    )
+    plot(r, groups='.set.')
+    
+    
+  })
+  
+  
+  
+  
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  
+  compair <- reactive({
+    
+    sample <- random.sample()
+    n    <- sample$n
+    levz <- sample$lev
+    base <- sample$base
+     
+    dat <- mcmc()$dat
+    f3 <- mcmc()$f3
+    f2 <- mcmc()$f2
+     
+    (h <- f2)
+    (f <- f3)
+    
+    mh <- Mean(h) 
+    r <- rbind(ols      = Predict(f, conf.int=FALSE),
+               ordinal   = Predict(h, conf.int=FALSE, fun=mh) 
+    )
+    
+    
+    return(list(r=r)) 
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  })
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
   
   
@@ -1563,6 +1686,12 @@ server <- shinyServer(function(input, output   ) {
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  output$reg.summarz <- renderPrint({
+    
+    return( (compair()$r ))
+    
+  })
+  
   output$reg.summary1 <- renderPrint({
     
     return( (mcmc()$f2 ))
@@ -2257,33 +2386,42 @@ server <- shinyServer(function(input, output   ) {
   # print Efron's data
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
-  output$tablex <- DT::renderDataTable({
-    # 
-    # d <- ruben()$data.set
-    # 
-    # x <- d
-    # 
-    # foo <- x
-    #  datatable(x,
-    #            
-    #            rownames = TRUE,
-    #            
-    #            options = list(
-    #                searching = TRUE,
-    #                #pageLength = 20,
-    #                paging=FALSE,
-    #                lengthMenu = FALSE ,
-    #                lengthChange = FALSE,
-    #                autoWidth = TRUE
-    #                # colReorder = TRUE,
-    #                # deferRender = TRUE,
-    #                # scrollY = 200,
-    #                # scroller = T
-    #            ))  %>% 
-    #      formatRound(
-    #          columns= c("dye","efp"), digits=c(2,2)  ) 
+  output$table1 <- DT::renderDataTable({
     
+    foo<- mcmc()$dat
+    
+    namez <- c("treatment","baseline","y" )
+    
+    
+    names(foo) <- namez
+  
+    foo <- plyr::arrange(foo, treatment, baseline)
+    
+    rownames(foo) <- NULL
+    library(DT)
+    
+    datatable(foo,   
+              
+              rownames = FALSE,
+              #           
+              options = list(
+                searching = TRUE,
+                pageLength = 15,
+                paging=TRUE,
+                lengthMenu = FALSE ,
+                lengthChange = FALSE,
+                autoWidth = TRUE,
+                #  colReorder = TRUE,
+                #deferRender = TRUE,
+                # scrollY = 200,
+                scroller = T
+              ))  %>%
+      
+      formatRound(
+        columns= namez,   
+        digits=c(0,0,0)  )
   })
+  # --------------------------------------------------------------------------
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
