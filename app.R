@@ -863,7 +863,7 @@ server <- shinyServer(function(input, output   ) {
             caption = "")  +
       geom_dl(aes(label = variable), method = list(dl.combine("first.points", "last.points"),
                                                    cex = 0.9)) 
-     # guides(fill=guide_legend(title="Treatment"))
+     # guides(fill=guide_legend(title="Treatment"))  
      # 
      
      print(gpp)
