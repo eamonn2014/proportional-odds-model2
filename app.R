@@ -16,6 +16,9 @@ library(Hmisc)
 # library(boot)
 library(reshape)
 library(rms)
+require(ordinal)
+require(ggplot2)
+require(tidyverse)
 #options(mc.cores = parallel::detectCores())
 #rstan_options(auto_write = TRUE)
 options(max.print=1000000)    
@@ -445,20 +448,38 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        div(plotOutput("preds", width=fig.width9, height=fig.height9)),
                                        
                                        fluidRow(
-                                         # column(12,
-                                         #        sliderTextInput("pvalue2","Enter a (two-sided) P-Value and see the associated effect size (orange crosses on x axis of Figure 3):",
-                                         #                        
-                                         #                        
-                                         #                        selected=0.01, grid = T, width = '100%'))
+                                    
                                          textInput('base', 
-                                                   div(h5(tags$span(style="color:blue", "Enter a patient's baseline category and see their predicted probabilities for response outcomes"))), "1")
+                                        div(h5(tags$span(style="color:blue", 
+                                                         "Enter a patient's baseline category and see their predicted probabilities for response outcomes"))), "1")
                                          
                                          
                                        ),
                                        
-                                       h4(htmlOutput("textWithNumber4",) ) ,
-                                       width = 30 )
+                                       #h4(htmlOutput("textWithNumber4",) ) ,
+                                       width = 30 ),
+                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               
+                              tabPanel("5 pred probs", 
+                                      
+                                      div(plotOutput("predicts", width=fig.width9, height=fig.height9)),
+                                      
+                                      fluidRow(
+                                        
+                                        textInput('group', 
+                                                  div(h5(tags$span(style="color:blue", 
+                                                                   "select treatment group: 0 for placebo, 1 for treatment, 2 for both"))), "1"),
+                                        
+                                        textInput('rcat', 
+                                                  div(h5(tags$span(style="color:blue", 
+                                                                   "Response category"))), "1,2,3,4,5")
+                                        
+                                        
+                                      ),
+                                      
+                                      
+                                      #h4(htmlOutput("textWithNumber4",) ) ,
+                                      width = 30 )
                               
                               
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -508,6 +529,11 @@ server <- shinyServer(function(input, output   ) {
     
     base<- as.numeric(unlist(strsplit(input$base,",")))
     
+   group <- (as.numeric(unlist(strsplit(input$group,","))))    
+    # R
+    rcat <- (as.numeric(unlist(strsplit(input$rcat,","))))     
+    
+    
     return(list(  
       n=trt[1],  
       lev=ctr[1],
@@ -515,7 +541,12 @@ server <- shinyServer(function(input, output   ) {
       or2=n2y2[1],
       shape1=dis[1], 
       shape2=dis[2],
-      base=base
+      base=base[1],
+      group=group[1],
+      rcat=rcat[1]
+      
+      
+      
     ))
     
   })
@@ -532,8 +563,9 @@ server <- shinyServer(function(input, output   ) {
     b2  <- sample$or2
     shape1  <- sample$shape1
     shape2  <- sample$shape2
-    base  <- sample$base
-    
+    #base  <- sample$base
+    group  <- sample$group
+    rcat  <- sample$rcat
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Parameters 
     
@@ -617,7 +649,7 @@ server <- shinyServer(function(input, output   ) {
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # put the data together
     dat <- data.frame(treatment, baseline, y = factor(y))
-    
+  # dat$baseline <- factor(dat$baseline)
     # use harrell's po function analyse the data
     d <<- datadist(dat)
     options(datadist="d") 
@@ -638,42 +670,53 @@ server <- shinyServer(function(input, output   ) {
   output$preds <- renderPlot({
     
     sample <- random.sample()
-    
     n    <- sample$n
     levz <- sample$lev
     base <- sample$base
-    dat <- mcmc()$dat
+    
+    datx <- mcmc()$dat
+    
+    
+    
     
   # I can get non cummulative probabilites using clm
   # Don't know how to do it with rms? yet
-  require(ordinal)
-  Res.clm <- clm(y ~treatment + baseline, data=dat)
-  summary(Res.clm)
+ 
+  Res.clm <- clm(y ~treatment + baseline, data=datx)
+  
+  # levz <-   length(unique(Res.clm$model$baseline))
+  
+  # summary(Res.clm)
   
   newdat <- data.frame(
-    baseline = rep(1:levz),
-    treatment = rep(0:1, each = levz))
-  
+    baseline =   (rep(1:levz)),
+    treatment = rep(0:1, each = levz)
+    )
+  # newdat <- data.frame(
+  #   baseline =  factor(sort(unique(Res.clm$model$baseline))),
+  #   treatment = rep(0:1, each = levz)
+  # )
+ 
   
   newdat <- cbind(newdat, predict(Res.clm, newdata=newdat, se.fit=TRUE,
                                   interval=TRUE, type="prob"))
   
-  l <- melt(data = newdat, id.vars = c("baseline","treatment") )
+  
   
   A<- cbind( newdat[,1:2], newdat[,grep("^fit", colnames(newdat)) ])
   B<- cbind( newdat[,1:2], newdat[,grep("^lwr", colnames(newdat)) ])
   C<- cbind( newdat[,1:2], newdat[,grep("^upr", colnames(newdat)) ])
-  
+
   lA <- melt(data = A, id.vars = c("baseline","treatment") )
   lB <- melt(data = B, id.vars = c("baseline","treatment") )
   lC <- melt(data = C, id.vars = c("baseline","treatment") )
-  
-  lA$variable <-  gsub(".*\\.","", lA$variable)    
-  lB$variable <-   gsub(".*\\.","", lB$variable) 
-  lC$variable <-   gsub(".*\\.","", lC$variable)  
-  
+
+  lA$variable <-  gsub(".*\\.","", lA$variable)
+  lB$variable <-   gsub(".*\\.","", lB$variable)
+  lC$variable <-   gsub(".*\\.","", lC$variable)
+
   l <- cbind(lA,lB,lC)
-  
+
   l <- l[,c(1:4,8,12)]
   
   names(l) <- c("baseline","treatment","response","estimate","lower", "upper")
@@ -693,9 +736,9 @@ server <- shinyServer(function(input, output   ) {
   # 
   
   l$response <- as.numeric(l$response)
-  l$treatment <- factor(l$treatment)
-  
+  l$treatment <- factor( l$treatment)
   l$treatment <- ifelse( l$treatment %in% 0,"Placebo","Treatment")
+  br1 <- length(unique(l$baseline))
   
   lx <- l[l$baseline %in% base,]     # user input selects this
   
@@ -703,56 +746,34 @@ server <- shinyServer(function(input, output   ) {
     geom_point(aes(shape=treatment),size=4, position=pd) + 
     scale_color_manual(name="treatment",values=c("coral","steelblue")) + 
     theme_bw() + 
-    scale_x_continuous( breaks=1:br1, labels=1:br1) +   #"response",
+    scale_x_continuous( breaks=1:br1, labels=1:br1) +   
   #  scale_y_continuous("Probability")   + 
-    geom_errorbar(aes(ymin=lower,ymax=upper),width=0.2,position=pd) 
+   geom_line(position=pd, linetype = "dashed")+
+    geom_errorbar(aes(ymin=lower,ymax=upper),width=0.2,position=pd) +
  
- 
- gp <- gp + theme(panel.background=element_blank(),
+  theme(panel.background=element_blank(),
                   plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
                   legend.text=element_text(size=12),
-                  #  legend.title=element_text(size=14),
+                  #legend.title=element_text(size=14),
                   legend.title=element_blank(),
                   axis.text.x = element_text(size=10),
                   axis.text.y = element_text(size=10),
                   axis.line.x = element_line(color="black"),
                   axis.line.y = element_line(color="black"),
-                  axis.title.y=element_text(size=16),  ###########
-                  axis.title.x=element_text(size=16),  ###########
+                  axis.title.y=element_text(size=16),  
+                  axis.title.x=element_text(size=16),  
                   axis.title = element_text(size = 20) , 
-                  
-                  
-                  
-                  
-                  plot.caption=element_text(hjust = 0, size = 7)) +
+           plot.caption=element_text(hjust = 0, size = 7) ) +
    
     labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
         x = "Response category",
         y = "Predicted probability",
-          #subtitle =paste0(c("Note probabilites", prob," are equivalent to log odds: -4,-2, 0 ,2, 4 "), collapse=", "),
-          caption = "")  #+
-    
+          subtitle =c("xxxxxxxxxxxxxx"),
+          caption = "")  
     # guides(fill=guide_legend(title="Treatment"))
     # 
   
-  
-  
-  
-    print(gp)
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+  print(gp)
   
   })
   
@@ -761,26 +782,77 @@ server <- shinyServer(function(input, output   ) {
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~not used
   
-  
-  
-  
-  
-  
-  
-  predicts <- reactive({
+  output$predicts <- renderPlot({   
     
-    # sample <- random.sample()
+      sample <- random.sample()
     # 
-    # f    <- mcmc$res
+      f    <- mcmc()$res
     # 
-    # levz <- sample$lev
-    # 
-    # newdat <- data.frame(
-    #   baseline = rep(1:levz),
-    #   treatment = rep(0:1, each = levz))
-    # 
-    # L <- predict(f1, newdata=newdat, se.fit=TRUE)
-    # #plogis(with(L, linear.predictors + 1.96*cbind(- se.fit, se.fit)))
+     levz <- sample$lev
+    rcat <- sample$rcat
+     group <- sample$group
+     
+     require(reshape)
+     
+     newdat <- data.frame(
+       baseline = rep(1:levz),
+       treatment = rep(0:1, each = levz))
+     
+     
+     xx <- predict(f, newdat, type="fitted.ind")    #
+     
+     mm <- melt(data.frame(xx))
+     
+     mm <- cbind(newdat,mm )
+     
+     mm$variable <-  gsub(".*\\.","", mm$variable)
+     
+     mm <- plyr::arrange(mm,treatment,variable,baseline )
+      
+     mm$flag <- rep(seq_along( rle(mm$variable)$values ), times = rle(mm$variable)$lengths )
+     
+      
+    mm <-  mm[mm$treatment %in% group,]
+     
+    mm <-  mm[mm$variable %in% rcat,]
+     
+     
+     
+     
+    gpp <- ggplot(mm, aes(baseline, value, group=factor(flag))) +
+       geom_line(aes(color=factor(flag))) +
+     
+     scale_x_continuous( breaks=1:levz, labels=1:levz) +  
+ 
+       theme(panel.background=element_blank(),
+             plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
+             legend.text=element_text(size=12),
+             #legend.title=element_text(size=14),
+             legend.title=element_blank(),
+             axis.text.x = element_text(size=10),
+             axis.text.y = element_text(size=10),
+             axis.line.x = element_line(color="black"),
+             axis.line.y = element_line(color="black"),
+             axis.title.y=element_text(size=16),  
+             axis.title.x=element_text(size=16),  
+             axis.title = element_text(size = 20) , 
+             plot.caption=element_text(hjust = 0, size = 7) ) +
+       
+       labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
+            x = "Baseline category",
+            y = "Predicted probability",
+            subtitle =c("xxxxxxxxxxxxxx"),
+            caption = "")  
+     # guides(fill=guide_legend(title="Treatment"))
+     # 
+     
+     print(gpp)
+    
+    
+    
+    
+    
+    
     # 
     # # d <- datadist(newdat)
     # # options(datadist="d")
@@ -965,8 +1037,8 @@ server <- shinyServer(function(input, output   ) {
     
     x_values <- seq(0,1, length.out = 1000)
     
-    require(ggplot2)
-    require(tidyverse)
+    # require(ggplot2)
+    # require(tidyverse)
     data.frame(x_values) %>%
       ggplot(aes(x_values))+
       stat_function(fun=dbeta, args=list(shape1=shape1.,shape2=shape2.)) +
