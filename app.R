@@ -447,6 +447,7 @@ With the default inputs we can see horizontal lines in the treated responses.
                                       column(width = 5, offset = 0, style='padding:1px;',
                                              #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
                                              div( verbatimTextOutput("reg.summary5")),
+                                             div(plotOutput("predictl", width=fig.width7, height=fig.height)),
                                              
                                              # h4(htmlOutput("textWithNumber",) ),
                                       ))),
@@ -983,8 +984,12 @@ server <- shinyServer(function(input, output   ) {
    
     f    <- mcmc()$res
  
+    dat <- mcmc()$dat
+    
+    levz <- sample$lev
+    
     m <- Mean(f, codes=TRUE)
-    lp <- predict(f, d1)
+    lp <- predict(f, dat)
     m(lp)
   
     P <- Predict(f, baseline, treatment, fun=m )
@@ -1607,11 +1612,37 @@ server <- shinyServer(function(input, output   ) {
     linear <- ols(y ~treatment + (baseline), data=dat)
     an <- anova(linear)
     
+    
+   # P <- predict(linear, dat,
+   #          type=c("lp" ),
+   #          se.fit=FALSE, conf.int=TRUE,
+   #          conf.type=c( 'individual' ),
+   #          ) # ols
+
+    
+    
     return(list(linear=linear , an=an)) 
     
     #return(list(linear=linear ))
     
   })
+  
+  
+  
+  
+  output$predictl <- renderPlot({   
+    
+   # sample <- random.sample()
+    
+    linear    <- lmx()$linear
+    an <- anova(linear) 
+    ggplot(Predict(linear, treatment), anova=an, pval=TRUE) ############  YES
+    
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  })
+  
+  
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # NOT USED REPLACED BY FACET PLOT!!!!!!
