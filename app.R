@@ -2,6 +2,7 @@
 # Rshiny ideas from on https://gallery.shinyapps.io/multi_regression/
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 rm(list=ls()) 
+library(directlabels)
 # library(ggplot2)
 library(shiny) 
 library(shinyWidgets)
@@ -529,9 +530,9 @@ server <- shinyServer(function(input, output   ) {
     
     base<- as.numeric(unlist(strsplit(input$base,",")))
     
-   group <- (as.numeric(unlist(strsplit(input$group,","))))    
-    # R
-    rcat <- (as.numeric(unlist(strsplit(input$rcat,","))))     
+   # group <- (as.numeric(unlist(strsplit(input$group,","))))    
+   #  # R
+   #  rcat <- (as.numeric(unlist(strsplit(input$rcat,","))))     
     
     
     return(list(  
@@ -541,10 +542,11 @@ server <- shinyServer(function(input, output   ) {
       or2=n2y2[1],
       shape1=dis[1], 
       shape2=dis[2],
-      base=base[1],
-      group=group[1],
-      rcat=rcat[1]
+      base=base[1]
       
+      # group=group[1],
+      # rcat=rcat
+      # 
       
       
     ))
@@ -789,8 +791,19 @@ server <- shinyServer(function(input, output   ) {
       f    <- mcmc()$res
     # 
      levz <- sample$lev
-    rcat <- sample$rcat
-     group <- sample$group
+    # rcat <- sample$rcat
+    #  group <- sample$group
+     
+     
+     
+     group <- (as.numeric(unlist(strsplit(input$group,","))))    
+     # R
+     rcat <- (as.numeric(unlist(strsplit(input$rcat,","))))     
+     
+      
+       
+     
+   
      
      require(reshape)
      
@@ -812,15 +825,19 @@ server <- shinyServer(function(input, output   ) {
      mm$flag <- rep(seq_along( rle(mm$variable)$values ), times = rle(mm$variable)$lengths )
      
       
-    mm <-  mm[mm$treatment %in% group,]
+     if (group %in% 0) {g = c(0)} else if (group %in% 1) {g = c(1)} else if (group %in% 2) {g = c(0,1)} 
      
+    mm <-  mm[mm$treatment %in% g,]
+     
+    
     mm <-  mm[mm$variable %in% rcat,]
      
+    A <- ifelse(mm$treatment %in% 0, "Placebo","Treatment")
+    mm$grp <- paste(A, mm$variable)
      
      
-     
-    gpp <- ggplot(mm, aes(baseline, value, group=factor(flag))) +
-       geom_line(aes(color=factor(flag))) +
+    gpp <- ggplot(mm, aes(baseline, value, group=factor(grp))) +
+       geom_line(aes(color=factor(grp))) +
      
      scale_x_continuous( breaks=1:levz, labels=1:levz) +  
  
@@ -836,13 +853,16 @@ server <- shinyServer(function(input, output   ) {
              axis.title.y=element_text(size=16),  
              axis.title.x=element_text(size=16),  
              axis.title = element_text(size = 20) , 
-             plot.caption=element_text(hjust = 0, size = 7) ) +
+             plot.caption=element_text(hjust = 0, size = 7) ,
+             legend.position="none") +
        
        labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
             x = "Baseline category",
             y = "Predicted probability",
             subtitle =c("xxxxxxxxxxxxxx"),
-            caption = "")  
+            caption = "")  +
+      geom_dl(aes(label = variable), method = list(dl.combine("first.points", "last.points"),
+                                                   cex = 0.9)) 
      # guides(fill=guide_legend(title="Treatment"))
      # 
      
