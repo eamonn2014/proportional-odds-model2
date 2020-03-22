@@ -107,18 +107,18 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                   ),
                                   
                                   textInput('n', 
-                                            div(h5(tags$span(style="color:blue", "Total sample size"))), "100"),
+                                            div(h5(tags$span(style="color:blue", "Total sample size"))), "1000"),
                                   
                                   tags$hr(),
                                   textInput('dist', 
                                             div(h5(tags$span(style="color:blue", "Approximate the distribution of the baseline version of the response by specifying
-                                                             Beta shape parameters"))), "2,1"),
+                                                             Beta shape parameters"))), "22,21"),
                                   
                                   textInput('levels', 
-                                            div(h5(tags$span(style="color:blue", "Number of ordinal categories in response"))), "15"),
+                                            div(h5(tags$span(style="color:blue", "Number of ordinal categories in response"))), "10"),
                                   tags$hr(), 
                                   textInput('or1', 
-                                            div(h5(tags$span(style="color:blue", "Treatment odds ratio"))), "1.2"),
+                                            div(h5(tags$span(style="color:blue", "Treatment odds ratio"))), "2"),
                                  
                                   
                                   textInput('or2', 
@@ -231,14 +231,14 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        
                                        fluidRow(
                                          column(width = 6, offset = 0, style='padding:1px;',
-                                                h4("Proportional odds model lrm function"), 
-                                                div( verbatimTextOutput("reg.summary2") )
+                                                h4("Proportional odds model orm function"), 
+                                                div( verbatimTextOutput("reg.summary1") )
                                          ) ,
                                          
                                          fluidRow(
                                            column(width = 6, offset = 0, style='padding:1px;',
-                                                  h4("Proportional odds model orm function"), 
-                                                  div( verbatimTextOutput("reg.summary1")),
+                                                 # h4("Proportional odds model orm function"), 
+                                                 # div( verbatimTextOutput("reg.summary1")),
                                                   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
                                                   div( verbatimTextOutput("reg.summary3")),
                                                   
@@ -446,41 +446,101 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               
                               tabPanel("4 Take home messages", 
                                        
-                                       div(plotOutput("preds", width=fig.width9, height=fig.height9)),
+                                 #      div(plotOutput("preds", width=fig.width9, height=fig.height9)),
                                        
-                                       fluidRow(
-                                    
-                                         textInput('base', 
-                                        div(h5(tags$span(style="color:blue", 
-                                                         "Enter a patient's baseline category and see their predicted probabilities for response outcomes"))), "1")
-                                         
-                                         
-                                       ),
-                                       
-                                       #h4(htmlOutput("textWithNumber4",) ) ,
-                                       width = 30 ),
+                                       # fluidRow(
+                                       # 
+                                       #   textInput('base', 
+                                       #  div(h5(tags$span(style="color:blue", 
+                                       #                   "Enter a patient's baseline category and see their predicted probabilities for response outcomes"))), "1")
+                                       #   
+                                       #   
+                                       # ),
+                                       #  
+                                       # width = 30
+                                 ),
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               
-                              tabPanel("5 pred probs", 
+                              tabPanel("5 pred Mean", 
                                       
-                                      div(plotOutput("predicts", width=fig.width9, height=fig.height9)),
+                                    div(plotOutput("predictm", width=fig.width9, height=fig.height9)),
                                       
-                                      fluidRow(
-                                        
-                                        textInput('group', 
-                                                  div(h5(tags$span(style="color:blue", 
-                                                                   "select treatment group: 0 for placebo, 1 for treatment, 2 for both"))), "1"),
-                                        
-                                        textInput('rcat', 
-                                                  div(h5(tags$span(style="color:blue", 
-                                                                   "Response category"))), "1,2,3,4,5")
-                                        
-                                        
-                                      ),
+                                      # fluidRow(
+                                      #   
+                                      #   textInput('group', 
+                                      #             div(h5(tags$span(style="color:blue", 
+                                      #                              "select treatment group: 0 for placebo, 1 for treatment, 2 for both"))), "1"),
+                                      #   
+                                      #   textInput('rcat', 
+                                      #             div(h5(tags$span(style="color:blue", 
+                                      #                              "Response category"))), "1,2,3,4,5")
+                                      #   
+                                      #   
+                                      # ),
                                       
-                                      
-                                      #h4(htmlOutput("textWithNumber4",) ) ,
-                                      width = 30 )
+                                      #width = 30 
+                                   ),
+                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                              
+                              
+                              tabPanel("44 Take home messages", 
+                                       
+                                       #div(plotOutput("preds", width=fig.width9, height=fig.height9)),
+                                       h4("On the left you are looking at the point of view of what happens to a patient considering their baseline category. We can see the probability of response and how it depends on treatment. With the default inputs we can see a shift in the distribution to the higher categories if treated.  
+
+On the right we can look at ALL baseline categories and see the predicted probability curves. Vertically all the curves will sum to 1 for a treatment group. For example if a patient is in baseline group category 1 we can see the probability of them being in each category if they were treated (or alternatively if they were in placebo).
+With the default inputs we can see horizontal lines in the treated responses. 
+"),
+                                       fluidRow(
+                                         column(width = 6, offset = 0, style='padding:1px;',
+                                                #h4("ANCOVA model"), 
+                                                #div(plotOutput("preds", width=fig.width9, height=fig.height9)),
+                                                div(plotOutput("preds", width=fig.width7, height=fig.height7)),
+                                                
+                                                fluidRow(
+                                                  
+                                                  textInput('base', 
+                                                            div(h5(tags$span(style="color:blue", 
+                                                                             "Enter a patient's baseline category and see their predicted probabilities for response outcomes"))), "1")
+                                                  
+                                                  
+                                                ),
+                                         ) ,
+                                         
+                                         fluidRow(
+                                           
+                                     
+                                           
+                                           
+                                           column(width = 5, offset = 0, style='padding:1px;',
+                                                  #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
+                                                #  div( verbatimTextOutput("reg.summary5")),
+                                                div(plotOutput("predicts", width=fig.width7, height=fig.height7)),
+                                                
+                                              
+                                          
+                                                fluidRow(
+                                                  
+                                                  textInput('group', 
+                                                            div(h5(tags$span(style="color:blue", 
+                                                                             "select treatment group: 0 for placebo, 1 for treatment, 2 for both"))), "1"),
+                                                  
+                                                  textInput('rcat', 
+                                                            div(h5(tags$span(style="color:blue", 
+                                                                             "Response category, enter 999 to see all levels or select level(s) of interest"))), "999"),
+                                                  
+                                                 
+                                                  
+                                                  
+                                                ),
+                                                  # h4(htmlOutput("textWithNumber",) ),
+                                           ))),
+                                       
+                                       #h4(htmlOutput("textWithNumber4",) ) ,
+                                       width = 30 )     
+                              
+                               
+                              
                               
                               
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -765,7 +825,12 @@ server <- shinyServer(function(input, output   ) {
                   axis.title.y=element_text(size=16),  
                   axis.title.x=element_text(size=16),  
                   axis.title = element_text(size = 20) , 
-           plot.caption=element_text(hjust = 0, size = 7) ) +
+           plot.caption=element_text(hjust = 0, size = 7) ,
+   
+  legend.justification = c(0, 1), 
+ legend.position = c(0.05, .99))  +
+   
+   
    
     labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
         x = "Response category",
@@ -830,43 +895,49 @@ server <- shinyServer(function(input, output   ) {
     mm <-  mm[mm$treatment %in% g,]
      
     
-    mm <-  mm[mm$variable %in% rcat,]
+     if (rcat %in% 999) {r = 1:levz} else   {r = rcat} 
+    
+    mm <-  mm[mm$variable %in% r,]
      
     A <- ifelse(mm$treatment %in% 0, "Placebo","Treatment")
     mm$grp <- paste(A, mm$variable)
-     
-     
+    
+    A <- ifelse(mm$treatment %in% 0, "Pl.","Trt.")
+    mm$var2 <- paste(A, mm$variable)
+    
+    
+    
     gpp <- ggplot(mm, aes(baseline, value, group=factor(grp))) +
-       geom_line(aes(color=factor(grp))) +
-     
-     scale_x_continuous( breaks=1:levz, labels=1:levz) +  
- 
-       theme(panel.background=element_blank(),
-             plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
-             legend.text=element_text(size=12),
-             #legend.title=element_text(size=14),
-             legend.title=element_blank(),
-             axis.text.x = element_text(size=10),
-             axis.text.y = element_text(size=10),
-             axis.line.x = element_line(color="black"),
-             axis.line.y = element_line(color="black"),
-             axis.title.y=element_text(size=16),  
-             axis.title.x=element_text(size=16),  
-             axis.title = element_text(size = 20) , 
-             plot.caption=element_text(hjust = 0, size = 7) ,
-             legend.position="none") +
-       
-       labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
-            x = "Baseline category",
-            y = "Predicted probability",
-            subtitle =c("xxxxxxxxxxxxxx"),
-            caption = "")  +
-      geom_dl(aes(label = variable), method = list(dl.combine("first.points", "last.points"),
+      geom_line(aes(color=factor(A))) +
+      
+      scale_x_continuous( breaks=1:levz, labels=1:levz) +  
+      
+      theme(panel.background=element_blank(),
+            plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
+            legend.text=element_text(size=12),
+            legend.title=element_text(size=0),
+            #legend.title=element_blank(),
+            axis.text.x = element_text(size=10),
+            axis.text.y = element_text(size=10),
+            axis.line.x = element_line(color="black"),
+            axis.line.y = element_line(color="black"),
+            axis.title.y=element_text(size=16),  
+            axis.title.x=element_text(size=16),  
+            axis.title = element_text(size = 20) , 
+            plot.caption=element_text(hjust = 0, size = 7) ,
+           legend.position="none") +
+      
+      labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
+           x = "Baseline category",
+           y = "Predicted probability",
+           subtitle =c("xxxxxxxxxxxxxx"),
+           caption = "")  +
+      geom_dl(aes(label = var2), method = list(dl.combine("first.points", "last.points"),
                                                    cex = 0.9)) 
-     # guides(fill=guide_legend(title="Treatment"))  
-     # 
-     
-     print(gpp)
+    # guides(fill=guide_legend(title="Treatment"))  
+    # 
+    
+    print(gpp)
     
     
     
@@ -900,6 +971,64 @@ server <- shinyServer(function(input, output   ) {
     # return(list(   sf1=sf1 , dat=dat)) 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   })
+  
+  #
+  #############################################################################################################################
+  
+  
+  output$predictm <- renderPlot({   
+    
+    sample <- random.sample()
+   
+    f    <- mcmc()$res
+ 
+    m <- Mean(f, codes=TRUE)
+    lp <- predict(f, d1)
+    m(lp)
+  
+    ggplot(Predict(f, baseline, treatment, fun=m ) , ylab='' ) +   ##YES
+    
+    
+    scale_x_continuous( breaks=1:levz, labels=1:levz) +  
+      
+      theme(panel.background=element_blank(),
+            plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
+            legend.text=element_text(size=12),
+            legend.title=element_text(size=0),
+            #legend.title=element_blank(),
+            axis.text.x = element_text(size=10),
+            axis.text.y = element_text(size=10),
+            axis.line.x = element_line(color="black"),
+            axis.line.y = element_line(color="black"),
+            axis.title.y=element_text(size=16),  
+            axis.title.x=element_text(size=16),  
+            axis.title = element_text(size = 20) , 
+            plot.caption=element_text(hjust = 0, size = 7) ,
+            legend.position="none") +
+      
+      labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
+           x = "Baseline category",
+           y = "Predicted Mean",
+           subtitle =c("xxxxxxxxxxxxxx"),
+           caption = "")
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  })
+  
+  
+  
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # tab 2 barplot
