@@ -38,6 +38,8 @@ fig.height5 <- 225
 fig.width6 <- 400
 fig.height6 <- 550
 fig.width7 <- 600
+fig.widthx <- 593
+fig.heightx <- 268
 fig.height7 <- 600
 fig.width9 <- 1380
 fig.height9 <- 500
@@ -373,8 +375,10 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        #div(plotOutput("preds", width=fig.width9, height=fig.height9)),
                                        h4("On the left you are looking at the point of view of what happens to a patient considering their baseline category. We can see the probability of response and how it depends on treatment. With the default inputs we can see a shift in the distribution to the higher categories if treated.  
 
-On the right we can look at ALL baseline categories and see the predicted probability curves. Vertically all the curves will sum to 1 for a treatment group. For example if a patient is in baseline group category 1 we can see the probability of them being in each category if they were treated (or alternatively if they were in placebo).
-With the default inputs we can see horizontal lines in the treated responses. 
+On the right we can look at ALL baseline categories and see the predicted probability curves. 
+Vertically all the curves will sum to 1 for a treatment group. 
+I a patient is in baseline group category 1 we can see the probability of them being in each category if they were treated (or alternatively if they were in placebo).
+With the default inputs we can see horizontal lines in the treated responses (only for the default input values), telling us a patient's baseline value is not important to know.
 "),
                                        fluidRow(
                                          column(width = 6, offset = 0, style='padding:1px;',
@@ -447,7 +451,7 @@ With the default inputs we can see horizontal lines in the treated responses.
                                       column(width = 5, offset = 0, style='padding:1px;',
                                              #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
                                              div( verbatimTextOutput("reg.summary5")),
-                                             div(plotOutput("predictl", width=fig.width7, height=fig.height)),
+                                             div(plotOutput("predictl", width=fig.widthx, height=fig.heightx)),
                                              
                                              # h4(htmlOutput("textWithNumber",) ),
                                       ))),
