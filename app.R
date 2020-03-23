@@ -121,7 +121,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                   tags$hr(), 
                                   textInput('or1', 
                                             div(h5(tags$span(style="color:blue", "Treatment odds ratio"))), "2"),
-                                 
+                                  
                                   
                                   textInput('or2', 
                                             #   div(h5("Number of samples for Correlation (tab 2)")), "10"),
@@ -171,7 +171,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                    ")),
                               
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                                         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               tabPanel("1 Baseline version of response", value=7, 
                                        h4("The distribution of the baseline version of the response variable is specified here.
                                           By selecting a beta distribution using the shape parameters the
@@ -239,8 +239,8 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                          
                                          fluidRow(
                                            column(width = 6, offset = 0, style='padding:1px;',
-                                                 # h4("Proportional odds model orm function"), 
-                                                 # div( verbatimTextOutput("reg.summary1")),
+                                                  # h4("Proportional odds model orm function"), 
+                                                  # div( verbatimTextOutput("reg.summary1")),
                                                   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
                                                   div( verbatimTextOutput("reg.summary3")),
                                                   
@@ -276,44 +276,44 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               ),
                               
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                         #      tabPanel("2 Barplot", value=3, 
-                         #               h4("xxxxxxxxxxxxxxxxxx."),
-                         #               #h4(paste("Figure 2. xxxxxxxxxxxxxxxxxx")), 
-                         #               
-                         #               div(plotOutput("diff",  width=fig.width5, height=fig.height5)),
-                         #               div(plotOutput("diff2", width=fig.width5, height=fig.height5)),     
-                         #               div(plotOutput("diff3", width=fig.width5, height=fig.height5)),  
-                         #               h4(paste("Figure 1. Barplots of counts in ordinal variable, baseline, outcome separately for treated and placebo patients (not very informative unless 
-                         # you select a large number of patients and large treatment odds ratio) ")), 
-                         #               fluidRow(
-                         #                 column(width = 7, offset = 0, style='padding:1px;',
-                         #                        h4("xxxxxxxxxxxxxxx"), 
-                         #                        # div( verbatimTextOutput("reg.summary3"))
-                         #                 )),
-                         #               
-                         #               
-                         #               
-                         #      ),
-                         #      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                         #      tabPanel("3 Barplot", value=3, 
-                         #               h4("xxxxxxxxxxxxxxxxxxxxxx."),
-                         #               h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
-                         #               div(plotOutput("reg.plot", width=fig.width1, height=fig.height1)),
-                         #               
-                         #               fluidRow(
-                         #                 column(width = 7, offset = 0, style='padding:1px;',
-                         #                        h4("xxxxxxxxxxxxxxxxxxxxxn"), 
-                         #                        # div( verbatimTextOutput("reg.summary4"))
-                         #                 )),
-                         #               
-                         #               
-                         #      ),
+                              #      tabPanel("2 Barplot", value=3, 
+                              #               h4("xxxxxxxxxxxxxxxxxx."),
+                              #               #h4(paste("Figure 2. xxxxxxxxxxxxxxxxxx")), 
+                              #               
+                              #               div(plotOutput("diff",  width=fig.width5, height=fig.height5)),
+                              #               div(plotOutput("diff2", width=fig.width5, height=fig.height5)),     
+                              #               div(plotOutput("diff3", width=fig.width5, height=fig.height5)),  
+                              #               h4(paste("Figure 1. Barplots of counts in ordinal variable, baseline, outcome separately for treated and placebo patients (not very informative unless 
+                              # you select a large number of patients and large treatment odds ratio) ")), 
+                              #               fluidRow(
+                              #                 column(width = 7, offset = 0, style='padding:1px;',
+                              #                        h4("xxxxxxxxxxxxxxx"), 
+                              #                        # div( verbatimTextOutput("reg.summary3"))
+                              #                 )),
+                              #               
+                              #               
+                              #               
+                              #      ),
+                              #      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                              #      tabPanel("3 Barplot", value=3, 
+                              #               h4("xxxxxxxxxxxxxxxxxxxxxx."),
+                              #               h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
+                              #               div(plotOutput("reg.plot", width=fig.width1, height=fig.height1)),
+                              #               
+                              #               fluidRow(
+                              #                 column(width = 7, offset = 0, style='padding:1px;',
+                              #                        h4("xxxxxxxxxxxxxxxxxxxxxn"), 
+                              #                        # div( verbatimTextOutput("reg.summary4"))
+                              #                 )),
+                              #               
+                              #               
+                              #      ),
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                          
                               
                               
                               
-                            
+                              
+                              
                               
                               
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -331,49 +331,52 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               #          
                               # ),
                               
-                            #  tabPanel("4 Take home messages", 
-                                       
-                                 #      div(plotOutput("preds", width=fig.width9, height=fig.height9)),
-                                       
-                                       # fluidRow(
-                                       # 
-                                       #   textInput('base', 
-                                       #  div(h5(tags$span(style="color:blue", 
-                                       #                   "Enter a patient's baseline category and see their predicted probabilities for response outcomes"))), "1")
-                                       #   
-                                       #   
-                                       # ),
-                                       #  
-                                       # width = 30
-                             #    ),
+                              #  tabPanel("4 Take home messages", 
+                              
+                              #      div(plotOutput("preds", width=fig.width9, height=fig.height9)),
+                              
+                              # fluidRow(
+                              # 
+                              #   textInput('base', 
+                              #  div(h5(tags$span(style="color:blue", 
+                              #                   "Enter a patient's baseline category and see their predicted probabilities for response outcomes"))), "1")
+                              #   
+                              #   
+                              # ),
+                              #  
+                              # width = 30
+                              #    ),
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               
                               tabPanel("4 Predicted Mean", 
-                                      
-                                    div(plotOutput("predictm", width=fig.width9, height=fig.height9)),
-                                      
-                                    
-                                    textInput('kints', 
-                                              div(h5(tags$span(style="color:blue", 
-                                                               "Enter an intercept"))), "2")
-                                    
-                                    
-                             # ),
-                                      # fluidRow(
-                                      #   
-                                      #   textInput('group', 
-                                      #             div(h5(tags$span(style="color:blue", 
-                                      #                              "select treatment group: 0 for placebo, 1 for treatment, 2 for both"))), "1"),
-                                      #   
-                                      #   textInput('rcat', 
-                                      #             div(h5(tags$span(style="color:blue", 
-                                      #                              "Response category"))), "1,2,3,4,5")
-                                      #   
-                                      #   
-                                      # ),
-                                      
-                                      #width = 30 
-                                   ),
+                                       
+                                      # div(plotOutput("predictm", width=fig.width9, height=fig.height9)),
+                                       
+                                       h4("Enter an intercept, default is the middle intercept, seems to correspond to ['median Y' value-1] on tab2 model output, and then find which category this refers to in the printed 'Frequencies of Responses'. 
+                                          This will closely resemble the linear regression prediction.")  ,
+
+                                       textInput('kints', 
+                                                 div(h5(tags$span(style="color:blue", 
+                                                                  ""))), ""),
+                                       
+                                       div(plotOutput("predictm2", width=fig.width9, height=fig.height9)),
+                                       
+                                       # ),
+                                       # fluidRow(
+                                       #   
+                                       #   textInput('group', 
+                                       #             div(h5(tags$span(style="color:blue", 
+                                       #                              "select treatment group: 0 for placebo, 1 for treatment, 2 for both"))), "1"),
+                                       #   
+                                       #   textInput('rcat', 
+                                       #             div(h5(tags$span(style="color:blue", 
+                                       #                              "Response category"))), "1,2,3,4,5")
+                                       #   
+                                       #   
+                                       # ),
+                                       
+                                       #width = 30 
+                              ),
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               
                               
@@ -405,215 +408,235 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                          
                                          fluidRow(
                                            
-                                     
+                                           
                                            
                                            
                                            column(width = 5, offset = 0, style='padding:1px;',
                                                   #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
-                                                #  div( verbatimTextOutput("reg.summary5")),
-                                                div(plotOutput("predicts", width=fig.width7, height=fig.height7)),
-                                                
-                                              
-                                          
-                                                fluidRow(
-                                                  
-                                                  textInput('group', 
-                                                            div(h5(tags$span(style="color:blue", 
-                                                                             "select treatment group: 0 for placebo, 1 for treatment, 2 for both"))), "1"),
-                                                  
-                                                  textInput('rcat', 
-                                                            div(h5(tags$span(style="color:blue", 
-                                                                             "Response category, enter 999 to see all levels or select level(s) of interest"))), "999"),
-                                                  
-                                                 
+                                                  #  div( verbatimTextOutput("reg.summary5")),
+                                                  div(plotOutput("predicts", width=fig.width7, height=fig.height7)),
                                                   
                                                   
-                                                ),
+                                                  
+                                                  fluidRow(
+                                                    
+                                                    textInput('group', 
+                                                              div(h5(tags$span(style="color:blue", 
+                                                                               "select treatment group: 0 for placebo, 1 for treatment, 2 for both"))), "1"),
+                                                    
+                                                    textInput('rcat', 
+                                                              div(h5(tags$span(style="color:blue", 
+                                                                               "Response category, enter 999 to see all levels or select level(s) of interest"))), "999"),
+                                                    
+                                                    
+                                                    
+                                                    
+                                                  ),
                                                   # h4(htmlOutput("textWithNumber",) ),
                                            ))),
                                        
                                        #h4(htmlOutput("textWithNumber4",) ) ,
                                        width = 30 )     ,
                               
-                               
+                              
                               
                               
                               
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                         tabPanel("6 Linear model", value=3, 
-                                  h4("ANCOVA model"),
-                                  
-                                  fluidRow(
-                                    column(
-                                      DT::dataTableOutput("tablex"),width = 6)
-                                  ),
-                                  
-                                  fluidRow(
-                                    column(width = 6, offset = 0, style='padding:1px;',
-                                           #h4("ANCOVA model"), 
-                                           div( verbatimTextOutput("reg.summary4") )
-                                    ) ,
-                                    
-                                    fluidRow(
-                                      column(width = 5, offset = 0, style='padding:1px;',
-                                             #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
-                                             div( verbatimTextOutput("reg.summary5")),
-                                             div(plotOutput("predictl", width=fig.widthx, height=fig.heightx)),
-                                             
-                                             # h4(htmlOutput("textWithNumber",) ),
-                                      ))),
-                                  
-                                  
-                                  
-                         ) ,
-                         
-                         
-                         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~NEW
-                         tabPanel("7 Assumptions", fluid = TRUE, width = 4,
-                                  
-                                  h4(("Upload your own data for correlation analysis. Requires 2 columns of numeric data. Select 'Header' 
+                              tabPanel("6 Linear model", value=3, 
+                                       h4("ANCOVA model"),
+                                       
+                                       fluidRow(
+                                         column(
+                                           DT::dataTableOutput("tablex"),width = 6)
+                                       ),
+                                       
+                                       fluidRow(
+                                         column(width = 6, offset = 0, style='padding:1px;',
+                                                #h4("ANCOVA model"), 
+                                                div( verbatimTextOutput("reg.summary4") )
+                                         ) ,
+                                         
+                                         fluidRow(
+                                           column(width = 5, offset = 0, style='padding:1px;',
+                                                  #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
+                                                  div( verbatimTextOutput("reg.summary5")),
+                                                  div(plotOutput("predictl", width=fig.widthx, height=fig.heightx)),
+                                                  
+                                                  # h4(htmlOutput("textWithNumber",) ),
+                                           ))),
+                                       
+                                       
+                                       
+                              ) ,
+                              
+                              
+                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~NEW
+                              tabPanel("7 Assumptions", fluid = TRUE, width = 4,
+                                       
+                                       h4(("Upload your own data for correlation analysis. Requires 2 columns of numeric data. Select 'Header' 
                          if your data columns have names. 
                          The top two radio button options are to help load,
                                  the bottom option is to either print the top six rows of the data or show all the data.
                                ")) ,
-                                  
-                                  h4(("Here are two example data sets (download either file and click 'Browse...' to locate and upload for the analysis):")) ,
-                                  
-                                  tags$a(href = "https://raw.githubusercontent.com/eamonn2014/Bayesian_bootstrap/master/icreamsales", tags$span(style="color:blue", "Example 1 Ice cream sales and temperature N=12, has a header"),), 
-                                  div(p(" ")),
-                                  
-                                  tags$a(href = "https://raw.githubusercontent.com/eamonn2014/Bayesian_bootstrap/master/height.selfesteem", tags$span(style="color:blue", "Example 2 height and self esteem N=20, no header"),), 
-                                  div(p(" ")),
-                                  
-                                  sidebarLayout(
-                                    
-                                    # Sidebar panel for inputs ----
-                                    sidebarPanel(
-                                      
-                                      # Input: Select a file ----
-                                      fileInput("file1", "Choose CSV File",
-                                                multiple = TRUE,
-                                                accept = c("text/csv",
-                                                           "text/comma-separated-values,text/plain",
-                                                           ".csv")),
-                                      
-                                      # Horizontal line ----
-                                      tags$hr(),
-                                      
-                                      # Input: Checkbox if file has header ----
-                                      checkboxInput("header", "Header", TRUE),
-                                      
-                                      # Input: Select separator ----
-                                      radioButtons("sep", "Separator",
-                                                   choices = c(Comma = ",",
-                                                               Semicolon = ";",
-                                                               Tab = "\t",
-                                                               Whitespace = ""),
-                                                   selected = ""),
-                                      
-                                      # Input: Select quotes ----
-                                      radioButtons("quote", "Quote",
-                                                   choices = c(None = "",
-                                                               "Double Quote" = '"',
-                                                               "Single Quote" = "'"),
-                                                   selected = ''),
-                                      
-                                      # Horizontal line ----
-                                      tags$hr(),
-                                      
-                                      # Input: Select number of rows to display ----
-                                      radioButtons("disp", "List all the data or first 6 rows only",
-                                                   choices = c(Head = "head",
-                                                               All = "all"),
-                                                   selected = "head"),
-                                      
-                                      # Horizontal line ----
-                                      # tags$hr(),
-                                      
-                                      # Input: Select number of rows to display ----
-                                      # radioButtons("what", "Output",
-                                      #              choices = c(Analysis = "Analysis",
-                                      #                          Plot = "plot"),
-                                      #              selected = "Analysis")
-                                      
-                                    ),
-                                    
-                                    # Main panel for displaying outputs ----
-                                    mainPanel(
-                                      
-                                      # Output: Data file ----
-                                      h4(paste("Figure 4. Bayesian and frequentist bootstrap distributions of user's data, estimating correlation")),  
-                                      div(plotOutput("contents2", width=fig.width6, height=fig.height6)),
-                                      #div(verbatimTextOutput("contents2")),
-                                      #plotOutput("plotx"),
-                                      tags$hr(),
-                                      h4("Correlation and 95% confidence interval from R cor.test function"), 
-                                      #div( verbatimTextOutput("reg.summary5")),
-                                      tags$hr(),
-                                      h4("Print the data listing"),
-                                      tableOutput("contents") 
-                                      
-                                      
-                                    ),
-                                    
-                                  )
-                         ), # end panel
+                                       
+                                       h4(("Here are two example data sets (download either file and click 'Browse...' to locate and upload for the analysis):")) ,
+                                       
+                                       tags$a(href = "https://raw.githubusercontent.com/eamonn2014/Bayesian_bootstrap/master/icreamsales", tags$span(style="color:blue", "Example 1 Ice cream sales and temperature N=12, has a header"),), 
+                                       div(p(" ")),
+                                       
+                                       tags$a(href = "https://raw.githubusercontent.com/eamonn2014/Bayesian_bootstrap/master/height.selfesteem", tags$span(style="color:blue", "Example 2 height and self esteem N=20, no header"),), 
+                                       div(p(" ")),
+                                       
+                                       sidebarLayout(
+                                         
+                                         # Sidebar panel for inputs ----
+                                         sidebarPanel(
+                                           
+                                           # Input: Select a file ----
+                                           fileInput("file1", "Choose CSV File",
+                                                     multiple = TRUE,
+                                                     accept = c("text/csv",
+                                                                "text/comma-separated-values,text/plain",
+                                                                ".csv")),
+                                           
+                                           # Horizontal line ----
+                                           tags$hr(),
+                                           
+                                           # Input: Checkbox if file has header ----
+                                           checkboxInput("header", "Header", TRUE),
+                                           
+                                           # Input: Select separator ----
+                                           radioButtons("sep", "Separator",
+                                                        choices = c(Comma = ",",
+                                                                    Semicolon = ";",
+                                                                    Tab = "\t",
+                                                                    Whitespace = ""),
+                                                        selected = ""),
+                                           
+                                           # Input: Select quotes ----
+                                           radioButtons("quote", "Quote",
+                                                        choices = c(None = "",
+                                                                    "Double Quote" = '"',
+                                                                    "Single Quote" = "'"),
+                                                        selected = ''),
+                                           
+                                           # Horizontal line ----
+                                           tags$hr(),
+                                           
+                                           # Input: Select number of rows to display ----
+                                           radioButtons("disp", "List all the data or first 6 rows only",
+                                                        choices = c(Head = "head",
+                                                                    All = "all"),
+                                                        selected = "head"),
+                                           
+                                           # Horizontal line ----
+                                           # tags$hr(),
+                                           
+                                           # Input: Select number of rows to display ----
+                                           # radioButtons("what", "Output",
+                                           #              choices = c(Analysis = "Analysis",
+                                           #                          Plot = "plot"),
+                                           #              selected = "Analysis")
+                                           
+                                         ),
+                                         
+                                         # Main panel for displaying outputs ----
+                                         mainPanel(
+                                           
+                                           # Output: Data file ----
+                                           h4(paste("Figure 4. Bayesian and frequentist bootstrap distributions of user's data, estimating correlation")),  
+                                           div(plotOutput("contents2", width=fig.width6, height=fig.height6)),
+                                           #div(verbatimTextOutput("contents2")),
+                                           #plotOutput("plotx"),
+                                           tags$hr(),
+                                           h4("Correlation and 95% confidence interval from R cor.test function"), 
+                                           #div( verbatimTextOutput("reg.summary5")),
+                                           tags$hr(),
+                                           h4("Print the data listing"),
+                                           tableOutput("contents") 
+                                           
+                                           
+                                         ),
+                                         
+                                       )
+                              ), # end panel
                               # textInput('levels', 
                               #           div(h5(tags$span(style="color:blue", "Number of ordinal categories in response"))), "15"),
                               # tags$hr(), 
-                         tabPanel("99 check", value=3, 
-                                  h4("xxxxxxxxxxxxxxxxxxxxxx."),
-                                  h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
-                                  div(plotOutput("check", width=fig.width1, height=fig.height1)),
-                                  
-                                  fluidRow(
-                                    column(width = 7, offset = 0, style='padding:1px;',
-                                           h4("xxxxxxxxxxxxxxxxxxxxxn"), 
-                                           # div( verbatimTextOutput("reg.summary4"))
-                                    )),
-                                  
-                                  
-                         ),
-                         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                       
-                         
-                         
-                         
-                         
-                         
-                         
-                         
-                         # herer
-                         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                         tabPanel("7 Data", value=3, 
-                         
-                         
-                         fluidRow(
-                           column(width = 6, offset = 0, style='padding:1px;',
-                                  #h4("ANCOVA model"), 
-                                  DT::dataTableOutput("table1"))
-                            ,
-                           
-                           fluidRow(
-                             column(width = 5, offset = 0, style='padding:1px;',
-                                    #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
-                                    div( verbatimTextOutput("reg.summarz") ),
-                                    
-                                    # h4(htmlOutput("textWithNumber",) ),
-                             )))
-                         )
-                         
-                         
-                         
-                         
-                         
-                         
-                         
-                         
-                         
-                         
-                         
-                         
+                              tabPanel("99 check", value=3, 
+                                       h4("xxxxxxxxxxxxxxxxxxxxxx."),
+                                       h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
+                                       div(plotOutput("check", width=fig.width1, height=fig.height1)),
+                                       
+                                       fluidRow(
+                                         column(width = 7, offset = 0, style='padding:1px;',
+                                                h4("xxxxxxxxxxxxxxxxxxxxxn"), 
+                                                # div( verbatimTextOutput("reg.summary4"))
+                                         )),
+                                       
+                                       
+                              ),
+                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              # herer
+                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                              tabPanel("7 Data", value=3, 
+                                       
+                                       
+                                       fluidRow(
+                                         column(width = 6, offset = 0, style='padding:1px;',
+                                                #h4("ANCOVA model"), 
+                                                DT::dataTableOutput("table1"))
+                                         ,
+                                         
+                                         fluidRow(
+                                           column(width = 5, offset = 0, style='padding:1px;',
+                                                  #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
+                                                  div( verbatimTextOutput("reg.summarz") ),
+                                                  
+                                                  # h4(htmlOutput("textWithNumber",) ),
+                                           )))
+                              ),
+                              
+                              
+                              
+                              tabPanel("7 testing", value=3, 
+                                       
+                                       
+                                       fluidRow(
+                                         column(width = 6, offset = 0, style='padding:1px;',
+                                                #h4("ANCOVA model"), 
+                                               # DT::dataTableOutput("ols.pred")
+                                                )
+                                         ,
+                                         
+                                         fluidRow(
+                                           column(width = 5, offset = 0, style='padding:1px;',
+                                                  #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
+                                                 div( verbatimTextOutput("ols.pred") ),
+                                                  
+                                                  # h4(htmlOutput("textWithNumber",) ),
+                                           )))
+                              )
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
+                              
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   END NEW   
                             )
                             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -627,7 +650,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
 server <- shinyServer(function(input, output   ) {
   
   shinyalert("Welcome! \nExplore the Proportional odds model!",
-             "It's in progress!",
+             "It's in progress! ols and orm predict y factor or continuous?",
              type = "info")
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -653,10 +676,10 @@ server <- shinyServer(function(input, output   ) {
     
     base<- as.numeric(unlist(strsplit(input$base,",")))
     
-   # group <- (as.numeric(unlist(strsplit(input$group,","))))    
-   #  # R
-   #  rcat <- (as.numeric(unlist(strsplit(input$rcat,","))))     
-   
+    # group <- (as.numeric(unlist(strsplit(input$group,","))))    
+    #  # R
+    #  rcat <- (as.numeric(unlist(strsplit(input$rcat,","))))     
+    
     
     return(list(  
       n=trt[1],  
@@ -666,7 +689,7 @@ server <- shinyServer(function(input, output   ) {
       shape1=dis[1], 
       shape2=dis[2],
       base=base[1]#,
-     # kints=kints[1]
+      # kints=kints[1]
       # group=group[1],
       # rcat=rcat
       # 
@@ -691,7 +714,7 @@ server <- shinyServer(function(input, output   ) {
     #base  <- sample$base
     group  <- sample$group
     rcat  <- sample$rcat
-   # kints  <- sample$kints
+    # kints  <- sample$kints
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Parameters 
     
@@ -775,7 +798,7 @@ server <- shinyServer(function(input, output   ) {
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # put the data together
     dat <- data.frame(treatment, baseline, y = factor(y))
-  # dat$baseline <- factor(dat$baseline)
+    # dat$baseline <- factor(dat$baseline)
     # use harrell's po function analyse the data
     d <<- datadist(dat)
     options(datadist="d") 
@@ -786,14 +809,14 @@ server <- shinyServer(function(input, output   ) {
     
     #f1 <- f1$coefficients 
     
-    return(list(res= f1  , sf1=sf1 , dat=dat, f2=f2,f3=f3)) 
+    return(list(res= f2  , sf1=sf1 , dat=dat, f2=f2,f3=f3)) 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   })
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # non cummulative predicted probabilities plot run the analysis again
   # not efficient I know
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+  
   output$preds <- renderPlot({
     
     sample <- random.sample()
@@ -806,164 +829,164 @@ server <- shinyServer(function(input, output   ) {
     
     
     
-  # I can get non cummulative probabilites using clm
-  # Don't know how to do it with rms? yet
- 
-  Res.clm <- clm(y ~treatment + baseline, data=datx)
-  
-  # levz <-   length(unique(Res.clm$model$baseline))
-  
-  # summary(Res.clm)
-  
-  newdat <- data.frame(
-    baseline =   (rep(1:levz)),
-    treatment = rep(0:1, each = levz)
+    # I can get non cummulative probabilites using clm
+    # Don't know how to do it with rms? yet
+    
+    Res.clm <- clm(y ~treatment + baseline, data=datx)
+    
+    # levz <-   length(unique(Res.clm$model$baseline))
+    
+    # summary(Res.clm)
+    
+    newdat <- data.frame(
+      baseline =   (rep(1:levz)),
+      treatment = rep(0:1, each = levz)
     )
-  # newdat <- data.frame(
-  #   baseline =  factor(sort(unique(Res.clm$model$baseline))),
-  #   treatment = rep(0:1, each = levz)
-  # )
- 
-  
-  newdat <- cbind(newdat, predict(Res.clm, newdata=newdat, se.fit=TRUE,
-                                  interval=TRUE, type="prob"))
-  
-  
-  
-  A<- cbind( newdat[,1:2], newdat[,grep("^fit", colnames(newdat)) ])
-  B<- cbind( newdat[,1:2], newdat[,grep("^lwr", colnames(newdat)) ])
-  C<- cbind( newdat[,1:2], newdat[,grep("^upr", colnames(newdat)) ])
-
-  lA <- melt(data = A, id.vars = c("baseline","treatment") )
-  lB <- melt(data = B, id.vars = c("baseline","treatment") )
-  lC <- melt(data = C, id.vars = c("baseline","treatment") )
-
-  lA$variable <-  gsub(".*\\.","", lA$variable)
-  lB$variable <-   gsub(".*\\.","", lB$variable)
-  lC$variable <-   gsub(".*\\.","", lC$variable)
-
-  l <- cbind(lA,lB,lC)
-
-  l <- l[,c(1:4,8,12)]
-  
-  names(l) <- c("baseline","treatment","response","estimate","lower", "upper")
-  
-  pd <- position_dodge(0.5) # move them .05 to the left and right
-  
-  # l$treatment <- factor(l$treatment)
-  # br1 <- length(unique(l$baseline))
-  # 
-  # ggplot(l, aes(baseline,estimate, color=treatment)) +
-  #   geom_point(aes(shape=treatment),size=4, position=pd) + 
-  #   scale_color_manual(name="treatment",values=c("coral","steelblue")) + 
-  #   theme_bw() + 
-  #   scale_x_continuous("baseline", breaks=1:br1, labels=1:br1) + 
-  #   scale_y_continuous("Probability")   + 
-  #   geom_errorbar(aes(ymin=lower,ymax=upper),width=0.1,position=pd)
-  # 
-  
-  l$response <- as.numeric(l$response)
-  l$treatment <- factor( l$treatment)
-  l$treatment <- ifelse( l$treatment %in% 0,"Placebo","Treatment")
-  br1 <- length(unique(l$baseline))
-  
-  lx <- l[l$baseline %in% base,]     # user input selects this
-  
- gp <- ggplot(lx, aes(response,estimate, color=treatment)) +
-    geom_point(aes(shape=treatment),size=4, position=pd) + 
-    scale_color_manual(name="treatment",values=c("coral","steelblue")) + 
-    theme_bw() + 
-    scale_x_continuous( breaks=1:br1, labels=1:br1) +   
-  #  scale_y_continuous("Probability")   + 
-   geom_line(position=pd, linetype = "dashed")+
-    geom_errorbar(aes(ymin=lower,ymax=upper),width=0.2,position=pd) +
- 
-  theme(panel.background=element_blank(),
-                  plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
-                  legend.text=element_text(size=12),
-                  #legend.title=element_text(size=14),
-                  legend.title=element_blank(),
-                  axis.text.x = element_text(size=10),
-                  axis.text.y = element_text(size=10),
-                  axis.line.x = element_line(color="black"),
-                  axis.line.y = element_line(color="black"),
-                  axis.title.y=element_text(size=16),  
-                  axis.title.x=element_text(size=16),  
-                  axis.title = element_text(size = 20) , 
-           plot.caption=element_text(hjust = 0, size = 7) ,
-   
-  legend.justification = c(0, 1), 
- legend.position = c(0.05, .99))  +
-   
-   
-   
-    labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
-        x = "Response category",
-        y = "Predicted probability",
-          subtitle =c("xxxxxxxxxxxxxx"),
-          caption = "")  
+    # newdat <- data.frame(
+    #   baseline =  factor(sort(unique(Res.clm$model$baseline))),
+    #   treatment = rep(0:1, each = levz)
+    # )
+    
+    
+    newdat <- cbind(newdat, predict(Res.clm, newdata=newdat, se.fit=TRUE,
+                                    interval=TRUE, type="prob"))
+    
+    
+    
+    A<- cbind( newdat[,1:2], newdat[,grep("^fit", colnames(newdat)) ])
+    B<- cbind( newdat[,1:2], newdat[,grep("^lwr", colnames(newdat)) ])
+    C<- cbind( newdat[,1:2], newdat[,grep("^upr", colnames(newdat)) ])
+    
+    lA <- melt(data = A, id.vars = c("baseline","treatment") )
+    lB <- melt(data = B, id.vars = c("baseline","treatment") )
+    lC <- melt(data = C, id.vars = c("baseline","treatment") )
+    
+    lA$variable <-  gsub(".*\\.","", lA$variable)
+    lB$variable <-   gsub(".*\\.","", lB$variable)
+    lC$variable <-   gsub(".*\\.","", lC$variable)
+    
+    l <- cbind(lA,lB,lC)
+    
+    l <- l[,c(1:4,8,12)]
+    
+    names(l) <- c("baseline","treatment","response","estimate","lower", "upper")
+    
+    pd <- position_dodge(0.5) # move them .05 to the left and right
+    
+    # l$treatment <- factor(l$treatment)
+    # br1 <- length(unique(l$baseline))
+    # 
+    # ggplot(l, aes(baseline,estimate, color=treatment)) +
+    #   geom_point(aes(shape=treatment),size=4, position=pd) + 
+    #   scale_color_manual(name="treatment",values=c("coral","steelblue")) + 
+    #   theme_bw() + 
+    #   scale_x_continuous("baseline", breaks=1:br1, labels=1:br1) + 
+    #   scale_y_continuous("Probability")   + 
+    #   geom_errorbar(aes(ymin=lower,ymax=upper),width=0.1,position=pd)
+    # 
+    
+    l$response <- as.numeric(l$response)
+    l$treatment <- factor( l$treatment)
+    l$treatment <- ifelse( l$treatment %in% 0,"Placebo","Treatment")
+    br1 <- length(unique(l$baseline))
+    
+    lx <- l[l$baseline %in% base,]     # user input selects this
+    
+    gp <- ggplot(lx, aes(response,estimate, color=treatment)) +
+      geom_point(aes(shape=treatment),size=4, position=pd) + 
+      scale_color_manual(name="treatment",values=c("coral","steelblue")) + 
+      theme_bw() + 
+      scale_x_continuous( breaks=1:br1, labels=1:br1) +   
+      #  scale_y_continuous("Probability")   + 
+      geom_line(position=pd, linetype = "dashed")+
+      geom_errorbar(aes(ymin=lower,ymax=upper),width=0.2,position=pd) +
+      
+      theme(panel.background=element_blank(),
+            plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
+            legend.text=element_text(size=12),
+            #legend.title=element_text(size=14),
+            legend.title=element_blank(),
+            axis.text.x = element_text(size=10),
+            axis.text.y = element_text(size=10),
+            axis.line.x = element_line(color="black"),
+            axis.line.y = element_line(color="black"),
+            axis.title.y=element_text(size=16),  
+            axis.title.x=element_text(size=16),  
+            axis.title = element_text(size = 20) , 
+            plot.caption=element_text(hjust = 0, size = 7) ,
+            
+            legend.justification = c(0, 1), 
+            legend.position = c(0.05, .99))  +
+      
+      
+      
+      labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
+           x = "Response category",
+           y = "Predicted probability",
+           subtitle =c("xxxxxxxxxxxxxx"),
+           caption = "")  
     # guides(fill=guide_legend(title="Treatment"))
     # 
-  
-  print(gp)
-  
+    
+    print(gp)
+    
   })
   
-   
+  
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~not used
   
   output$predicts <- renderPlot({   
     
-      sample <- random.sample()
+    sample <- random.sample()
     # 
-      f    <- mcmc()$res
+    f    <- mcmc()$res
     # 
-     levz <- sample$lev
+    levz <- sample$lev
     # rcat <- sample$rcat
     #  group <- sample$group
-     
-     
-     
-     group <- (as.numeric(unlist(strsplit(input$group,","))))    
-     # R
-     rcat <- (as.numeric(unlist(strsplit(input$rcat,","))))     
-     
-      
-       
-     
-   
-     
-     require(reshape)
-     
-     newdat <- data.frame(
-       baseline = rep(1:levz),
-       treatment = rep(0:1, each = levz))
-     
-     
-     xx <- predict(f, newdat, type="fitted.ind")    #
-     
-     mm <- melt(data.frame(xx))
-     
-     mm <- cbind(newdat,mm )
-     
-     mm$variable <-  gsub(".*\\.","", mm$variable)
-     
-     mm <- plyr::arrange(mm,treatment,variable,baseline )
-      
-     mm$flag <- rep(seq_along( rle(mm$variable)$values ), times = rle(mm$variable)$lengths )
-     
-      
-     if (group %in% 0) {g = c(0)} else if (group %in% 1) {g = c(1)} else if (group %in% 2) {g = c(0,1)} 
-     
-    mm <-  mm[mm$treatment %in% g,]
-     
     
-     if (rcat %in% 999) {r = 1:levz} else   {r = rcat} 
+    
+    
+    group <- (as.numeric(unlist(strsplit(input$group,","))))    
+    # R
+    rcat <- (as.numeric(unlist(strsplit(input$rcat,","))))     
+    
+    
+    
+    
+    
+    
+    require(reshape)
+    
+    newdat <- data.frame(
+      baseline = rep(1:levz),
+      treatment = rep(0:1, each = levz))
+    
+    
+    xx <- predict(f, newdat, type="fitted.ind")    #
+    
+    mm <- melt(data.frame(xx))
+    
+    mm <- cbind(newdat,mm )
+    
+    mm$variable <-  gsub(".*\\.","", mm$variable)
+    
+    mm <- plyr::arrange(mm,treatment,variable,baseline )
+    
+    mm$flag <- rep(seq_along( rle(mm$variable)$values ), times = rle(mm$variable)$lengths )
+    
+    
+    if (group %in% 0) {g = c(0)} else if (group %in% 1) {g = c(1)} else if (group %in% 2) {g = c(0,1)} 
+    
+    mm <-  mm[mm$treatment %in% g,]
+    
+    
+    if (rcat %in% 999) {r = 1:levz} else   {r = rcat} 
     
     mm <-  mm[mm$variable %in% r,]
-     
+    
     A <- ifelse(mm$treatment %in% 0, "Placebo","Treatment")
     mm$grp <- paste(A, mm$variable)
     
@@ -990,7 +1013,7 @@ server <- shinyServer(function(input, output   ) {
             axis.title.x=element_text(size=16),  
             axis.title = element_text(size = 20) , 
             plot.caption=element_text(hjust = 0, size = 7) ,
-           legend.position="none") +
+            legend.position="none") +
       
       labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
            x = "Baseline category",
@@ -998,7 +1021,7 @@ server <- shinyServer(function(input, output   ) {
            subtitle =c("xxxxxxxxxxxxxx"),
            caption = "")  +
       geom_dl(aes(label = var2), method = list(dl.combine("first.points", "last.points"),
-                                                   cex = 0.9)) 
+                                               cex = 0.9)) 
     # guides(fill=guide_legend(title="Treatment"))  
     # 
     
@@ -1044,29 +1067,31 @@ server <- shinyServer(function(input, output   ) {
   output$predictm <- renderPlot({   
     
     sample <- random.sample()
-   
+    
     f    <- mcmc()$res
- 
+    
     dat <- mcmc()$dat
     
     levz <- sample$lev
-   
+    
     
     kints    <-     as.numeric(unlist(strsplit(input$kints,",")))
     
-     
-    m <- Mean(f, codes=TRUE)
-    lp <- predict(f, dat)
-    m(lp)
-  
+    
+    m <- Mean(f, codes=FALSE)
+   # lp <- predict(f, dat)
+  #  m(lp)
+    
     P <- Predict(f, baseline, treatment, fun=m, kint=kints )
+ 
+    
     
     P$treatment <- ifelse(P$treatment %in% 0, "Placebo", "Treatment")
     
     ggplot(P , ylab='' ) +   ##YES
-    
-    
-    scale_x_continuous( breaks=1:levz, labels=1:levz) +  
+      
+      
+      scale_x_continuous( breaks=1:levz, labels=1:levz) +  
       
       theme(panel.background=element_blank(),
             plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
@@ -1081,25 +1106,149 @@ server <- shinyServer(function(input, output   ) {
             axis.title.x=element_text(size=16),  
             axis.title = element_text(size = 20) , 
             plot.caption=element_text(hjust = 0, size = 7),
+            
+            legend.justification = c(0, 1), 
+            legend.position = c(0.05, .99))  +
       
-      legend.justification = c(0, 1), 
-    legend.position = c(0.05, .99))  +
-    
       
       
-           # legend.position="none") +
+      # legend.position="none") +
       
       labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
            x = "Baseline category",
            y = "Predicted Mean",
            subtitle =c("xxxxxxxxxxxxxx"),
            caption = "")
-     
+    
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   })
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   #  
+  output$predictm2 <- renderPlot({   
+    
+    sample <- random.sample()
+    
+    f    <- mcmc()$res
+    
+    dat <- mcmc()$dat
+    
+    levz <- sample$lev
+    
+    
+    kints    <-     as.numeric(unlist(strsplit(input$kints,",")))
+    
+    
+    dat$y <- as.numeric(as.character(dat$y))
+    
+    d <- datadist(dat)
+    options(datadist="d")
+    
+    
+    library(rms)
+    (f1 <- orm(y ~baseline + treatment, data=dat))
+    (f3 <- ols(y ~baseline + treatment, data=dat ))
+    
+    
+    ols.<- Predict(f3,  conf.type="mean",  baseline, treatment)
+    
+    mh <- Mean(f1) 
+    orm. <-  Predict(f1,   baseline, treatment,fun=mh, kint=kints)
+    
+    
+    # 
+    # plot(ols., label.curve=FALSE)
+    
+    
+    
+    p1 <- ols.
+    p2 <- orm.
+    P  <- rbind("Ordinary least squares"=p1, "Proprtional odds model"=p2)
+    #ggplot(p, label.curve=FALSE)
+    
+    
+    P$treatment <- ifelse(P$treatment %in% 0, "Placebo", "Treatment")
+    
+    ggplot(P , ylab='' ) +   ##YES
+      
+      
+      scale_x_continuous( breaks=1:levz, labels=1:levz) +  
+      
+      theme(panel.background=element_blank(),
+            plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
+            legend.text=element_text(size=12),
+            legend.title=element_text(size=0),
+            #legend.title=element_blank(),
+            axis.text.x = element_text(size=10),
+            axis.text.y = element_text(size=10),
+            axis.line.x = element_line(color="black"),
+            axis.line.y = element_line(color="black"),
+            axis.title.y=element_text(size=16),  
+            axis.title.x=element_text(size=16),  
+            axis.title = element_text(size = 20) , 
+            plot.caption=element_text(hjust = 0, size = 7),
+            
+            legend.justification = c(0, 1), 
+            legend.position = c(0.05, .99))  +
+      
+      
+      
+      # legend.position="none") +
+      
+      labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
+           x = "Baseline category",
+           y = "Predicted Mean",
+           subtitle =c("xxxxxxxxxxxxxx"),
+           caption = "")
+    
+    
+    
+    
+    
+    # 
+    # 
+    # m <- Mean(f, codes=TRUE)
+    # lp <- predict(f, dat)
+    # m(lp)
+    # 
+    # P <- Predict(f, baseline, treatment, fun=m, kint=kints )
+    # 
+    # P$treatment <- ifelse(P$treatment %in% 0, "Placebo", "Treatment")
+    # 
+    # ggplot(P , ylab='' ) +   ##YES
+    #   
+    #   
+    #   scale_x_continuous( breaks=1:levz, labels=1:levz) +  
+    #   
+    #   theme(panel.background=element_blank(),
+    #         plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
+    #         legend.text=element_text(size=12),
+    #         legend.title=element_text(size=0),
+    #         #legend.title=element_blank(),
+    #         axis.text.x = element_text(size=10),
+    #         axis.text.y = element_text(size=10),
+    #         axis.line.x = element_line(color="black"),
+    #         axis.line.y = element_line(color="black"),
+    #         axis.title.y=element_text(size=16),  
+    #         axis.title.x=element_text(size=16),  
+    #         axis.title = element_text(size = 20) , 
+    #         plot.caption=element_text(hjust = 0, size = 7),
+    #         
+    #         legend.justification = c(0, 1), 
+    #         legend.position = c(0.05, .99))  +
+    #   
+    #   
+    #   
+    #   # legend.position="none") +
+    #   
+    #   labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
+    #        x = "Baseline category",
+    #        y = "Predicted Mean",
+    #        subtitle =c("xxxxxxxxxxxxxx"),
+    #        caption = "")
+    
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  })
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
   
@@ -1111,21 +1260,21 @@ server <- shinyServer(function(input, output   ) {
     n    <- sample$n
     levz <- sample$lev
     base <- sample$base
-     
-     
- 
+    
+    
+    
     dat <- mcmc()$dat
     f3 <- mcmc()$f3
     f2 <- mcmc()$f2
-
-  #  dd <- datadist(dat); options(datadist='dd')
- 
+    
+    #  dd <- datadist(dat); options(datadist='dd')
+    
     (h <- f2)
     (f <- f3)
     
     mh <- Mean(h) 
     r <- rbind(ols      = Predict(f, conf.int=FALSE),
-              ordinal   = Predict(h, conf.int=FALSE, fun=mh) 
+               ordinal   = Predict(h, conf.int=FALSE, fun=mh) 
     )
     plot(r, groups='.set.')
     
@@ -1143,11 +1292,11 @@ server <- shinyServer(function(input, output   ) {
     n    <- sample$n
     levz <- sample$lev
     base <- sample$base
-     
+    
     dat <- mcmc()$dat
     f3 <- mcmc()$f3
     f2 <- mcmc()$f2
-     
+    
     (h <- f2)
     (f <- f3)
     
@@ -1476,7 +1625,7 @@ server <- shinyServer(function(input, output   ) {
     f <-   dat
     f <-   as.data.frame(table(f$y, f$treatment))
     
-  #  f$Percentage <- round(f$Freq / sum(f$Freq)*100,1)
+    #  f$Percentage <- round(f$Freq / sum(f$Freq)*100,1)
     
     
     library(dplyr)
@@ -1502,14 +1651,14 @@ server <- shinyServer(function(input, output   ) {
     f$N <- f$Freq
     
     z <- f
-
+    
     NN <- tapply(z$Freq, z$Var2, sum)
     
     
     lab1 <- paste0("Placebo N = ",as.vector(NN[1]),"")
     lab2 <- paste0("Treatment N = ",as.vector(NN[2]),"")
     z$Var2 <- factor(z$Var2 , levels = c("0", "1"),
-                      labels = c(lab1, lab2)
+                     labels = c(lab1, lab2)
     )
     
     
@@ -1527,7 +1676,7 @@ server <- shinyServer(function(input, output   ) {
       p1 <- p1 + ggtitle( paste("Observed responses at follow up in trial arms, N =",pN), ) +
         theme(plot.title = element_text(size = 20, face = "bold")) #+
       
-    
+      
       p1 <- p1 + ylab(ylabel ) + 
         
         coord_flip() +
@@ -1535,7 +1684,7 @@ server <- shinyServer(function(input, output   ) {
         xlab("Ordinal categories") +
         
         guides(fill=guide_legend(title=paste0("(",2,"-digit - ICD9 code)")), size = 14) 
-    
+      
       
       p1 <- p1 + geom_text(aes(label=paste0(format(N, big.mark=","
                                                    ,scientific=FALSE)," (",Percentage,"%)")),position = "stack", 
@@ -1543,9 +1692,9 @@ server <- shinyServer(function(input, output   ) {
       
       
       p1 <- p1 + labs(
-              caption = "- Percentages calculated with respect to randomized group" 
-            ) 
-            
+        caption = "- Percentages calculated with respect to randomized group" 
+      ) 
+      
       
       p1 <- p1 + scale_y_continuous(limits = c(0, mlimit)) 
       
@@ -1560,7 +1709,7 @@ server <- shinyServer(function(input, output   ) {
                        axis.title = element_text(size = 20) , 
                        plot.caption=element_text(hjust = 0, size = 13),  #left align
                        strip.text = element_text(size=20)
-                       )
+      )
       
       g <- p1 + theme(legend.position="none") +
         
@@ -1686,6 +1835,13 @@ server <- shinyServer(function(input, output   ) {
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  
+  output$ols.prd <- renderPrint({
+    
+    return( (lmx()$ols.pred ))
+    
+  })
+  
   output$reg.summarz <- renderPrint({
     
     return( (compair()$r ))
@@ -1746,15 +1902,21 @@ server <- shinyServer(function(input, output   ) {
     an <- anova(linear)
     
     
-   # P <- predict(linear, dat,
-   #          type=c("lp" ),
-   #          se.fit=FALSE, conf.int=TRUE,
-   #          conf.type=c( 'individual' ),
-   #          ) # ols
-
+    dat$y <- as.numeric(as.character(dat$y)) 
+    linear <- ols(y ~treatment + (baseline), data=dat)
+     ols.      = Predict(linear, conf.int=FALSE)
+               
+        
+ 
+    # P <- predict(linear, dat,
+    #          type=c("lp" ),
+    #          se.fit=FALSE, conf.int=TRUE,
+    #          conf.type=c( 'individual' ),
+    #          ) # ols
     
     
-    return(list(linear=linear , an=an)) 
+    
+    return(list(linear=linear , an=an, ols.pred=ols.)) 
     
     #return(list(linear=linear ))
     
@@ -1765,13 +1927,13 @@ server <- shinyServer(function(input, output   ) {
   
   output$predictl <- renderPlot({   
     
-   # sample <- random.sample()
+    # sample <- random.sample()
     
     linear    <- lmx()$linear
     an <- anova(linear) 
     ggplot(Predict(linear, treatment), anova=an, pval=TRUE) ############  YES
     
-
+    
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   })
   
@@ -2394,7 +2556,7 @@ server <- shinyServer(function(input, output   ) {
     
     
     names(foo) <- namez
-  
+    
     foo <- plyr::arrange(foo, treatment, baseline)
     
     rownames(foo) <- NULL
