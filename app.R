@@ -377,6 +377,42 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        
                                        #width = 30 
                               ),
+                              
+                              tabPanel("4 Predicted Mean b", value=3, 
+                                       
+                                       # fluidRow(
+                                       #   column(width = 6, offset = 0, style='padding:1px;',
+                                       # h4("xxxxxxxxxxxxxxxxxxxxxx."),
+                                       # h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
+                                       # div(plotOutput("check", width=fig.width6, height=fig.height6))),
+                                       # 
+                                       # fluidRow(
+                                       #   column(width = 7, offset = 0, style='padding:1px;',
+                                       #          h4("xxxxxxxxxxxxxxxxxxxxxn"), 
+                                       #          div( verbatimTextOutput("reg.summarz") ),
+                                       #          # div( verbatimTextOutput("reg.summary4"))
+                                       #   ))),
+                                       # 
+                                       
+                                       
+                                       fluidRow(
+                                         column(width = 6, offset = 0, style='padding:1px;',
+                                                #h4("ANCOVA model"), 
+                                                div(plotOutput("check", width=fig.width7, height=fig.height6))),
+                                         
+                                         
+                                         fluidRow(
+                                           column(width = 5, offset = 0, style='padding:1px;',
+                                                  #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
+                                                  #    div( verbatimTextOutput("reg.summarz") ),
+                                                  div( verbatimTextOutput("reg.summarz") ),
+                                                  # h4(htmlOutput("textWithNumber",) ),
+                                           )))
+                                       
+                                       
+                                       
+                                       
+                              ),
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               
                               
@@ -564,19 +600,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                               # textInput('levels', 
                               #           div(h5(tags$span(style="color:blue", "Number of ordinal categories in response"))), "15"),
                               # tags$hr(), 
-                              tabPanel("99 check", value=3, 
-                                       h4("xxxxxxxxxxxxxxxxxxxxxx."),
-                                       h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
-                                       div(plotOutput("check", width=fig.width1, height=fig.height1)),
-                                       
-                                       fluidRow(
-                                         column(width = 7, offset = 0, style='padding:1px;',
-                                                h4("xxxxxxxxxxxxxxxxxxxxxn"), 
-                                                # div( verbatimTextOutput("reg.summary4"))
-                                         )),
-                                       
-                                       
-                              ),
+                             
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               
                               
@@ -600,7 +624,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                          fluidRow(
                                            column(width = 5, offset = 0, style='padding:1px;',
                                                   #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
-                                                  div( verbatimTextOutput("reg.summarz") ),
+                                              #    div( verbatimTextOutput("reg.summarz") ),
                                                   
                                                   # h4(htmlOutput("textWithNumber",) ),
                                            )))
@@ -650,7 +674,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
 server <- shinyServer(function(input, output   ) {
   
   shinyalert("Welcome! \nExplore the Proportional odds model!",
-             "It's in progress! ols and orm predict y factor or continuous?",
+             "It's in progress! https://rdrr.io/cran/rms/man/residuals.lrm.html baseline categorical continuous", 
              type = "info")
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1130,47 +1154,33 @@ server <- shinyServer(function(input, output   ) {
     sample <- random.sample()
     
     f    <- mcmc()$res
-    
     dat <- mcmc()$dat
-    
     levz <- sample$lev
+    f3 <- mcmc()$f3  #ols
+    f2 <- mcmc()$f2  #orm
     
+    kints    <-     as.numeric(unlist(strsplit(input$kints,",")))   
     
-    kints    <-     as.numeric(unlist(strsplit(input$kints,",")))
-    
-    
-    dat$y <- as.numeric(as.character(dat$y))
+    ### this is key !!
+    dat$y <- as.numeric(as.character(dat$y)) #####################################
     
     d <- datadist(dat)
     options(datadist="d")
     
-    
     library(rms)
-    (f1 <- orm(y ~baseline + treatment, data=dat))
+    
+    (f2 <- orm(y ~baseline + treatment, data=dat))
     (f3 <- ols(y ~baseline + treatment, data=dat ))
     
     
     ols.<- Predict(f3,  conf.type="mean",  baseline, treatment)
+    mh <- Mean(f2) 
+    orm. <-  Predict(f2,   baseline, treatment,fun=mh, kint=kints)
     
-    mh <- Mean(f1) 
-    orm. <-  Predict(f1,   baseline, treatment,fun=mh, kint=kints)
-    
-    
-    # 
-    # plot(ols., label.curve=FALSE)
-    
-    
-    
-    p1 <- ols.
-    p2 <- orm.
-    P  <- rbind("Ordinary least squares"=p1, "Proprtional odds model"=p2)
-    #ggplot(p, label.curve=FALSE)
-    
-    
+    P  <- rbind("Ordinary least squares"=ols., "Proprtional odds model"=orm.)
     P$treatment <- ifelse(P$treatment %in% 0, "Placebo", "Treatment")
     
     ggplot(P , ylab='' ) +   ##YES
-      
       
       scale_x_continuous( breaks=1:levz, labels=1:levz) +  
       
@@ -1191,8 +1201,6 @@ server <- shinyServer(function(input, output   ) {
             legend.justification = c(0, 1), 
             legend.position = c(0.05, .99))  +
       
-      
-      
       # legend.position="none") +
       
       labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
@@ -1202,53 +1210,8 @@ server <- shinyServer(function(input, output   ) {
            caption = "")
     
     
-    
-    
-    
-    # 
-    # 
-    # m <- Mean(f, codes=TRUE)
-    # lp <- predict(f, dat)
-    # m(lp)
-    # 
-    # P <- Predict(f, baseline, treatment, fun=m, kint=kints )
-    # 
-    # P$treatment <- ifelse(P$treatment %in% 0, "Placebo", "Treatment")
-    # 
-    # ggplot(P , ylab='' ) +   ##YES
-    #   
-    #   
-    #   scale_x_continuous( breaks=1:levz, labels=1:levz) +  
-    #   
-    #   theme(panel.background=element_blank(),
-    #         plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
-    #         legend.text=element_text(size=12),
-    #         legend.title=element_text(size=0),
-    #         #legend.title=element_blank(),
-    #         axis.text.x = element_text(size=10),
-    #         axis.text.y = element_text(size=10),
-    #         axis.line.x = element_line(color="black"),
-    #         axis.line.y = element_line(color="black"),
-    #         axis.title.y=element_text(size=16),  
-    #         axis.title.x=element_text(size=16),  
-    #         axis.title = element_text(size = 20) , 
-    #         plot.caption=element_text(hjust = 0, size = 7),
-    #         
-    #         legend.justification = c(0, 1), 
-    #         legend.position = c(0.05, .99))  +
-    #   
-    #   
-    #   
-    #   # legend.position="none") +
-    #   
-    #   labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
-    #        x = "Baseline category",
-    #        y = "Predicted Mean",
-    #        subtitle =c("xxxxxxxxxxxxxx"),
-    #        caption = "")
-    
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   })
+  
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
   
@@ -1260,28 +1223,32 @@ server <- shinyServer(function(input, output   ) {
     n    <- sample$n
     levz <- sample$lev
     base <- sample$base
-    
-    
-    
     dat <- mcmc()$dat
-    f3 <- mcmc()$f3
-    f2 <- mcmc()$f2
+  
+      #  kints    <-     as.numeric(unlist(strsplit(input$kints,",")))  
+    
+    #~~~~~~~~~~~~~~~ 
+    dat$y <- as.numeric(as.character(dat$y)) #####################################
+    
+    # d <- datadist(dat)
+    # options(datadist="d")
+   
+    
+    (h <-  orm(y ~baseline + treatment, data=dat))
+    (f3 <- ols(y ~baseline + treatment, data=dat ))
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     
     #  dd <- datadist(dat); options(datadist='dd')
-    
-    (h <- f2)
-    (f <- f3)
-    
+ 
     mh <- Mean(h) 
-    r <- rbind(ols      = Predict(f, conf.int=FALSE),
-               ordinal   = Predict(h, conf.int=FALSE, fun=mh) 
+    r <- rbind(ols      = Predict(f3, conf.int=FALSE),
+               ordinal   = Predict(h, conf.int=FALSE, fun=mh)#, kint=kints) 
     )
     plot(r, groups='.set.')
     
     
   })
-  
-  
+   
   
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
