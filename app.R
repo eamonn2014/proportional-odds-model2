@@ -357,7 +357,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        
                                        textInput('kints', 
                                                  div(h5(tags$span(style="color:blue", 
-                                                                  ""))), ""),
+                                                                  ""))), "2"),
                                        
                                        div(plotOutput("predictm2", width=fig.width9, height=fig.height9)),
                                        
@@ -704,6 +704,7 @@ server <- shinyServer(function(input, output   ) {
     #  # R
     #  rcat <- (as.numeric(unlist(strsplit(input$rcat,","))))     
     
+    kints    <-     as.numeric(unlist(strsplit(input$kints,",")))
     
     return(list(  
       n=trt[1],  
@@ -712,8 +713,8 @@ server <- shinyServer(function(input, output   ) {
       or2=n2y2[1],
       shape1=dis[1], 
       shape2=dis[2],
-      base=base[1]#,
-      # kints=kints[1]
+      base=base[1],
+       kintz=kints[1]
       # group=group[1],
       # rcat=rcat
       # 
@@ -738,7 +739,7 @@ server <- shinyServer(function(input, output   ) {
     #base  <- sample$base
     group  <- sample$group
     rcat  <- sample$rcat
-    # kints  <- sample$kints
+   # kintz  <- sample$kintz
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Parameters 
     
@@ -1097,16 +1098,16 @@ server <- shinyServer(function(input, output   ) {
     dat <- mcmc()$dat
     
     levz <- sample$lev
+    k  <- sample$kintz
     
-    
-    kints    <-     as.numeric(unlist(strsplit(input$kints,",")))
+    #kintz    <-     as.numeric(unlist(strsplit(input$kints,",")))
     
     
     m <- Mean(f, codes=FALSE)
     # lp <- predict(f, dat)
     #  m(lp)
     
-    P <- Predict(f, baseline, treatment, fun=m, kint=kints )
+    P <- Predict(f, baseline, treatment, fun=m, kint=k )
     
     
     
@@ -1158,9 +1159,9 @@ server <- shinyServer(function(input, output   ) {
     levz <- sample$lev
     f3 <- mcmc()$f3  #ols
     f2 <- mcmc()$f2  #orm
+    k  <- sample$kintz
     
-    kints    <-     as.numeric(unlist(strsplit(input$kints,",")))   
-    
+   # kintz    <-     as.numeric(unlist(strsplit(input$kints,",")))   
     ### this is key !!
     dat$y <- as.numeric(as.character(dat$y)) #####################################
     
@@ -1175,7 +1176,7 @@ server <- shinyServer(function(input, output   ) {
     
     ols.<- Predict(f3,  conf.type="mean",  baseline, treatment)
     mh <- Mean(f2) 
-    orm. <-  Predict(f2,   baseline, treatment,fun=mh, kint=kints)
+    orm. <-  Predict(f2,   baseline, treatment,fun=mh, kint=k)
     
     P  <- rbind("Ordinary least squares"=ols., "Proprtional odds model"=orm.)
     P$treatment <- ifelse(P$treatment %in% 0, "Placebo", "Treatment")
@@ -1213,87 +1214,53 @@ server <- shinyServer(function(input, output   ) {
   })
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  
-  
-  
-  
-  output$check <- renderPlot({   
+   output$check <- renderPlot({   
     
     sample <- random.sample()
     
     f    <- mcmc()$res
     dat <- mcmc()$dat
-    levz <- sample$lev
     f3 <- mcmc()$f3  #ols
     f2 <- mcmc()$f2  #orm
+    k  <- sample$kintz
+     
+    #kintz1    <-     as.numeric(unlist(strsplit(input$kints,",")))
     
-    kints    <-     as.numeric(unlist(strsplit(input$kints,",")))   
-    
-    ### this is key !!
     dat$y <- as.numeric(as.character(dat$y)) #####################################
     
     d <<- datadist(dat)    #this was key!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     options(datadist="d")
     
-    library(rms)
-    
-    (f2 <- orm(y ~baseline + treatment, data=dat))
-    (f3 <- ols(y ~baseline + treatment, data=dat ))
-    
-    
-    ols.<- Predict(f3,  conf.type="mean",  baseline, treatment)
-    mh <- Mean(f2) 
-    orm. <-  Predict(f2,   baseline, treatment,fun=mh, kint=kints)
-    
-    P  <- rbind("Ordinary least squares"=ols., "Proprtional odds model"=orm.)
-    P$treatment <- ifelse(P$treatment %in% 0, "Placebo", "Treatment")
-    
-    
-    # ols.<- Predict(f3,  conf.type="mean",  baseline, treatment)
-    # mh <- Mean(f2) 
-    # orm. <-  Predict(f2,   baseline, treatment,fun=mh, kint=kints)
-    # d <- datadist(dat)
-    # options(datadist="d")
-    
-    
-    # (h <-  orm(y ~baseline + treatment, data=dat))
-    # (f3 <- ols(y ~baseline + treatment, data=dat ))
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    
-    #  dd <- datadist(dat); options(datadist='dd')
-    
     mh <- Mean(f2) 
     r <- rbind(ols      =  Predict(f3, conf.int=FALSE),
-               ordinal   = Predict(f2, conf.int=FALSE, fun=mh)#, kint=kints) 
+               ordinal   = Predict(f2, conf.int=FALSE, fun=mh, kint=k) 
     )
     plot(r, groups='.set.')
-    
-    
+
   })
-  
-  
-  
+
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
   compair <- reactive({
     
     sample <- random.sample()
-    n    <- sample$n
-    levz <- sample$lev
-    base <- sample$base
     
+    f    <- mcmc()$res
     dat <- mcmc()$dat
-    f3 <- mcmc()$f3
-    f2 <- mcmc()$f2
+    f3 <- mcmc()$f3  #ols
+    f2 <- mcmc()$f2  #orm
+    k  <- sample$kintz
+     
+    dat$y <- as.numeric(as.character(dat$y)) #####################################
     
-    (h <- f2)
-    (f <- f3)
-    
-    mh <- Mean(h) 
-    r <- rbind(ols      = Predict(f, conf.int=FALSE),
-               ordinal   = Predict(h, conf.int=FALSE, fun=mh) 
+    d <<- datadist(dat)    #this was key!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    options(datadist="d")
+ 
+    mh <- Mean(f2) 
+    r <- rbind(ols      =  Predict(f3, conf.int=FALSE),
+               ordinal   = Predict(f2, conf.int=FALSE, fun=mh, kint=k) 
     )
-    
+    plot(r, groups='.set.')
     
     return(list(r=r)) 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
