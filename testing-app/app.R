@@ -207,16 +207,22 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                                                              "test"))), ""), 
                                                  
                                                   div(plotOutput("PP.plot", width=fig.width7, height=fig.height6)),
-                                                  
-                                                  div(plotOutput("r.plot", width=fig.width7, height=fig.height6)),
+                                                  div( verbatimTextOutput("preds") ), # 
+                                                
                                            
                                                   ),
                                            
                                            
                                            fluidRow(
-                                             column(width = 5, offset = 0, style='padding:1px;',
+                                             
+                                             br(), br(), br(), br(),br(),
+                                             column(width = 5, offset = 0, style='padding:0px;',
+                                                    
+                                                    
+                                                    
+                                                 
+                                                    div(plotOutput("PP.plot2", width=fig.width7, height=fig.height6)),
                                                     div( verbatimTextOutput("predt") ), # 
-                                                    div( verbatimTextOutput("preds") ), # 
                                                   
                                                  
                                              )))
@@ -427,7 +433,7 @@ server <- shinyServer(function(input, output   ) {
       #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     })
   
-    
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~DO THE ANALYSIS~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     
     analysis <- reactive({
       
@@ -464,28 +470,41 @@ server <- shinyServer(function(input, output   ) {
         
       }
       
-      return(list( ols.=ols., orm.=orm. , kk=kk  , k=k, K=K,dat=dat, m=m, f2=f2, f2=f3)) 
-      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    })
+      P  <- rbind( "Proportional odds model"=orm., "Ordinary least squares"=ols.)
+      P2 <- rbind( "model"=orm., "model"=ols.)
+      ymin <- min(P$lower)*.9
+      ymax <- max(P$upper)*1.1
+      return(list( ols.=ols., orm.=orm. , kk=kk , P2=P2, k=k, K=K,dat=dat, m=m, f2=f2, f2=f3, P=P, ymin=ymin, ymax=ymax)) 
+     })
     
-     
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~baseline plots~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    
       output$PP.plot <- renderPlot({   
-
  
-        ols. <- analysis()$ols.
-        orm. <- analysis()$orm.
-        
         K <- analysis()$K
         
         txt <- paste0("Ordinal intercept ", K)
         
+        levz <- input$levels
         
-        P  <- rbind( "Proportional odds model"=orm., "Ordinary least squares"=ols.)
+        P <- analysis()$P
+        
+        
+        
+ 
         P$treatment <- ifelse(P$treatment %in% 0, "Placebo", "Treatment")
         
-        ggplot(P , ylab='' ) +  
-          
+        ymin <- analysis()$ymin # min(P$lower)*.9
+        ymax <- analysis()$ymax # max(P$upper)*1.1
+        
+        ymin <- predt()$ymin # min(P$lower)*.9
+        ymax <- predt()$ymax # max(P$upper)*1.1
+        
+        ggplot(P ,  ylab='' ) +  
           scale_x_continuous( breaks=1:levz, labels=1:levz) +  
+          
+          coord_cartesian(ylim = c(ymin, ymax)) +
+         # scale_y_continuous( breaks=seq(ymin,ymax, by=1), labels=seq(ymin,ymax, by=1)) +  
           
           theme(panel.background=element_blank(),
                 plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
@@ -516,8 +535,79 @@ server <- shinyServer(function(input, output   ) {
         
       })
     
-   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
-
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~baseline predictions~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      
+      
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~baseline plots~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      
+      output$PP.plot2 <- renderPlot({   
+        
+        K <- analysis()$K
+        
+        txt <- paste0("Ordinal intercept ", K)
+        
+        levz <- input$levels
+        
+        P <- analysis()$P
+        
+        P$treatment <- ifelse(P$treatment %in% 0, "Placebo", "Treatment")
+        
+        #P$treatment = paste(P$.set. , P$treatment)
+        
+        ymin <- analysis()$ymin # min(P$lower)*.9
+        ymax <- analysis()$ymax # max(P$upper)*1.1
+        
+        ymin <- predt()$ymin # min(P$lower)*.9
+        ymax <- predt()$ymax # max(P$upper)*1.1
+        
+        ggplot(P,  groups=".set.", ylab='' ) +  
+          
+          scale_x_continuous( breaks=1:levz, labels=1:levz) +  
+          
+          coord_cartesian(ylim = c(ymin, ymax)) +
+          # scale_y_continuous( breaks=seq(ymin,ymax, by=1), labels=seq(ymin,ymax, by=1)) +  
+          
+          theme(panel.background=element_blank(),
+                plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
+                legend.text=element_text(size=12),
+                legend.title=element_text(size=0),
+                #legend.title=element_blank(),
+                axis.text.x = element_text(size=10),
+                axis.text.y = element_text(size=10),
+                axis.line.x = element_line(color="black"),
+                axis.line.y = element_line(color="black"),
+                axis.title.y=element_text(size=16),  
+                axis.title.x=element_text(size=16),  
+                axis.title = element_text(size = 20) , 
+                plot.caption=element_text(hjust = 0, size = 7),
+                
+                legend.justification = c(0, 1), 
+                legend.position = c(0.05, .99))  +
+          
+          # legend.position="none") +
+          
+          
+          labs(title=txt, 
+               x = "Baseline category",
+               y = "Predicted Mean",
+               subtitle =c("xxxxxxxxxxxxxx"),
+               caption = "")
+        
+        
+      })
+      
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~baseline predictions~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      
+      
+      
+      
+      
+      
+      
+      
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      
+      
       preds <- reactive({
         
         dat <- mcmc()$dat
@@ -529,14 +619,14 @@ server <- shinyServer(function(input, output   ) {
         orm. <- analysis()$orm.
         #K <- analysis()$K
         #m <- analysis()$m
+     
         
         p  <- rbind(ols=ols., orm=orm.)
-
-        return(list( p=p)) 
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     
+        return(list( p=p )) 
       })  
-      
-    
+
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~treatment predictions~~~~~~~~~~~~~~~~~~~~~~~~~~~~
       
       predt <- reactive({
         
@@ -550,20 +640,71 @@ server <- shinyServer(function(input, output   ) {
         m <- analysis()$m
     
         
-        ols1. <- Predict(f3,  conf.type="mean",  treatment)
-        orm1. <- Predict(f2,  treatment, fun=m, kint=K)
+        ols1. <- Predict(f3,  conf.type="mean",  treatment, baseline=K)
+        orm1. <- Predict(f2,  treatment, baseline=K, fun=m, kint=K)
        
-       pt  <- rbind(ols=ols1., orm=orm1.)
+        pt  <- rbind(ols=ols1., orm=orm1.)
         
-        return(list( pt=pt)) 
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-      })  
+        ymin <- min(pt$lower)*.9
+        ymax <- max(pt$upper)*1.1
+        
+        pt  <- rbind("Ordinary least squares"=ols1., "Proportional odds model"=orm1.)
+        
+        return(list( pt=pt,  ymin=ymin, ymax=ymax)) 
+       })  
       
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~treatment plots~~~~~~~~~~~~~~~~~~~~~~~~~~~~
       
-      
+
+         
       output$r.plot <- renderPlot({   
       
-          ggplot(predt()$pt, groups='.set.')
+        
+        x <- predt()$pt
+        # ymin <- analysis()$ymin # min(P$lower)*.9
+        # ymax <- analysis()$ymax # max(P$upper)*1.1
+        # 
+        # ymin <- preds()$ymin # min(P$lower)*.9
+        # ymax <- preds()$ymax # max(P$upper)*1.1
+        
+        ymin <- min(x$lower)*.9
+        ymax <- max(x$upper)*1.1
+        
+        pd <- position_dodge(.02) # 
+        
+          ggplot(x, groups='.set.', position=pd) +
+            
+           # geom_point(position = "dodge", fill = "grey50", colour = "black") +
+ 
+            coord_cartesian(ylim = c(ymin, ymax)) +
+            
+            theme(panel.background=element_blank(),
+                  plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"),
+                  legend.text=element_text(size=12),
+                  legend.title=element_text(size=0),
+                  #legend.title=element_blank(),
+                  axis.text.x = element_text(size=10),
+                  axis.text.y = element_text(size=10),
+                  axis.line.x = element_line(color="black"),
+                  axis.line.y = element_line(color="black"),
+                  axis.title.y=element_text(size=16),
+                  axis.title.x=element_text(size=16),
+                  axis.title = element_text(size = 20) ,
+                  plot.caption=element_text(hjust = 0, size = 7),
+
+                  legend.justification = c(0, 1),
+                  legend.position = c(0.05, .99))  +
+            
+            # legend.position="none") +
+            
+            
+            labs(title="txt", 
+                 x = "Treatment group",
+                 y = "Predicted Mean",
+                 subtitle =c("xxxxxxxxxxxxxx"),
+                 caption = "")
+          
+          
       
       })  
 
