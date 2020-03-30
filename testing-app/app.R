@@ -394,16 +394,14 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                   ),
                                
                                   
-                                  tabPanel("5 predictions", 
-                                           
-                                           
-                                           
-                                         # div( verbatimTextOutput("preds")),
-                                           
-                                           
-                                           
+                                  tabPanel("6 ormp plot",
+
+                                           div(plotOutput("ormp", width=fig.width9, height=fig.height7)),
+
                                   ),
-                                tabPanel("6 Linear model", value=3, 
+                                
+                                
+                                tabPanel("7 Linear model", value=3, 
                                          h4("ANCOVA model"),
                                          
                                          fluidRow(
@@ -1488,6 +1486,16 @@ server <- shinyServer(function(input, output   ) {
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
       })
       
+      
+      output$ormp <- renderPlot({   
+        
+        f    <- analysis()$f2
+        
+        #plot(f, baseline, treatment)
+        plot(f, baseline, treatment, fun = stats::plogis)
+        
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      })
       
       
       # 
