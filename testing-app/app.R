@@ -2,6 +2,7 @@
 # Rshiny ideas from on https://gallery.shinyapps.io/multi_regression/
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 rm(list=ls()) 
+set.seed(333) # reproducible
 library(directlabels)
 # library(ggplot2)
 library(shiny) 
@@ -56,7 +57,7 @@ expit <- function(x) 1/(1/exp(x) + 1)
 inv_logit <- function(logit) exp(logit) / (1 + exp(logit))
 
 options(width=200)
-set.seed(12345) # reproducible
+
 
 is.even <- function(x){ x %% 2 == 0 } # function to id. odd maybe useful
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -210,8 +211,9 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                            
                                            fluidRow(
                                              column(width = 5, offset = 0, style='padding:1px;',
-                                                   
+                                                    div( verbatimTextOutput("predt") ), # 
                                                     div( verbatimTextOutput("preds") ), # 
+                                                  
                                                  
                                              )))
                                          
@@ -222,7 +224,32 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                 
                                 #####
                                   
-                                  
+                                tabPanel("4a Predicted treat", value=3, 
+                                         
+                                         
+                                         
+                                         fluidRow(
+                                           column(width = 6, offset = 0, style='padding:1px;',
+                                                  
+                                              #    textInput('kints',
+                                               #             div(h5(tags$span(style="color:blue",
+                                                #                             "test"))), ""), 
+                                                  
+                                               div(plotOutput("r.plot", width=fig.width7, height=fig.height6))),
+                                           
+                                           
+                                           fluidRow(
+                                             column(width = 5, offset = 0, style='padding:1px;',
+                                                  #  div( verbatimTextOutput("predt") ), # 
+                                                   # div( verbatimTextOutput("preds") ), # 
+                                                    
+                                                    
+                                             )))
+                                         
+                                         
+                                         
+                                         
+                                ),
                                   
                                   
                                   
@@ -433,7 +460,7 @@ server <- shinyServer(function(input, output   ) {
         
       }
       
-      return(list( ols.=ols., orm.=orm. , kk=kk  , k=k, K=K,dat=dat, m=m)) 
+      return(list( ols.=ols., orm.=orm. , kk=kk  , k=k, K=K,dat=dat, m=m, f2=f2, f2=f3)) 
       #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     })
     
@@ -490,31 +517,91 @@ server <- shinyServer(function(input, output   ) {
       preds <- reactive({
         
         dat <- mcmc()$dat
-        #kk <-   ( as.numeric(unlist(strsplit(input$kints,","))))
-       # dat$y <- as.numeric(as.character(dat$y)) 
-        d <<- datadist(dat)
-        options(datadist="d") 
+    
+        # d <<- datadist(dat)
+        # options(datadist="d") 
         
         ols. <- analysis()$ols.
         orm. <- analysis()$orm.
-        K <- analysis()$K#
-        m <- analysis()$m
+        #K <- analysis()$K
+        #m <- analysis()$m
+        
+        p  <- rbind(ols=ols., orm=orm.)
+
+        return(list( p=p)) 
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      })  
+      
+    
+      
+      predt <- reactive({
+        
+        dat <- mcmc()$dat
+    
         
         f2 <- orm(y ~baseline + treatment, data=dat )
         f3 <- ols(y ~baseline + treatment, data=dat )
         
-       # ols.<-   Predict(f3,  conf.type="mean",  baseline, treatment)
-      #  orm. <-  Predict(f2,   baseline, treatment,fun=m, kint=K)  # trial and error 
+        K <- analysis()$K
+        m <- analysis()$m
     
         
-        p1 <- ols.
-        p2 <- orm.
-        p  <- rbind(ols=p1, orm=p2)
+        ols1. <- Predict(f3,  conf.type="mean",  treatment)
+        orm1. <- Predict(f2,  treatment, fun=m, kint=K)
+       
+       pt  <- rbind(ols=ols1., orm=orm1.)
         
- 
-        return(list( p=p)) 
+        return(list( pt=pt)) 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
       })  
+      
+      
+      
+      output$r.plot <- renderPlot({   
+        
+      #   dat <- mcmc()$dat
+      #   kk <-   ( as.numeric(unlist(strsplit(input$kints,","))))
+      #   dat$y <- as.numeric(as.character(dat$y))
+      #   
+      # 
+      #   f2 <- orm(y ~baseline + treatment, data=dat )
+      #   f3 <- ols(y ~baseline + treatment, data=dat )
+      #   
+      #   k <- NULL
+      #   m <- Mean(f2, codes=FALSE)
+      #   ml <- as.list(m)
+      #   k <- ml$interceptRef
+      #   
+      #   ols.<- Predict(f3, conf.int=FALSE)
+      #   
+      #   # if input is empty do this 
+      #   if(!isTruthy(kk)){
+      #     
+      #     K <- k
+      #     orm. <-  Predict(f2, conf.int=FALSE, fun=m , kint=K) 
+      #     
+      #   } else {
+      #     
+      #     # if there is a value use it.
+      #     K <- kk
+      #     orm. <-  Predict(f2, conf.int=FALSE, fun=m , kint=K) 
+      #     
+      #   }
+      #   
+      # 
+      # r <- rbind(ols      =  ols.,
+      #            ordinal   = orm.
+      # )
+      
+        pp <- predt()$pt
+   
+        
+      plot(pp, groups='.set.')
+      
+})  
+
+      
+      
       
       
       
@@ -529,6 +616,11 @@ server <- shinyServer(function(input, output   ) {
       output$preds <- renderPrint({
         
         return(print(preds()$p, digits=4))
+      })
+      
+      output$predt <- renderPrint({
+        
+        return(print(predt()$pt, digits=4))
       })
       
       
