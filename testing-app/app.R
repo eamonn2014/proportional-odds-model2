@@ -206,7 +206,11 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                                             div(h5(tags$span(style="color:blue",
                                                                              "test"))), ""), 
                                                  
-                                                  div(plotOutput("PP.plot", width=fig.width7, height=fig.height6))),
+                                                  div(plotOutput("PP.plot", width=fig.width7, height=fig.height6)),
+                                                  
+                                                  div(plotOutput("r.plot", width=fig.width7, height=fig.height6)),
+                                           
+                                                  ),
                                            
                                            
                                            fluidRow(
@@ -224,32 +228,32 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                 
                                 #####
                                   
-                                tabPanel("4a Predicted treat", value=3, 
-                                         
-                                         
-                                         
-                                         fluidRow(
-                                           column(width = 6, offset = 0, style='padding:1px;',
-                                                  
-                                              #    textInput('kints',
-                                               #             div(h5(tags$span(style="color:blue",
-                                                #                             "test"))), ""), 
-                                                  
-                                               div(plotOutput("r.plot", width=fig.width7, height=fig.height6))),
-                                           
-                                           
-                                           fluidRow(
-                                             column(width = 5, offset = 0, style='padding:1px;',
-                                                  #  div( verbatimTextOutput("predt") ), # 
-                                                   # div( verbatimTextOutput("preds") ), # 
-                                                    
-                                                    
-                                             )))
-                                         
-                                         
-                                         
-                                         
-                                ),
+                                # tabPanel("4a Predicted treat", value=3, 
+                                #          
+                                #          
+                                #          
+                                #          fluidRow(
+                                #            column(width = 6, offset = 0, style='padding:1px;',
+                                #                   
+                                #               #    textInput('kints',
+                                #                #             div(h5(tags$span(style="color:blue",
+                                #                 #                             "test"))), ""), 
+                                #                   
+                                #                div(plotOutput("r.plot", width=fig.width7, height=fig.height6))),
+                                #            
+                                #            
+                                #            fluidRow(
+                                #              column(width = 5, offset = 0, style='padding:1px;',
+                                #                   #  div( verbatimTextOutput("predt") ), # 
+                                #                    # div( verbatimTextOutput("preds") ), # 
+                                #                     
+                                #                     
+                                #              )))
+                                #          
+                                #          
+                                #          
+                                #          
+                                # ),
                                   
                                   
                                   
@@ -558,55 +562,12 @@ server <- shinyServer(function(input, output   ) {
       
       
       output$r.plot <- renderPlot({   
-        
-      #   dat <- mcmc()$dat
-      #   kk <-   ( as.numeric(unlist(strsplit(input$kints,","))))
-      #   dat$y <- as.numeric(as.character(dat$y))
-      #   
-      # 
-      #   f2 <- orm(y ~baseline + treatment, data=dat )
-      #   f3 <- ols(y ~baseline + treatment, data=dat )
-      #   
-      #   k <- NULL
-      #   m <- Mean(f2, codes=FALSE)
-      #   ml <- as.list(m)
-      #   k <- ml$interceptRef
-      #   
-      #   ols.<- Predict(f3, conf.int=FALSE)
-      #   
-      #   # if input is empty do this 
-      #   if(!isTruthy(kk)){
-      #     
-      #     K <- k
-      #     orm. <-  Predict(f2, conf.int=FALSE, fun=m , kint=K) 
-      #     
-      #   } else {
-      #     
-      #     # if there is a value use it.
-      #     K <- kk
-      #     orm. <-  Predict(f2, conf.int=FALSE, fun=m , kint=K) 
-      #     
-      #   }
-      #   
-      # 
-      # r <- rbind(ols      =  ols.,
-      #            ordinal   = orm.
-      # )
       
-        pp <- predt()$pt
-   
-        
-      plot(pp, groups='.set.')
+          ggplot(predt()$pt, groups='.set.')
       
-})  
+      })  
 
       
-      
-      
-      
-      
-      
-        
       output$dat <- renderPrint({
  
         return(print(mcmc()$dat, digits=4))
