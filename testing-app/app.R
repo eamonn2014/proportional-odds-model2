@@ -395,7 +395,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                   ),
                                
                                   
-                                  tabPanel("6 ormp plot",
+                                  tabPanel("6 ormplot is it trustworthy?",
 
                                            fluidRow(
                                              column(width = 6, offset = 0, style='padding:1px;',
@@ -407,8 +407,9 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                              fluidRow(
                                                column(width = 5, offset = 0, style='padding:1px;',
                                                       #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
-                                                      div( verbatimTextOutput("reg.summaryp") )
-                                                       
+                                                      div( verbatimTextOutput("reg.summaryp") ),
+                                                      div( verbatimTextOutput("reg.summaryc") ),
+                                                      div( verbatimTextOutput("reg.summaryci") )
                                                       
                                                       # h4(htmlOutput("textWithNumber",) ),
                                                ))),
@@ -1007,7 +1008,7 @@ server <- shinyServer(function(input, output   ) {
     })
     
     
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~not used
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~tables of predictions
     
     predictz <- reactive({  
       
@@ -1028,11 +1029,21 @@ server <- shinyServer(function(input, output   ) {
     
       probs <- cbind(newdat,xx )
     
-      return(list(probs=probs))
+      xx <- predict(f, newdat, type="fitted") 
+      
+      cprobs <- cbind(newdat,xx )
+      
+      p.with.ci <- predict_with_ci(f, np = 100, fun = stats::plogis)
+      
+      plotci <- plot(f, baseline, treatment, fun = stats::plogis)
+      
+      #getAnywhere(plot.orm)
+      
+      return(list(probs=probs, cprobs=cprobs, p.with.ci=p.with.ci , plotci=plotci$data))
       
     })
     
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~not used
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~plots of predictions
     
     output$predicts <- renderPlot({   
       
@@ -1312,7 +1323,11 @@ server <- shinyServer(function(input, output   ) {
       
       output$dat <- renderPrint({
  
-        return(print(mcmc()$dat, digits=4))
+        d <- mcmc()$dat
+        
+        d <- plyr::arrange(d, baseline, treatment)
+        
+        return(print(d, digits=4))
       })
       
       
@@ -1357,12 +1372,21 @@ server <- shinyServer(function(input, output   ) {
         
       })
       
-      
-      
-      
        output$reg.summaryp <- renderPrint({
          
          return(print(predictz()$prob, digits=4))
+         
+       })
+       
+       output$reg.summaryc <- renderPrint({
+         
+         return(print(predictz()$cprob, digits=4))
+         
+       })
+       
+       output$reg.summaryci <- renderPrint({
+         
+         return(print(predictz()$plotci, digits=4))
          
        })
       #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
