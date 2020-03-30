@@ -19,6 +19,7 @@ library(Hmisc)
 
 library(reshape)
 library(rms)
+library(ormPlot)
 require(ordinal)
 require(ggplot2)
 require(tidyverse)
@@ -396,8 +397,23 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                   
                                   tabPanel("6 ormp plot",
 
-                                           div(plotOutput("ormp", width=fig.width9, height=fig.height7)),
-
+                                           fluidRow(
+                                             column(width = 6, offset = 0, style='padding:1px;',
+                                                    #h4("ANCOVA model"), 
+                                                    div(plotOutput("ormp", width=fig.width7, height=fig.height7)),
+                                                  
+                                             ) ,
+                                             
+                                             fluidRow(
+                                               column(width = 5, offset = 0, style='padding:1px;',
+                                                      #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
+                                                      div( verbatimTextOutput("reg.summaryp") )
+                                                       
+                                                      
+                                                      # h4(htmlOutput("textWithNumber",) ),
+                                               ))),
+                                           
+                                           
                                   ),
                                 
                                 
@@ -941,18 +957,7 @@ server <- shinyServer(function(input, output   ) {
       names(l) <- c("baseline","treatment","response","estimate","lower", "upper")
       
       pd <- position_dodge(0.5) # move them .05 to the left and right
-      
-      # l$treatment <- factor(l$treatment)
-      # br1 <- length(unique(l$baseline))
-      # 
-      # ggplot(l, aes(baseline,estimate, color=treatment)) +
-      #   geom_point(aes(shape=treatment),size=4, position=pd) + 
-      #   scale_color_manual(name="treatment",values=c("coral","steelblue")) + 
-      #   theme_bw() + 
-      #   scale_x_continuous("baseline", breaks=1:br1, labels=1:br1) + 
-      #   scale_y_continuous("Probability")   + 
-      #   geom_errorbar(aes(ymin=lower,ymax=upper),width=0.1,position=pd)
-      # 
+    
       
       l$response <- as.numeric(l$response)
       l$treatment <- factor( l$treatment)
@@ -1004,6 +1009,31 @@ server <- shinyServer(function(input, output   ) {
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~not used
     
+    predictz <- reactive({  
+      
+      sample <- random.sample()
+      f    <- analysis()$f2
+      levz <- sample$lev
+  
+      group <- (as.numeric(unlist(strsplit(input$group,","))))    
+      rcat <-  (as.numeric(unlist(strsplit(input$rcat,","))))     
+      
+     require(reshape)
+      
+      newdat <- data.frame(
+        baseline = rep(1:levz),
+        treatment = rep(0:1, each = levz))
+      
+      xx <- predict(f, newdat, type="fitted.ind")    
+    
+      probs <- cbind(newdat,xx )
+    
+      return(list(probs=probs))
+      
+    })
+    
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~not used
+    
     output$predicts <- renderPlot({   
       
       sample <- random.sample()
@@ -1030,6 +1060,12 @@ server <- shinyServer(function(input, output   ) {
       mm <- melt(data.frame(xx))
       
       mm <- cbind(newdat,mm )
+      
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      
+      #probs <- cbind(newdat,xx )
+      
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
       
       mm$variable <-  gsub(".*\\.","", mm$variable)
       
@@ -1086,38 +1122,8 @@ server <- shinyServer(function(input, output   ) {
       # 
       
       print(gpp)
-      
-      
-      
-      
-      
-      
-      # 
-      # # d <- datadist(newdat)
-      # # options(datadist="d")
-      # 
-      # # L <- predict(f, newdata=newdat, se.fit=TRUE)          #omitted kint= so use 1st intercept
-      # plogis(with(L, linear.predictors + 1.96*cbind(-se.fit,se.fit)))
-      # predict(f, type="fitted.ind")#[1:5,]   #gets Prob(better) and all others
-      # d1 <- newdat
-      # predict(f, d1, type="fitted")        # Prob(Y>=j) for new observation
-      # predict(f, d1, type="fitted.ind")    # Prob(Y=j)
-      # predict(f, d1, type='mean', codes=TRUE) # predicts mean(y) using codes 1,2,3
-      # m <- Mean(f, codes=TRUE)
-      # lp <- predict(f, d1)
-      # m(lp)
-      # # Can use function m as an argument to Predict or nomogram to
-      # # get predicted means instead of log odds or probabilities
-      # dd <- datadist(baseline,treatment); options(datadist='dd')
-      # m
-      # plot(Predict(f, x1, fun=m), ylab='Predicted Mean')
-      # # Note: Run f through bootcov with coef.reps=TRUE to get proper confidence
-      # # limits for predicted means from the prop. odds model
-      # options(datadist=NULL)
-      # 
-      # 
-      # return(list(   sf1=sf1 , dat=dat)) 
-      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+       
+
     })
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1257,87 +1263,7 @@ server <- shinyServer(function(input, output   ) {
         return(list( p=p )) 
       })  
 
-      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~treatment predictions~~~~~~~~~~~~~~~~~~~~~~~~~~~~
       
-      # predt <- reactive({
-      #   
-      #   dat <- mcmc()$dat
-      # 
-      #   
-      #   f2 <- orm(y ~baseline + treatment, data=dat )
-      #   f3 <- ols(y ~baseline + treatment, data=dat )
-      #   
-      #   K <- analysis()$K
-      #   m <- analysis()$m
-      # 
-      #   
-      #   ols1. <- Predict(f3,  conf.type="mean",  treatment, baseline=K)
-      #   orm1. <- Predict(f2,  treatment, baseline=K, fun=m, kint=K)
-      #  
-      #   pt  <- rbind(ols=ols1., orm=orm1.)
-      #   # 
-      #   # ymin <- min(pt$lower)*.9
-      #   # ymax <- max(pt$upper)*1.1
-      #   
-      #   pt  <- rbind("Ordinary least squares"=ols1., "Proportional odds model"=orm1.)
-      #   
-      #   return(list( pt=pt)) 
-      #  })  
-      # 
-      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~treatment plots~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-      
-
-      #    
-      # output$r.plot <- renderPlot({   
-      # 
-      #   
-      #   x <- predt()$pt
-      #   # ymin <- analysis()$ymin # min(P$lower)*.9
-      #   # ymax <- analysis()$ymax # max(P$upper)*1.1
-      #   # 
-      #   # ymin <- preds()$ymin # min(P$lower)*.9
-      #   # ymax <- preds()$ymax # max(P$upper)*1.1
-      #   
-      #   ymin <- min(x$lower)*.9
-      #   ymax <- max(x$upper)*1.1
-      #   
-      #   pd <- position_dodge(.02) # 
-      #   
-      #     ggplot(x, groups='.set.', position=pd) +
-      #       
-      #      # geom_point(position = "dodge", fill = "grey50", colour = "black") +
-      # 
-      #       coord_cartesian(ylim = c(ymin, ymax)) +
-      #       
-      #       theme(panel.background=element_blank(),
-      #             plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"),
-      #             legend.text=element_text(size=12),
-      #             legend.title=element_text(size=0),
-      #             #legend.title=element_blank(),
-      #             axis.text.x = element_text(size=10),
-      #             axis.text.y = element_text(size=10),
-      #             axis.line.x = element_line(color="black"),
-      #             axis.line.y = element_line(color="black"),
-      #             axis.title.y=element_text(size=16),
-      #             axis.title.x=element_text(size=16),
-      #             axis.title = element_text(size = 20) ,
-      #             plot.caption=element_text(hjust = 0, size = 7),
-      # 
-      #             legend.justification = c(0, 1),
-      #             legend.position = c(0.05, .99))  +
-      #       
-      #       # legend.position="none") +
-      #       
-      #       
-      #       labs(title="txt", 
-      #            x = "Treatment group",
-      #            y = "Predicted Mean",
-      #            subtitle =c("xxxxxxxxxxxxxx"),
-      #            caption = "")
-      #     
-      #     
-      # 
-      # })  
       
       
       #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1430,6 +1356,15 @@ server <- shinyServer(function(input, output   ) {
         return(print(lmx()$an, digits=4))
         
       })
+      
+      
+      
+      
+       output$reg.summaryp <- renderPrint({
+         
+         return(print(predictz()$prob, digits=4))
+         
+       })
       #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
       
       lmx <- reactive({
@@ -1491,87 +1426,11 @@ server <- shinyServer(function(input, output   ) {
         
         f    <- analysis()$f2
         
-        #plot(f, baseline, treatment)
         plot(f, baseline, treatment, fun = stats::plogis)
         
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
       })
-      
-      
-      # 
-      # output$compare <- renderPlot({
-      #   
-      # #  print((mcmc()$r))
-      #   mcmc()$r
-      # })
-      # 
-      #  output$p <- renderPrint({
-      #    
-      #    return(print(mcmc()$pp, digits=4))
-      #    
-      # })
-      #  
-      #  output$orm.tm <- renderPrint({
-      #    
-      #    return(print(mcmc()$orm.tm, digits=4))
-      #    
-      #  })
-      #  
-      #  output$ols.tm <- renderPrint({
-      #    
-      #    return(print(mcmc()$ols.tm, digits=4))
-      #    
-     #  })
-      #~~~~~~~~~~
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  #   output$check <- renderPlot({   
-  #     
-  #      
-  #     Data <- mcmc()
-  #     
-  #     dat <- Data$dat
-  #     f3 <- Data$f3  #ols
-  #     f2 <- Data$f2  #orm
-  #     levz <- Data$levz
-  #     
-  #   #  (f2 <- orm(y ~treatment + baseline, data=dat))
-  #     #(f3 <- ols(y ~treatment + baseline, data=dat ))
-  #    # 
-  #     k <- NULL
-  #     m <- Mean(f2, codes=FALSE)
-  #     ml <- as.list(m)
-  #     k <- ml$interceptRef
-  #     i <- names(ml$intercepts)[ml$interceptRef]
-  #     
-  # #    ols.<- Predict(f3,  conf.type="mean",  baseline, treatment)
-  #     
-  #     
-  #     if(!isTruthy( input$kints )) {   #if empty
-  #       
-  #       
-  #       r <- rbind(ols      =  Predict(f3, conf.int=FALSE),
-  #                  ordinal   = Predict(f2, conf.int=FALSE, fun=m, kint=k) 
-  #       )
-  #       
-  #     } else {
-  #       
-  #       kk <-   ( as.numeric(unlist(strsplit(input$kints,","))))
-  #       
-  #       
-  #       r <- rbind(ols      =  Predict(f3, conf.int=FALSE),
-  #                  ordinal   = Predict(f2, conf.int=FALSE, fun=m, kint=kk) 
-  #       )
-  #       
-  #     }
-  #     
-  #     plot(r, groups='.set.')
-  #     
-  #        
-  #     
-  #   })
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    
-      
+   
     
 })
 
