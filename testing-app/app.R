@@ -214,10 +214,65 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                   ) ,
                                   
                                   
+                                  #####
+                                  tabPanel("2 Proportional odds model", value=7, 
+                                           h4("  (when all other variables are set to zero)"),
+                                           
+                                           #    h4(paste("Figure 1. Bayesian and frequentist bootstrap distributions, estimating one sample mean")), 
+                                           #   div(plotOutput("diff", width=fig.width4, height=fig.height4)),       
+                                           
+                                           # fluidRow(
+                                           #     column(width = 6, offset = 0, style='padding:1px;',
+                                           #            h4("Proprtional odds model"), 
+                                           #            div( verbatimTextOutput("reg.summary2") )
+                                           #     )
+                                           #     ),
+                                           
+                                           
+                                           ###############
+                                           
+                                           
+                                           fluidRow(
+                                             column(width = 6, offset = 0, style='padding:1px;',
+                                                    h4("Proportional odds model orm function"), 
+                                                    div( verbatimTextOutput("reg.summary1") )
+                                             ) ,
+                                             
+                                             fluidRow(
+                                               column(width = 6, offset = 0, style='padding:1px;',
+                                                      # h4("Proportional odds model orm function"), 
+                                                      # div( verbatimTextOutput("reg.summary1")),
+                                                      h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
+                                                      div( verbatimTextOutput("reg.summary3")),
+                                                      
+                                                      h4(htmlOutput("textWithNumber",) ),
+                                               ))),
+                                           
+                                           
+                                           #  h4(htmlOutput("textWithNumber",) ),
+                                           
+                                           # h4(htmlOutput("textWithNumber1",) ),
+                                  ) ,
+                                  
                                 #####
+                                #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                                tabPanel("3 Barplots of outcome", value=3, 
+                                         h4("xxxxxxxxxxxxxxxxxxxxxx."),
+                                         h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
+                                         div(plotOutput("reg.plot99", width=fig.width1, height=fig.height1)),
+                                         
+                                         fluidRow(
+                                           column(width = 7, offset = 0, style='padding:1px;',
+                                                  h4("xxxxxxxxxxxxxxxxxxxxxn"), 
+                                                  # div( verbatimTextOutput("reg.summary4"))
+                                           )),
+                                         
+                                         
+                                ),
                                 
+                                #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                                 
-                                tabPanel("4 Predicted Mean b", value=3, 
+                                tabPanel("4 Predicted Mean", value=3, 
                                          
                                         
                                          
@@ -445,6 +500,7 @@ server <- shinyServer(function(input, output   ) {
       
       f2 <- orm(y ~baseline + treatment, data=dat )
       f3 <- ols(y ~baseline + treatment, data=dat )
+      sf1 <- summary(f3, antilog=TRUE, verbose=FALSE)
       
       k <- NULL
       m <- Mean(f2, codes=FALSE)
@@ -471,7 +527,7 @@ server <- shinyServer(function(input, output   ) {
       P2 <- rbind( "model"=orm., "model"=ols.)
       # ymin <- min(P$lower)*.9
       # ymax <- max(P$upper)*1.1
-      return(list( ols.=ols., orm.=orm. , kk=kk , P2=P2, k=k, K=K,dat=dat, m=m, f2=f2, f2=f3, P=P )) 
+      return(list( ols.=ols., orm.=orm. , kk=kk , P2=P2, k=k, K=K,dat=dat, m=m, f2=f2, f3=f3, P=P, sf1=sf1 )) 
      })
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -617,6 +673,119 @@ server <- shinyServer(function(input, output   ) {
       
     })
     
+    
+    
+    output$reg.plot99 <- renderPlot({         
+      
+      # Get the current regression data
+      sample <- random.sample()
+      levz <- sample$lev
+      n   <- sample$n
+      
+      dat <- mcmc()$dat
+      
+      f <-   dat
+      f <-   as.data.frame(table(f$y, f$treatment))
+      
+      #  f$Percentage <- round(f$Freq / sum(f$Freq)*100,1)
+      
+      
+      library(dplyr)
+      res <- group_by(f, Var2) %>% mutate(percent = 100*Freq/sum(Freq))
+      
+      res$Percentage <- round(res$percent,1)
+      
+      f <- res             # data set for plot
+      variable <- "Freq"  # variable of interest
+      pN <- sum(f$Freq)   
+      pN <- format(pN, big.mark=","
+                   ,scientific=FALSE)
+      
+      roundUp <- function(x) 10^ceiling(log10(x))/2
+      gupper <- roundUp((max(f$Freq)))  # plot upper limit
+      gupper <- ceiling((max(f$Freq)))*1.15  # plot upper limit
+      glower <- 0                       # plot lower limit
+      gstep <- 5                        # grid steps
+      
+      # text for plot
+      ylabel <- "Counts" 
+      
+      f$N <- f$Freq
+      
+      z <- f
+      
+      NN <- tapply(z$Freq, z$Var2, sum)
+      
+      
+      lab1 <- paste0("Placebo N = ",as.vector(NN[1]),"")
+      lab2 <- paste0("Treatment N = ",as.vector(NN[2]),"")
+      z$Var2 <- factor(z$Var2 , levels = c("0", "1"),
+                       labels = c(lab1, lab2)
+      )
+      
+      
+      
+      
+      
+      Gplotx <- function(data,  l1,l2,l3 ) {
+        
+        mlimit=l1
+        
+        p1 <- ggplot(data = data, aes(x =  Var1, y = N, fill = Var1)) + 
+          
+          geom_bar(stat = "identity", width =0.7) 
+        
+        p1 <- p1 + ggtitle( paste("Observed responses at follow up in trial arms, N =",pN), ) +
+          theme(plot.title = element_text(size = 20, face = "bold")) #+
+        
+        
+        p1 <- p1 + ylab(ylabel ) + 
+          
+          coord_flip() +
+          
+          xlab("Ordinal categories") +
+          
+          guides(fill=guide_legend(title=paste0("(",2,"-digit - ICD9 code)")), size = 14) 
+        
+        
+        p1 <- p1 + geom_text(aes(label=paste0(format(N, big.mark=","
+                                                     ,scientific=FALSE)," (",Percentage,"%)")),position = "stack", 
+                             hjust=-0.2, size = 4.2, check_overlap = F)
+        
+        
+        p1 <- p1 + labs(
+          caption = "- Percentages calculated with respect to randomized group" 
+        ) 
+        
+        
+        p1 <- p1 + scale_y_continuous(limits = c(0, mlimit)) 
+        
+        p1 <- p1 + theme(panel.background=element_blank(),
+                         plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
+                         legend.text=element_text(size=12),
+                         legend.title=element_text(size=14),
+                         axis.text.x = element_text(size=13),
+                         axis.text.y = element_text(size=15),
+                         axis.line.x = element_line(color="black"),
+                         axis.line.y = element_line(color="black"),
+                         axis.title = element_text(size = 20) , 
+                         plot.caption=element_text(hjust = 0, size = 13),  #left align
+                         strip.text = element_text(size=20)
+        )
+        
+        g <- p1 + theme(legend.position="none") +
+          
+          facet_wrap(Var2~.)
+        
+      }
+      
+      gx <- Gplotx(data = z,   l1=gupper,l2=glower,l3=gstep ) 
+      
+      print(gx)
+      
+    })
+    
+ 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # text 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
@@ -835,6 +1004,50 @@ server <- shinyServer(function(input, output   ) {
       #     
       # 
       # })  
+      
+      
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      # text 
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
+      
+      output$textWithNumber <- renderText({ 
+        
+        A <- analysis()$f2     
+        
+        
+        sample <- random.sample()
+        levz <- sample$lev
+        
+        f <- A$coefficients
+        x <-length(f) -2
+        
+        HTML(paste0( "Let's interpret the output on the left. The coefficient alongside y>=2 is "
+                     , tags$span(style="color:red", p2( f     [1][[1]]) ) ,
+                     " this is the log odds of having a response in categories 2 and above, so convert this to a probability "
+                     , tags$span(style="color:red", p3(expit(A$coefficients[1][[1]]) )) , 
+                     " and subtract from one to give the probability of being in the lowest category "
+                     , tags$span(style="color:red", p3(1-  expit(f[1][[1]]) )) ,".",
+                     br(), br(),  
+                     
+                     " The coefficient alongside y>=",levz," is "
+                     , tags$span(style="color:red", p2( f     [x][[1]]) ) ,
+                     " this is the log odds of having a response in the top category only, converting this to a probability gives "
+                     , tags$span(style="color:red", p3(expit(f[x][[1]]) )) , 
+                     "   "
+                     , tags$span(style="color:red",  ) ,
+                     
+                     ""))    
+        
+      })
+      
+      
+      output$textWithNumber1 <- renderText({ 
+        
+        A <- analysis()$f2     
+        
+        
+      })
+      
 
       
       output$dat <- renderPrint({
@@ -854,7 +1067,22 @@ server <- shinyServer(function(input, output   ) {
       })
       
       
-      
+      output$reg.summary1 <- renderPrint({
+        
+        return( (analysis()$f2 ))
+        
+      })
+      # output$reg.summary2 <- renderPrint({
+      #   
+      #   return( (mcmc()$res ))
+      #   
+      # })
+      # correlation from simulation
+      output$reg.summary3 <- renderPrint({
+        
+        return(print(analysis()$sf1, digits=4))
+        
+      })
       
       
       
