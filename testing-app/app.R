@@ -402,8 +402,33 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                            
                                            
                                            
-                                  )
-                                  
+                                  ),
+                                tabPanel("6 Linear model", value=3, 
+                                         h4("ANCOVA model"),
+                                         
+                                         fluidRow(
+                                           column(
+                                             DT::dataTableOutput("tablex"),width = 6)
+                                         ),
+                                         
+                                         fluidRow(
+                                           column(width = 6, offset = 0, style='padding:1px;',
+                                                  #h4("ANCOVA model"), 
+                                                  div( verbatimTextOutput("reg.summary4") )
+                                           ) ,
+                                           
+                                           fluidRow(
+                                             column(width = 5, offset = 0, style='padding:1px;',
+                                                    #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
+                                                    div( verbatimTextOutput("reg.summary5")),
+                                                    div(plotOutput("predictl", width=fig.widthx, height=fig.heightx)),
+                                                    
+                                                    # h4(htmlOutput("textWithNumber",) ),
+                                             ))),
+                                         
+                                         
+                                         
+                                ) 
                                   
                                
                                   
@@ -1393,6 +1418,74 @@ server <- shinyServer(function(input, output   ) {
         
         return(print(analysis()$sf1, digits=4))
         
+      })
+      
+      output$reg.summary4 <- renderPrint({
+        
+        return(print(lmx()$linear, digits=4))
+        
+      })
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      # correlation user data
+      output$reg.summary5 <- renderPrint({
+        
+        return(print(lmx()$an, digits=4))
+        
+      })
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      
+      lmx <- reactive({
+        
+        #sample <- random.sample()
+        
+        dat <- mcmc()$dat
+        
+        dat$y <- as.numeric(as.character(dat$y))
+        
+        f <- lm(y ~treatment + baseline, data=dat)
+        
+        linear <- summary(f)
+        
+        
+        d <<- datadist(dat)
+        options(datadist="d")
+        linear <- ols(y ~treatment + (baseline), data=dat)
+        an <- anova(linear)
+        
+        
+        dat$y <- as.numeric(as.character(dat$y)) 
+        linear <- ols(y ~treatment + (baseline), data=dat)
+        ols.      = Predict(linear, conf.int=FALSE)
+        
+        
+        
+        # P <- predict(linear, dat,
+        #          type=c("lp" ),
+        #          se.fit=FALSE, conf.int=TRUE,
+        #          conf.type=c( 'individual' ),
+        #          ) # ols
+        
+        
+        
+        return(list(linear=linear , an=an, ols.pred=ols.)) 
+        
+        #return(list(linear=linear ))
+        
+      })
+      
+      
+      
+      
+      output$predictl <- renderPlot({   
+        
+        # sample <- random.sample()
+        
+        linear    <- lmx()$linear
+        an <- anova(linear) 
+        ggplot(Predict(linear, treatment), anova=an, pval=TRUE) ############  YES
+        
+        
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
       })
       
       
