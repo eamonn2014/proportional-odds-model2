@@ -285,7 +285,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                                  
                                                   div(plotOutput("PP.plot", width=fig.width7, height=fig.height6)),
                                                   br() ,
-                                                  div( verbatimTextOutput("preds"), width = 2), # 
+                                                  div( verbatimTextOutput("predz"), width = 2), # 
                                                 
                                            
                                                   ),
@@ -314,7 +314,72 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                             
                                   
                                   
-                                  
+                                #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                                
+                                
+                                tabPanel("5 Predicted probabilities", 
+                                         
+                                         #div(plotOutput("preds", width=fig.width9, height=fig.height9)),
+                                         h4("On the left you are looking at the point of view of what happens to a patient considering their baseline category. We can see the probability of response and how it depends on treatment. With the default inputs we can see a shift in the distribution to the higher categories if treated.  
+
+On the right we can look at ALL baseline categories and see the predicted probability curves. 
+Vertically all the curves will sum to 1 for a treatment group. 
+I a patient is in baseline group category 1 we can see the probability of them being in each category if they were treated (or alternatively if they were in placebo).
+With the default inputs we can see horizontal lines in the treated responses (only for the default input values), telling us a patient's baseline value is not important to know.
+"),
+                                         fluidRow(
+                                           column(width = 6, offset = 0, style='padding:1px;',
+                                                  #h4("ANCOVA model"), 
+                                                  #div(plotOutput("preds", width=fig.width9, height=fig.height9)),
+                                                  div(plotOutput("preds", width=fig.width7, height=fig.height7)),
+                                                  
+                                                  fluidRow(
+                                                    
+                                                    textInput('base', 
+                                                              div(h5(tags$span(style="color:blue", 
+                                                                               "Enter a patient's baseline category and see their predicted probabilities for response outcomes"))), "1")
+                                                    
+                                                    
+                                                  ),
+                                           ) ,
+                                           
+                                           fluidRow(
+                                             
+                                             
+                                             
+                                             
+                                             column(width = 5, offset = 0, style='padding:1px;',
+                                                    #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
+                                                    #  div( verbatimTextOutput("reg.summary5")),
+                                                    div(plotOutput("predicts", width=fig.width7, height=fig.height7)),
+                                                    
+                                                    
+                                                    
+                                                    fluidRow(
+                                                      
+                                                      textInput('group', 
+                                                                div(h5(tags$span(style="color:blue", 
+                                                                                 "select treatment group: 0 for placebo, 1 for treatment, 2 for both"))), "1"),
+                                                      
+                                                      textInput('rcat', 
+                                                                div(h5(tags$span(style="color:blue", 
+                                                                                 "Response category, enter 999 to see all levels or select level(s) of interest"))), "999"),
+                                                      
+                                                      
+                                                      
+                                                      
+                                                    ),
+                                                    # h4(htmlOutput("textWithNumber",) ),
+                                             ))),
+                                         
+                                         #h4(htmlOutput("textWithNumber4",) ) ,
+                                         width = 30 )     ,
+                                
+                                
+                                
+                                
+                                
+                                #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                                   
                                   
                                   
@@ -377,13 +442,16 @@ server <- shinyServer(function(input, output   ) {
         n2y2 <- log(as.numeric(unlist(strsplit(input$or2,","))))    # user enter odds , need log for the maths
       
         
+        base<- as.numeric(unlist(strsplit(input$base,",")))
+        
         return(list(  
             n=trt[1],  
             lev=ctr[1],
             or1=n1y1[1], 
             or2=n2y2[1],
             shape1=dis[1], 
-            shape2=dis[2]
+            shape2=dis[2],
+            base=base[1]
            
         ))
         
@@ -785,7 +853,250 @@ server <- shinyServer(function(input, output   ) {
       
     })
     
- 
+ #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    
+    
+    
+    
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # non cummulative predicted probabilities plot run the analysis again
+    # not efficient I know
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    
+    output$preds <- renderPlot({
+      
+      sample <- random.sample()
+      n    <- sample$n
+      levz <- sample$lev
+      base <- sample$base
+      
+      datx <- mcmc()$dat
+      
+      
+      
+      
+      # I can get non cummulative probabilites using clm
+      # Don't know how to do it with rms? yet
+      
+      Res.clm <- clm(y ~treatment + baseline, data=datx)
+      
+      # levz <-   length(unique(Res.clm$model$baseline))
+      
+      # summary(Res.clm)
+      
+      newdat <- data.frame(
+        baseline =   (rep(1:levz)),
+        treatment = rep(0:1, each = levz)
+      )
+      # newdat <- data.frame(
+      #   baseline =  factor(sort(unique(Res.clm$model$baseline))),
+      #   treatment = rep(0:1, each = levz)
+      # )
+      
+      
+      newdat <- cbind(newdat, predict(Res.clm, newdata=newdat, se.fit=TRUE,
+                                      interval=TRUE, type="prob"))
+      
+      
+      
+      A<- cbind( newdat[,1:2], newdat[,grep("^fit", colnames(newdat)) ])
+      B<- cbind( newdat[,1:2], newdat[,grep("^lwr", colnames(newdat)) ])
+      C<- cbind( newdat[,1:2], newdat[,grep("^upr", colnames(newdat)) ])
+      
+      lA <- melt(data = A, id.vars = c("baseline","treatment") )
+      lB <- melt(data = B, id.vars = c("baseline","treatment") )
+      lC <- melt(data = C, id.vars = c("baseline","treatment") )
+      
+      lA$variable <-  gsub(".*\\.","", lA$variable)
+      lB$variable <-   gsub(".*\\.","", lB$variable)
+      lC$variable <-   gsub(".*\\.","", lC$variable)
+      
+      l <- cbind(lA,lB,lC)
+      
+      l <- l[,c(1:4,8,12)]
+      
+      names(l) <- c("baseline","treatment","response","estimate","lower", "upper")
+      
+      pd <- position_dodge(0.5) # move them .05 to the left and right
+      
+      # l$treatment <- factor(l$treatment)
+      # br1 <- length(unique(l$baseline))
+      # 
+      # ggplot(l, aes(baseline,estimate, color=treatment)) +
+      #   geom_point(aes(shape=treatment),size=4, position=pd) + 
+      #   scale_color_manual(name="treatment",values=c("coral","steelblue")) + 
+      #   theme_bw() + 
+      #   scale_x_continuous("baseline", breaks=1:br1, labels=1:br1) + 
+      #   scale_y_continuous("Probability")   + 
+      #   geom_errorbar(aes(ymin=lower,ymax=upper),width=0.1,position=pd)
+      # 
+      
+      l$response <- as.numeric(l$response)
+      l$treatment <- factor( l$treatment)
+      l$treatment <- ifelse( l$treatment %in% 0,"Placebo","Treatment")
+      br1 <- length(unique(l$baseline))
+      
+      lx <- l[l$baseline %in% base,]     # user input selects this
+      
+      gp <- ggplot(lx, aes(response,estimate, color=treatment)) +
+        geom_point(aes(shape=treatment),size=4, position=pd) + 
+        scale_color_manual(name="treatment",values=c("coral","steelblue")) + 
+        theme_bw() + 
+        scale_x_continuous( breaks=1:br1, labels=1:br1) +   
+        #  scale_y_continuous("Probability")   + 
+        geom_line(position=pd, linetype = "dashed")+
+        geom_errorbar(aes(ymin=lower,ymax=upper),width=0.2,position=pd) +
+        
+        theme(panel.background=element_blank(),
+              plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
+              legend.text=element_text(size=12),
+              #legend.title=element_text(size=14),
+              legend.title=element_blank(),
+              axis.text.x = element_text(size=10),
+              axis.text.y = element_text(size=10),
+              axis.line.x = element_line(color="black"),
+              axis.line.y = element_line(color="black"),
+              axis.title.y=element_text(size=16),  
+              axis.title.x=element_text(size=16),  
+              axis.title = element_text(size = 20) , 
+              plot.caption=element_text(hjust = 0, size = 7) ,
+              
+              legend.justification = c(0, 1), 
+              legend.position = c(0.05, .99))  +
+        
+        
+        
+        labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
+             x = "Response category",
+             y = "Predicted probability",
+             subtitle =c("xxxxxxxxxxxxxx"),
+             caption = "")  
+      # guides(fill=guide_legend(title="Treatment"))
+      # 
+      
+      print(gp)
+      
+    })
+    
+    
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~not used
+    
+    output$predicts <- renderPlot({   
+      
+      sample <- random.sample()
+      # 
+      f    <- analysis()$f2
+      # 
+      levz <- sample$lev
+      # rcat <- sample$rcat
+      #  group <- sample$group
+      
+            
+      group <- (as.numeric(unlist(strsplit(input$group,","))))    
+      # R
+      rcat <- (as.numeric(unlist(strsplit(input$rcat,","))))     
+    
+      require(reshape)
+      
+      newdat <- data.frame(
+        baseline = rep(1:levz),
+        treatment = rep(0:1, each = levz))
+      
+      xx <- predict(f, newdat, type="fitted.ind")    #
+      
+      mm <- melt(data.frame(xx))
+      
+      mm <- cbind(newdat,mm )
+      
+      mm$variable <-  gsub(".*\\.","", mm$variable)
+      
+      mm <- plyr::arrange(mm,treatment,variable,baseline )
+      
+      mm$flag <- rep(seq_along( rle(mm$variable)$values ), times = rle(mm$variable)$lengths )
+      
+      
+      if (group %in% 0) {g = c(0)} else if (group %in% 1) {g = c(1)} else if (group %in% 2) {g = c(0,1)} 
+      
+      mm <-  mm[mm$treatment %in% g,]
+      
+      
+      if (rcat %in% 999) {r = 1:levz} else   {r = rcat} 
+      
+      mm <-  mm[mm$variable %in% r,]
+      
+      A <- ifelse(mm$treatment %in% 0, "Placebo","Treatment")
+      mm$grp <- paste(A, mm$variable)
+      
+      A <- ifelse(mm$treatment %in% 0, "Pl.","Trt.")
+      mm$var2 <- paste(A, mm$variable)
+      
+      
+      
+      gpp <- ggplot(mm, aes(baseline, value, group=factor(grp))) +
+        geom_line(aes(color=factor(A))) +
+        
+        scale_x_continuous( breaks=1:levz, labels=1:levz) +  
+        
+        theme(panel.background=element_blank(),
+              plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
+              legend.text=element_text(size=12),
+              legend.title=element_text(size=0),
+              #legend.title=element_blank(),
+              axis.text.x = element_text(size=10),
+              axis.text.y = element_text(size=10),
+              axis.line.x = element_line(color="black"),
+              axis.line.y = element_line(color="black"),
+              axis.title.y=element_text(size=16),  
+              axis.title.x=element_text(size=16),  
+              axis.title = element_text(size = 20) , 
+              plot.caption=element_text(hjust = 0, size = 7) ,
+              legend.position="none") +
+        
+        labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
+             x = "Baseline category",
+             y = "Predicted probability",
+             subtitle =c("xxxxxxxxxxxxxx"),
+             caption = "")  +
+        geom_dl(aes(label = var2), method = list(dl.combine("first.points", "last.points"),
+                                                 cex = 0.9)) 
+      # guides(fill=guide_legend(title="Treatment"))  
+      # 
+      
+      print(gpp)
+      
+      
+      
+      
+      
+      
+      # 
+      # # d <- datadist(newdat)
+      # # options(datadist="d")
+      # 
+      # # L <- predict(f, newdata=newdat, se.fit=TRUE)          #omitted kint= so use 1st intercept
+      # plogis(with(L, linear.predictors + 1.96*cbind(-se.fit,se.fit)))
+      # predict(f, type="fitted.ind")#[1:5,]   #gets Prob(better) and all others
+      # d1 <- newdat
+      # predict(f, d1, type="fitted")        # Prob(Y>=j) for new observation
+      # predict(f, d1, type="fitted.ind")    # Prob(Y=j)
+      # predict(f, d1, type='mean', codes=TRUE) # predicts mean(y) using codes 1,2,3
+      # m <- Mean(f, codes=TRUE)
+      # lp <- predict(f, d1)
+      # m(lp)
+      # # Can use function m as an argument to Predict or nomogram to
+      # # get predicted means instead of log odds or probabilities
+      # dd <- datadist(baseline,treatment); options(datadist='dd')
+      # m
+      # plot(Predict(f, x1, fun=m), ylab='Predicted Mean')
+      # # Note: Run f through bootcov with coef.reps=TRUE to get proper confidence
+      # # limits for predicted means from the prop. odds model
+      # options(datadist=NULL)
+      # 
+      # 
+      # return(list(   sf1=sf1 , dat=dat)) 
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    })
+    
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # text 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
@@ -905,7 +1216,7 @@ server <- shinyServer(function(input, output   ) {
       
       #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~baseline predictions~~~~~~~~~~~~~~~~~~~~~~~~~~~~
       
-      preds <- reactive({
+      predz <- reactive({
         
         dat <- mcmc()$dat
     
@@ -1056,9 +1367,9 @@ server <- shinyServer(function(input, output   ) {
       })
       
       
-      output$preds <- renderPrint({
+      output$predz <- renderPrint({
         
-        return(print(preds()$p, digits=4))
+        return(print(predz()$p, digits=4))
       })
       
       output$predt <- renderPrint({
