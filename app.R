@@ -2,6 +2,7 @@
 # Rshiny ideas from on https://gallery.shinyapps.io/multi_regression/
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 rm(list=ls()) 
+set.seed(333) # reproducible
 library(directlabels)
 # library(ggplot2)
 library(shiny) 
@@ -15,8 +16,10 @@ library(Hmisc)
 # library(LaplacesDemon)
 # library(bayesboot)
 # library(boot)
+
 library(reshape)
 library(rms)
+library(ormPlot)
 require(ordinal)
 require(ggplot2)
 require(tidyverse)
@@ -55,7 +58,7 @@ expit <- function(x) 1/(1/exp(x) + 1)
 inv_logit <- function(logit) exp(logit) / (1 + exp(logit))
 
 options(width=200)
-set.seed(12345) # reproducible
+
 
 is.even <- function(x){ x %% 2 == 0 } # function to id. odd maybe useful
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -170,8 +173,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                             .navbar-default .navbar-nav > li > a[data-value='t3'] {color: green;background-color: lightgreen;}
                    ")),
                               
-                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                              
                               tabPanel("1 Baseline version of response", value=7, 
                                        h4("The distribution of the baseline version of the response variable is specified here.
                                           By selecting a beta distribution using the shape parameters the
@@ -211,9 +213,9 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        
                                        # h4(htmlOutput("textWithNumber1",) ),
                               ) ,
-                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               
                               
+                              #####
                               tabPanel("2 Proportional odds model", value=7, 
                                        h4("  (when all other variables are set to zero)"),
                                        
@@ -253,13 +255,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        # h4(htmlOutput("textWithNumber1",) ),
                               ) ,
                               
-                              
-                              ################
-                              
-                              
-                              
-                              
-                              
+                              #####
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               tabPanel("3 Barplots of outcome", value=3, 
                                        h4("xxxxxxxxxxxxxxxxxxxxxx."),
@@ -276,143 +272,49 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               ),
                               
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                              #      tabPanel("2 Barplot", value=3, 
-                              #               h4("xxxxxxxxxxxxxxxxxx."),
-                              #               #h4(paste("Figure 2. xxxxxxxxxxxxxxxxxx")), 
-                              #               
-                              #               div(plotOutput("diff",  width=fig.width5, height=fig.height5)),
-                              #               div(plotOutput("diff2", width=fig.width5, height=fig.height5)),     
-                              #               div(plotOutput("diff3", width=fig.width5, height=fig.height5)),  
-                              #               h4(paste("Figure 1. Barplots of counts in ordinal variable, baseline, outcome separately for treated and placebo patients (not very informative unless 
-                              # you select a large number of patients and large treatment odds ratio) ")), 
-                              #               fluidRow(
-                              #                 column(width = 7, offset = 0, style='padding:1px;',
-                              #                        h4("xxxxxxxxxxxxxxx"), 
-                              #                        # div( verbatimTextOutput("reg.summary3"))
-                              #                 )),
-                              #               
-                              #               
-                              #               
-                              #      ),
-                              #      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                              #      tabPanel("3 Barplot", value=3, 
-                              #               h4("xxxxxxxxxxxxxxxxxxxxxx."),
-                              #               h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
-                              #               div(plotOutput("reg.plot", width=fig.width1, height=fig.height1)),
-                              #               
-                              #               fluidRow(
-                              #                 column(width = 7, offset = 0, style='padding:1px;',
-                              #                        h4("xxxxxxxxxxxxxxxxxxxxxn"), 
-                              #                        # div( verbatimTextOutput("reg.summary4"))
-                              #                 )),
-                              #               
-                              #               
-                              #      ),
-                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               
-                              
-                              
-                              
-                              
-                              
-                              
-                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                              # tabPanel("6 inference", value=3, 
-                              #          h4("xxxxxxxxxxxxxxxxxxxxxx."),
-                              #          h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
-                              #          #div(plotOutput("preds", width=fig.width1, height=fig.height1)),
-                              #          
-                              #          fluidRow(
-                              #            column(width = 7, offset = 0, style='padding:1px;',
-                              #                   h4("xxxxxxxxxxxxxxxxxxxxxn"), 
-                              #                   # div( verbatimTextOutput("reg.summary4"))
-                              #            )),
-                              #          
-                              #          
-                              # ),
-                              
-                              #  tabPanel("4 Take home messages", 
-                              
-                              #      div(plotOutput("preds", width=fig.width9, height=fig.height9)),
-                              
-                              # fluidRow(
-                              # 
-                              #   textInput('base', 
-                              #  div(h5(tags$span(style="color:blue", 
-                              #                   "Enter a patient's baseline category and see their predicted probabilities for response outcomes"))), "1")
-                              #   
-                              #   
-                              # ),
-                              #  
-                              # width = 30
-                              #    ),
-                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                              
-                              tabPanel("4 Predicted Mean", 
+                              tabPanel("4 Predicted Mean", value=3, 
                                        
-                                       # div(plotOutput("predictm", width=fig.width9, height=fig.height9)),
-                                       
-                                       h4("Enter an intercept, default is the middle intercept, seems to correspond to ['median Y' value-1] on tab2 model output, and then find which category this refers to in the printed 'Frequencies of Responses'. 
-                                          This will closely resemble the linear regression prediction.")  ,
-                                       
-                                       textInput('kints', 
-                                                 div(h5(tags$span(style="color:blue", 
-                                                                  ""))), " "),
-                                       
-                                       div(plotOutput("predictm2", width=fig.width9, height=fig.height9)),
-                                       
-                                       # ),
-                                       # fluidRow(
-                                       #   
-                                       #   textInput('group', 
-                                       #             div(h5(tags$span(style="color:blue", 
-                                       #                              "select treatment group: 0 for placebo, 1 for treatment, 2 for both"))), "1"),
-                                       #   
-                                       #   textInput('rcat', 
-                                       #             div(h5(tags$span(style="color:blue", 
-                                       #                              "Response category"))), "1,2,3,4,5")
-                                       #   
-                                       #   
-                                       # ),
-                                       
-                                       #width = 30 
-                              ),
-                              
-                              tabPanel("4 Predicted Mean b", value=3, 
-                                       
-                                       # fluidRow(
-                                       #   column(width = 6, offset = 0, style='padding:1px;',
-                                       # h4("xxxxxxxxxxxxxxxxxxxxxx."),
-                                       # h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
-                                       # div(plotOutput("check", width=fig.width6, height=fig.height6))),
-                                       # 
-                                       # fluidRow(
-                                       #   column(width = 7, offset = 0, style='padding:1px;',
-                                       #          h4("xxxxxxxxxxxxxxxxxxxxxn"), 
-                                       #          div( verbatimTextOutput("reg.summarz") ),
-                                       #          # div( verbatimTextOutput("reg.summary4"))
-                                       #   ))),
-                                       # 
                                        
                                        
                                        fluidRow(
                                          column(width = 6, offset = 0, style='padding:1px;',
-                                                #h4("ANCOVA model"), 
-                                                div(plotOutput("check", width=fig.width7, height=fig.height6))),
+                                                
+                                                textInput('kints',
+                                                          div(h5(tags$span(style="color:blue",
+                                                                           "Enter an intercept for the ordinal model"))), ""), 
+                                                
+                                                div(plotOutput("PP.plot", width=fig.width7, height=fig.height6)),
+                                                br() ,
+                                                div( verbatimTextOutput("predz"), width = 2), # 
+                                                
+                                                
+                                         ),
                                          
                                          
                                          fluidRow(
-                                           column(width = 5, offset = 0, style='padding:1px;',
-                                                  #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
-                                                  #    div( verbatimTextOutput("reg.summarz") ),
-                                                  div( verbatimTextOutput("reg.summarz") ), # 
-                                                  # h4(htmlOutput("textWithNumber",) ),
+                                           
+                                           br(), br(), br() ,
+                                           
+                                           
+                                           column(width = 5, offset = 0, style='padding:0px;',
+                                                  
+                                                  div(h5(tags$span(style="color:blue","test"))),  
+                                                  
+                                                  
+                                                  div(plotOutput("PP.plot2", width=fig.width7, height=fig.height6)),
+                                                  # div( verbatimTextOutput("predt") ), # 
+                                                  
+                                                  
                                            )))
                                        
                                        
                                        
                                        
                               ),
+                              
+                              
+                              
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               
                               
@@ -479,7 +381,44 @@ With the default inputs we can see horizontal lines in the treated responses (on
                               
                               
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                              tabPanel("6 Linear model", value=3, 
+                              
+                              
+                              
+                              tabPanel("5 data", 
+                                       
+                                       
+                                       
+                                       div( verbatimTextOutput("dat")),
+                                       
+                                       
+                                       
+                              ),
+                              
+                              
+                              tabPanel("6 ormplot is it trustworthy?",
+                                       
+                                       fluidRow(
+                                         column(width = 6, offset = 0, style='padding:1px;',
+                                                #h4("ANCOVA model"), 
+                                                div(plotOutput("ormp", width=fig.width7, height=fig.height7)),
+                                                
+                                         ) ,
+                                         
+                                         fluidRow(
+                                           column(width = 5, offset = 0, style='padding:1px;',
+                                                  #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
+                                                  div( verbatimTextOutput("reg.summaryp") ),
+                                                  div( verbatimTextOutput("reg.summaryc") ),
+                                                  div( verbatimTextOutput("reg.summaryci") )
+                                                  
+                                                  # h4(htmlOutput("textWithNumber",) ),
+                                           ))),
+                                       
+                                       
+                              ),
+                              
+                              
+                              tabPanel("7 Linear model", value=3, 
                                        h4("ANCOVA model"),
                                        
                                        fluidRow(
@@ -507,151 +446,23 @@ With the default inputs we can see horizontal lines in the treated responses (on
                               ) ,
                               
                               
-                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~NEW
-                              tabPanel("7 Assumptions", fluid = TRUE, width = 4,
-                                       
-                                       h4(("Upload your own data for correlation analysis. Requires 2 columns of numeric data. Select 'Header' 
-                         if your data columns have names. 
-                         The top two radio button options are to help load,
-                                 the bottom option is to either print the top six rows of the data or show all the data.
-                               ")) ,
-                                       
-                                       h4(("Here are two example data sets (download either file and click 'Browse...' to locate and upload for the analysis):")) ,
-                                       
-                                       tags$a(href = "https://raw.githubusercontent.com/eamonn2014/Bayesian_bootstrap/master/icreamsales", tags$span(style="color:blue", "Example 1 Ice cream sales and temperature N=12, has a header"),), 
-                                       div(p(" ")),
-                                       
-                                       tags$a(href = "https://raw.githubusercontent.com/eamonn2014/Bayesian_bootstrap/master/height.selfesteem", tags$span(style="color:blue", "Example 2 height and self esteem N=20, no header"),), 
-                                       div(p(" ")),
-                                       
-                                       sidebarLayout(
-                                         
-                                         # Sidebar panel for inputs ----
-                                         sidebarPanel(
-                                           
-                                           # Input: Select a file ----
-                                           fileInput("file1", "Choose CSV File",
-                                                     multiple = TRUE,
-                                                     accept = c("text/csv",
-                                                                "text/comma-separated-values,text/plain",
-                                                                ".csv")),
-                                           
-                                           # Horizontal line ----
-                                           tags$hr(),
-                                           
-                                           # Input: Checkbox if file has header ----
-                                           checkboxInput("header", "Header", TRUE),
-                                           
-                                           # Input: Select separator ----
-                                           radioButtons("sep", "Separator",
-                                                        choices = c(Comma = ",",
-                                                                    Semicolon = ";",
-                                                                    Tab = "\t",
-                                                                    Whitespace = ""),
-                                                        selected = ""),
-                                           
-                                           # Input: Select quotes ----
-                                           radioButtons("quote", "Quote",
-                                                        choices = c(None = "",
-                                                                    "Double Quote" = '"',
-                                                                    "Single Quote" = "'"),
-                                                        selected = ''),
-                                           
-                                           # Horizontal line ----
-                                           tags$hr(),
-                                           
-                                           # Input: Select number of rows to display ----
-                                           radioButtons("disp", "List all the data or first 6 rows only",
-                                                        choices = c(Head = "head",
-                                                                    All = "all"),
-                                                        selected = "head"),
-                                           
-                                           # Horizontal line ----
-                                           # tags$hr(),
-                                           
-                                           # Input: Select number of rows to display ----
-                                           # radioButtons("what", "Output",
-                                           #              choices = c(Analysis = "Analysis",
-                                           #                          Plot = "plot"),
-                                           #              selected = "Analysis")
-                                           
-                                         ),
-                                         
-                                         # Main panel for displaying outputs ----
-                                         mainPanel(
-                                           
-                                           # Output: Data file ----
-                                           h4(paste("Figure 4. Bayesian and frequentist bootstrap distributions of user's data, estimating correlation")),  
-                                           div(plotOutput("contents2", width=fig.width6, height=fig.height6)),
-                                           #div(verbatimTextOutput("contents2")),
-                                           #plotOutput("plotx"),
-                                           tags$hr(),
-                                           h4("Correlation and 95% confidence interval from R cor.test function"), 
-                                           #div( verbatimTextOutput("reg.summary5")),
-                                           tags$hr(),
-                                           h4("Print the data listing"),
-                                           tableOutput("contents") 
-                                           
-                                           
-                                         ),
-                                         
-                                       )
-                              ), # end panel
-                              # textInput('levels', 
-                              #           div(h5(tags$span(style="color:blue", "Number of ordinal categories in response"))), "15"),
-                              # tags$hr(), 
-                              
-                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               
                               
-                              
-                              
-                              
-                              
-                              
-                              
-                              # herer
-                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                              tabPanel("7 Data", value=3, 
-                                       
+                                    tabPanel("3 Barplots of outcome", value=3, 
+                                       h4("xxxxxxxxxxxxxxxxxxxxxx."),
+                                       h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
+                                       div(plotOutput("preds2", width=fig.width1, height=fig.height1)),
                                        
                                        fluidRow(
-                                         column(width = 6, offset = 0, style='padding:1px;',
-                                                #h4("ANCOVA model"), 
-                                                DT::dataTableOutput("table1"))
-                                         ,
-                                         
-                                         fluidRow(
-                                           column(width = 5, offset = 0, style='padding:1px;',
-                                                  #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
-                                                  #    div( verbatimTextOutput("reg.summarz") ),
-                                                  
-                                                  # h4(htmlOutput("textWithNumber",) ),
-                                           )))
-                              ),
-                              
-                              
-                              
-                              tabPanel("7 testing", value=3, 
+                                         column(width = 7, offset = 0, style='padding:1px;',
+                                                h4("xxxxxxxxxxxxxxxxxxxxxn"), 
+                                                # div( verbatimTextOutput("reg.summary4"))
+                                         )),
                                        
                                        
-                                       fluidRow(
-                                         column(width = 6, offset = 0, style='padding:1px;',
-                                                #h4("ANCOVA model"), 
-                                                div(plotOutput("A", width=fig.width7, height=fig.height7)),
-                                                # DT::dataTableOutput("ols.pred")
-                                         )
-                                         ,
-                                         
-                                         fluidRow(
-                                           column(width = 5, offset = 0, style='padding:1px;',
-                                                  #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
-                                                  #div( verbatimTextOutput("ols.pred") ),
-                                                  div(plotOutput("B", width=fig.width7, height=fig.height7)),
-                                                  # h4(htmlOutput("textWithNumber",) ),
-                                           )))
                               )
                               
+                              #~~~~~~~~~
                               
                               
                               
@@ -685,12 +496,10 @@ server <- shinyServer(function(input, output   ) {
     
     foo <- input$resample
     
-    #sample sizes
     dis <- as.numeric(unlist(strsplit(input$dist,",")))
     
-    #sample sizes
     trt <- as.numeric(unlist(strsplit(input$n,",")))
-    # mean and sD
+    
     ctr <- as.numeric(unlist(strsplit(input$levels,",")))
     
     #sample size for correlation
@@ -701,12 +510,6 @@ server <- shinyServer(function(input, output   ) {
     
     base<- as.numeric(unlist(strsplit(input$base,",")))
     
-    # group <- (as.numeric(unlist(strsplit(input$group,","))))    
-    #  # R
-    #  rcat <- (as.numeric(unlist(strsplit(input$rcat,","))))     
-    
-   kints    <-    isolate( as.numeric(unlist(strsplit(input$kints,","))))
-    
     return(list(  
       n=trt[1],  
       lev=ctr[1],
@@ -714,16 +517,12 @@ server <- shinyServer(function(input, output   ) {
       or2=n2y2[1],
       shape1=dis[1], 
       shape2=dis[2],
-      base=base[1],
-     kintz=kints[1]
-      # group=group[1],
-      # rcat=rcat
-      # 
-      
+      base=base[1]
       
     ))
     
   })
+  
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # tab 1 simulate po model data and analyse
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -737,23 +536,13 @@ server <- shinyServer(function(input, output   ) {
     b2  <- sample$or2
     shape1  <- sample$shape1
     shape2  <- sample$shape2
-    #base  <- sample$base
     group  <- sample$group
     rcat  <- sample$rcat
-   # kintz  <- sample$kintz
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Parameters 
     
     # treatment assignment 1:1 
     treatment <- 1*(runif(n)<0.5)  
-    
-    # set up baseline distribution of the version of outcome, even distribution
-    # prbs <- sample(1:1,levz,replace=T)
-    #  prbs <- prbs/sum(prbs)                  # all equal 
-    # baseline, select a baseline for everyone
-    # baseline <- sample(1:(length(prbs)), n, prob=prbs, replace=TRUE)
-    
-    
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     
     prbs <- rbeta(10000,shape1,shape2)
@@ -824,883 +613,58 @@ server <- shinyServer(function(input, output   ) {
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # put the data together
     dat <- data.frame(treatment, baseline, y = factor(y))
+    #      sf1 <- summary(f1, antilog=TRUE, verbose=FALSE)
+    
+    return(list(  dat=dat )) 
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  })
+  
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~DO THE ANALYSIS~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  
+  analysis <- reactive({
+    
+    dat <- mcmc()$dat
+    kk <-   ( as.numeric(unlist(strsplit(input$kints,","))))
+    dat$y <- as.numeric(as.character(dat$y)) 
+    
     # dat$baseline <- factor(dat$baseline)
     # use harrell's po function analyse the data
     d <<- datadist(dat)
     options(datadist="d") 
-    f1 <- lrm(y ~treatment + baseline, data=dat )  # would prefer orm here but coeffs dont show up !
-    f2 <- orm(y ~treatment + baseline, data=dat ) 
-    f3 <- ols(y ~treatment + baseline, data=dat ) 
-    sf1 <- summary(f1, antilog=TRUE, verbose=FALSE)
     
-    #f1 <- f1$coefficients 
+    f2 <- orm(y ~baseline + treatment, data=dat )
+    f3 <- ols(y ~baseline + treatment, data=dat )
+    sf1 <- summary(f3, antilog=TRUE, verbose=FALSE)
     
-    return(list(res= f2  , sf1=sf1 , dat=dat, f2=f2,f3=f3)) 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  })
-  
-  
-  
-  DA  <- reactive({
-    
-    d <- mcmc()$dat
-    
-   
-    d <<- datadist(dat)
-    options(datadist="d")
-    f2 <- orm(y ~treatment + baseline, data=dat ) 
-    f3 <- ols(y ~treatment + baseline, data=dat ) 
-    sf1 <- summary(f1, antilog=TRUE, verbose=FALSE)
-    
-  
-    
-    return(list(    dat=dat, res=f2,f3=f3)) 
-    
-  
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  })
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # non cummulative predicted probabilities plot run the analysis again
-  # not efficient I know
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  
-  output$preds <- renderPlot({
-    
-    sample <- random.sample()
-    n    <- sample$n
-    levz <- sample$lev
-    base <- sample$base
-    
-    datx <- mcmc()$dat
-    
-    
-    
-    
-    # I can get non cummulative probabilites using clm
-    # Don't know how to do it with rms? yet
-    
-    Res.clm <- clm(y ~treatment + baseline, data=datx)
-    
-    # levz <-   length(unique(Res.clm$model$baseline))
-    
-    # summary(Res.clm)
-    
-    newdat <- data.frame(
-      baseline =   (rep(1:levz)),
-      treatment = rep(0:1, each = levz)
-    )
-    # newdat <- data.frame(
-    #   baseline =  factor(sort(unique(Res.clm$model$baseline))),
-    #   treatment = rep(0:1, each = levz)
-    # )
-    
-    
-    newdat <- cbind(newdat, predict(Res.clm, newdata=newdat, se.fit=TRUE,
-                                    interval=TRUE, type="prob"))
-    
-    
-    
-    A<- cbind( newdat[,1:2], newdat[,grep("^fit", colnames(newdat)) ])
-    B<- cbind( newdat[,1:2], newdat[,grep("^lwr", colnames(newdat)) ])
-    C<- cbind( newdat[,1:2], newdat[,grep("^upr", colnames(newdat)) ])
-    
-    lA <- melt(data = A, id.vars = c("baseline","treatment") )
-    lB <- melt(data = B, id.vars = c("baseline","treatment") )
-    lC <- melt(data = C, id.vars = c("baseline","treatment") )
-    
-    lA$variable <-  gsub(".*\\.","", lA$variable)
-    lB$variable <-   gsub(".*\\.","", lB$variable)
-    lC$variable <-   gsub(".*\\.","", lC$variable)
-    
-    l <- cbind(lA,lB,lC)
-    
-    l <- l[,c(1:4,8,12)]
-    
-    names(l) <- c("baseline","treatment","response","estimate","lower", "upper")
-    
-    pd <- position_dodge(0.5) # move them .05 to the left and right
-    
-    # l$treatment <- factor(l$treatment)
-    # br1 <- length(unique(l$baseline))
-    # 
-    # ggplot(l, aes(baseline,estimate, color=treatment)) +
-    #   geom_point(aes(shape=treatment),size=4, position=pd) + 
-    #   scale_color_manual(name="treatment",values=c("coral","steelblue")) + 
-    #   theme_bw() + 
-    #   scale_x_continuous("baseline", breaks=1:br1, labels=1:br1) + 
-    #   scale_y_continuous("Probability")   + 
-    #   geom_errorbar(aes(ymin=lower,ymax=upper),width=0.1,position=pd)
-    # 
-    
-    l$response <- as.numeric(l$response)
-    l$treatment <- factor( l$treatment)
-    l$treatment <- ifelse( l$treatment %in% 0,"Placebo","Treatment")
-    br1 <- length(unique(l$baseline))
-    
-    lx <- l[l$baseline %in% base,]     # user input selects this
-    
-    gp <- ggplot(lx, aes(response,estimate, color=treatment)) +
-      geom_point(aes(shape=treatment),size=4, position=pd) + 
-      scale_color_manual(name="treatment",values=c("coral","steelblue")) + 
-      theme_bw() + 
-      scale_x_continuous( breaks=1:br1, labels=1:br1) +   
-      #  scale_y_continuous("Probability")   + 
-      geom_line(position=pd, linetype = "dashed")+
-      geom_errorbar(aes(ymin=lower,ymax=upper),width=0.2,position=pd) +
-      
-      theme(panel.background=element_blank(),
-            plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
-            legend.text=element_text(size=12),
-            #legend.title=element_text(size=14),
-            legend.title=element_blank(),
-            axis.text.x = element_text(size=10),
-            axis.text.y = element_text(size=10),
-            axis.line.x = element_line(color="black"),
-            axis.line.y = element_line(color="black"),
-            axis.title.y=element_text(size=16),  
-            axis.title.x=element_text(size=16),  
-            axis.title = element_text(size = 20) , 
-            plot.caption=element_text(hjust = 0, size = 7) ,
-            
-            legend.justification = c(0, 1), 
-            legend.position = c(0.05, .99))  +
-      
-      
-      
-      labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
-           x = "Response category",
-           y = "Predicted probability",
-           subtitle =c("xxxxxxxxxxxxxx"),
-           caption = "")  
-    # guides(fill=guide_legend(title="Treatment"))
-    # 
-    
-    print(gp)
-    
-  })
-  
-  
-  
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~not used
-  
-  output$predicts <- renderPlot({   
-    
-    sample <- random.sample()
-    # 
-    f    <- mcmc()$res
-    # 
-    levz <- sample$lev
-    # rcat <- sample$rcat
-    #  group <- sample$group
-    
-    
-    
-    group <- (as.numeric(unlist(strsplit(input$group,","))))    
-    # R
-    rcat <- (as.numeric(unlist(strsplit(input$rcat,","))))     
-    
-    
-    
-    
-    
-    
-    require(reshape)
-    
-    newdat <- data.frame(
-      baseline = rep(1:levz),
-      treatment = rep(0:1, each = levz))
-    
-    
-    xx <- predict(f, newdat, type="fitted.ind")    #
-    
-    mm <- melt(data.frame(xx))
-    
-    mm <- cbind(newdat,mm )
-    
-    mm$variable <-  gsub(".*\\.","", mm$variable)
-    
-    mm <- plyr::arrange(mm,treatment,variable,baseline )
-    
-    mm$flag <- rep(seq_along( rle(mm$variable)$values ), times = rle(mm$variable)$lengths )
-    
-    
-    if (group %in% 0) {g = c(0)} else if (group %in% 1) {g = c(1)} else if (group %in% 2) {g = c(0,1)} 
-    
-    mm <-  mm[mm$treatment %in% g,]
-    
-    
-    if (rcat %in% 999) {r = 1:levz} else   {r = rcat} 
-    
-    mm <-  mm[mm$variable %in% r,]
-    
-    A <- ifelse(mm$treatment %in% 0, "Placebo","Treatment")
-    mm$grp <- paste(A, mm$variable)
-    
-    A <- ifelse(mm$treatment %in% 0, "Pl.","Trt.")
-    mm$var2 <- paste(A, mm$variable)
-    
-    
-    
-    gpp <- ggplot(mm, aes(baseline, value, group=factor(grp))) +
-      geom_line(aes(color=factor(A))) +
-      
-      scale_x_continuous( breaks=1:levz, labels=1:levz) +  
-      
-      theme(panel.background=element_blank(),
-            plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
-            legend.text=element_text(size=12),
-            legend.title=element_text(size=0),
-            #legend.title=element_blank(),
-            axis.text.x = element_text(size=10),
-            axis.text.y = element_text(size=10),
-            axis.line.x = element_line(color="black"),
-            axis.line.y = element_line(color="black"),
-            axis.title.y=element_text(size=16),  
-            axis.title.x=element_text(size=16),  
-            axis.title = element_text(size = 20) , 
-            plot.caption=element_text(hjust = 0, size = 7) ,
-            legend.position="none") +
-      
-      labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
-           x = "Baseline category",
-           y = "Predicted probability",
-           subtitle =c("xxxxxxxxxxxxxx"),
-           caption = "")  +
-      geom_dl(aes(label = var2), method = list(dl.combine("first.points", "last.points"),
-                                               cex = 0.9)) 
-    # guides(fill=guide_legend(title="Treatment"))  
-    # 
-    
-    print(gpp)
-    
-    
-    
-    
-    
-    
-    # 
-    # # d <- datadist(newdat)
-    # # options(datadist="d")
-    # 
-    # # L <- predict(f, newdata=newdat, se.fit=TRUE)          #omitted kint= so use 1st intercept
-    # plogis(with(L, linear.predictors + 1.96*cbind(-se.fit,se.fit)))
-    # predict(f, type="fitted.ind")#[1:5,]   #gets Prob(better) and all others
-    # d1 <- newdat
-    # predict(f, d1, type="fitted")        # Prob(Y>=j) for new observation
-    # predict(f, d1, type="fitted.ind")    # Prob(Y=j)
-    # predict(f, d1, type='mean', codes=TRUE) # predicts mean(y) using codes 1,2,3
-    # m <- Mean(f, codes=TRUE)
-    # lp <- predict(f, d1)
-    # m(lp)
-    # # Can use function m as an argument to Predict or nomogram to
-    # # get predicted means instead of log odds or probabilities
-    # dd <- datadist(baseline,treatment); options(datadist='dd')
-    # m
-    # plot(Predict(f, x1, fun=m), ylab='Predicted Mean')
-    # # Note: Run f through bootcov with coef.reps=TRUE to get proper confidence
-    # # limits for predicted means from the prop. odds model
-    # options(datadist=NULL)
-    # 
-    # 
-    # return(list(   sf1=sf1 , dat=dat)) 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  })
-  
-  #
-  #############################################################################################################################
-  
-  
-  output$predictm <- renderPlot({   
-    
-   # sample <- random.sample()
-    
-    f    <- isolate(DA()$res)
-    
-    #dat <- mcmc()$dat
-    
-  #  levz <- sample$lev
-   # k  <- sample$kintz
-    
-    
-    
-    #kintz    <-     as.numeric(unlist(strsplit(input$kints,",")))
-    
-    # k <- NULL
-    # m <- Mean(f, codes=FALSE)
-    # ml <- as.list(m)
-    # k <- ml$interceptRef
-    
-    
-    
-    
-    # lp <- predict(f, dat)
-    #  m(lp)
-    
-    k <- isolate(input()$kints)
-    
-    if(!isTruthy(k)){
-    
-    P <- Predict(f, baseline, treatment, fun=m)#, kint=k )
-    
-    } else {
-      
-      
-    P <- Predict(f, baseline, treatment, fun=m, kint=input()$kints )  
-      
-    }
-    
-    P$treatment <- ifelse(P$treatment %in% 0, "Placebo", "Treatment")
-    
-    ggplot(P , ylab='' ) +   ##YES
-      
-      
-      scale_x_continuous( breaks=1:levz, labels=1:levz) +  
-      
-      theme(panel.background=element_blank(),
-            plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
-            legend.text=element_text(size=12),
-            legend.title=element_text(size=0),
-            #legend.title=element_blank(),
-            axis.text.x = element_text(size=10),
-            axis.text.y = element_text(size=10),
-            axis.line.x = element_line(color="black"),
-            axis.line.y = element_line(color="black"),
-            axis.title.y=element_text(size=16),  
-            axis.title.x=element_text(size=16),  
-            axis.title = element_text(size = 20) , 
-            plot.caption=element_text(hjust = 0, size = 7),
-            
-            legend.justification = c(0, 1), 
-            legend.position = c(0.05, .99))  +
-      
-      
-      
-      # legend.position="none") +
-      
-      labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
-           x = "Baseline category",
-           y = "Predicted Mean",
-           subtitle =c("xxxxxxxxxxxxxx"),
-           caption = "")
-    
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  })
-  
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  #  
-  output$predictm2 <- renderPlot({   
-    
-     sample <- random.sample()
-    
-   # f    <- mcmc()$res
-    dat <- mcmc()$dat
-    #levz <- sample$lev
-    f3 <- mcmc()$f3  #ols
-    f2 <- mcmc()$f2  #orm
-  #   kk  <- input$kintz
-    kk <-   ( as.numeric(unlist(strsplit(input$kints,","))))
-    # 
-    # 
-    # k <- NULL
-    # m <- Mean(f2, codes=FALSE)
-    # ml <- as.list(m)
-    # k <- ml$interceptRef
-    
-    
-   # kintz    <-     as.numeric(unlist(strsplit(input$kints,",")))   
-    ### this is key !!
-    dat$y <- as.numeric(as.character(dat$y)) #####################################
-    
-#    d <<- datadist(dat)
- #   options(datadist="d")
-    
-   # library(rms)
-    
-      (f2 <- orm(y ~baseline + treatment, data=dat))
-      (f3 <- ols(y ~baseline + treatment, data=dat ))
     k <- NULL
     m <- Mean(f2, codes=FALSE)
     ml <- as.list(m)
     k <- ml$interceptRef
-   # kk    <-     as.numeric(unlist(strsplit(input$kints,",")))  
-    
     
     ols.<- Predict(f3,  conf.type="mean",  baseline, treatment)
-  
-    mh <- Mean(f2) 
     
     # if input is empty do this 
     if(!isTruthy(kk)){
       
-      orm. <-  Predict(f2, baseline, treatment, fun=m, kint=k )
-      
-    } else {
-    
-      orm. <-  Predict(f2,   baseline, treatment,fun=mh, kint=kk)
-      
-    }
-      
-    
-    
-   # orm. <-  Predict(f2,   baseline, treatment,fun=mh, kint=k)
-    
-    P  <- rbind("Ordinary least squares"=ols., "Proportional odds model"=orm.)
-    P$treatment <- ifelse(P$treatment %in% 0, "Placebo", "Treatment")
-    
-    ggplot(P , ylab='' ) +   ##YES
-      
-      scale_x_continuous( breaks=1:levz, labels=1:levz) +  
-      
-      theme(panel.background=element_blank(),
-            plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
-            legend.text=element_text(size=12),
-            legend.title=element_text(size=0),
-            #legend.title=element_blank(),
-            axis.text.x = element_text(size=10),
-            axis.text.y = element_text(size=10),
-            axis.line.x = element_line(color="black"),
-            axis.line.y = element_line(color="black"),
-            axis.title.y=element_text(size=16),  
-            axis.title.x=element_text(size=16),  
-            axis.title = element_text(size = 20) , 
-            plot.caption=element_text(hjust = 0, size = 7),
-            
-            legend.justification = c(0, 1), 
-            legend.position = c(0.05, .99))  +
-      
-      # legend.position="none") +
-      
-      labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
-           x = "Baseline category",
-           y = "Predicted Mean",
-           subtitle =c("xxxxxxxxxxxxxx"),
-           caption = "")
-    
-    
-  })
-  
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-   output$check <- renderPlot({   
-    
-    sample <- random.sample()
-    
-   # f    <- mcmc()$res
-    #dat <- mcmc()$dat
-    f3 <- mcmc()$f3  #ols
-    f2 <- mcmc()$f2  #orm
-    #k  <- sample$kintz
-     
-    k <- NULL
-    m <- Mean(f2, codes=FALSE)
-    ml <- as.list(m)
-    k <- ml$interceptRef
-    #kintz1    <-     as.numeric(unlist(strsplit(input$kints,",")))
-    
-    dat$y <- as.numeric(as.character(dat$y)) #####################################
-    
-    d <<- datadist(dat)    #this was key!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    options(datadist="d")
-    
-    mh <- Mean(f2) 
-    r <- rbind(ols      =  Predict(f3, conf.int=FALSE),
-               ordinal   = Predict(f2, conf.int=FALSE, fun=mh, kint=k) 
-    )
-    plot(r, groups='.set.')
-
- 
-    
-    
-    
-  })
-   
-  #  output$check2 <- renderPlot({   
-  #    
-  #    sample <- random.sample()
-  #    
-  #    # f    <- mcmc()$res
-  #    dat <- mcmc()$dat
-  #    #levz <- sample$lev
-  #    f3 <- mcmc()$f3  #ols
-  #    f2 <- mcmc()$f2  #orm
-  #    #   kk  <- input$kintz
-  #    kk <-   ( as.numeric(unlist(strsplit(input$kints,","))))
-  #    # 
-  #    # 
-  #    # k <- NULL
-  #    # m <- Mean(f2, codes=FALSE)
-  #    # ml <- as.list(m)
-  #    # k <- ml$interceptRef
-  #    
-  #    
-  #    # kintz    <-     as.numeric(unlist(strsplit(input$kints,",")))   
-  #    ### this is key !!
-  #    dat$y <- as.numeric(as.character(dat$y)) #####################################
-  #    
-  #    #    d <<- datadist(dat)
-  #    #   options(datadist="d")
-  #    
-  #    # library(rms)
-  #    
-  #    (f2 <- orm(y ~baseline + treatment, data=dat))
-  #    (f3 <- ols(y ~baseline + treatment, data=dat ))
-  #    k <- NULL
-  #    m <- Mean(f2, codes=FALSE)
-  #    ml <- as.list(m)
-  #    k <- ml$interceptRef
-  #    # kk    <-     as.numeric(unlist(strsplit(input$kints,",")))  
-  #    
-  #    
-  #    ols.<- Predict(f3,  conf.type="mean",  baseline, treatment)
-  #    
-  #    mh <- Mean(f2) 
-  #    
-  #    # if input is empty do this 
-  #    if(!isTruthy(kk)){
-  #      
-  #      orm. <-  Predict(f2, baseline, treatment, fun=m, kint=k )
-  #      
-  #    } else {
-  #      
-  #      orm. <-  Predict(f2,   baseline, treatment,fun=mh, kint=kk)
-  #      
-  #    }
-  #    
-  #    
-  #    
-  #    # orm. <-  Predict(f2,   baseline, treatment,fun=mh, kint=k)
-  #    
-  #    P  <- rbind("Ordinary least squares"=ols., "Proportional odds model"=orm.)
-  #    P$treatment <- ifelse(P$treatment %in% 0, "Placebo", "Treatment")
-  #    
-  #    
-  #    ggplot(P , ylab='' ) +   ##YES
-  #      
-  #      scale_x_continuous( breaks=1:levz, labels=1:levz) +  
-  #      
-  #      theme(panel.background=element_blank(),
-  #            plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
-  #            legend.text=element_text(size=12),
-  #            legend.title=element_text(size=0),
-  #            #legend.title=element_blank(),
-  #            axis.text.x = element_text(size=10),
-  #            axis.text.y = element_text(size=10),
-  #            axis.line.x = element_line(color="black"),
-  #            axis.line.y = element_line(color="black"),
-  #            axis.title.y=element_text(size=16),  
-  #            axis.title.x=element_text(size=16),  
-  #            axis.title = element_text(size = 20) , 
-  #            plot.caption=element_text(hjust = 0, size = 7),
-  #            
-  #            legend.justification = c(0, 1), 
-  #            legend.position = c(0.05, .99))  +
-  #      
-  #      # legend.position="none") +
-  #      
-  #      labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
-  #           x = "Baseline category",
-  #           y = "Predicted Mean",
-  #           subtitle =c("xxxxxxxxxxxxxx"),
-  #           caption = "")
-  #    
-  #    
-  #  })
-  # 
-  # #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # 
-  compair <- reactive({
-
-    sample <- random.sample()
-
-    f    <- mcmc()$res
-    dat <- mcmc()$dat
-    f3 <- mcmc()$f3  #
-    f2 <- mcmc()$f2  #
-   # k  <- sample$kintz
-
-    k <- NULL
-    m <- Mean(f2, codes=FALSE)
-    ml <- as.list(m)
-    k <- ml$interceptRef
-
-    dat$y <- as.numeric(as.character(dat$y)) #####################################
-
-    d <<- datadist(dat)    #this was key!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    options(datadist="d")
-
-    mh <- Mean(f2)
-    r <- rbind(ols      =  Predict(f3, conf.int=FALSE),
-               ordinal   = Predict(f2, conf.int=FALSE, fun=mh, kint=k)
-    )
-    plot(r, groups='.set.')
-
-    return(list(r=r))
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  })
-  
-  
-  
-  test <- reactive({
-    
-    sample <- random.sample()
-    
-    f    <- mcmc()$res
-    dat <- mcmc()$dat
-    f3 <- mcmc()$f3  # 
-    f2 <- mcmc()$f2  # 
-    # k  <- sample$kintz
-    
-   
-    
-    dat$y <- as.numeric(as.character(dat$y))
-    
-    d <- datadist(dat)
-    options(datadist="d")
-    
-    
-    library(rms)
-    (f1 <- orm(y ~treatment + baseline, data=dat))
-    (f3 <- ols(y ~treatment + baseline, data=dat ))
-    
-    
-    k <- NULL
-    m <- Mean(f1, codes=FALSE)
-    ml <- as.list(m)
-    k <- ml$interceptRef
-    
-    mh <- Mean(f1) 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    if(!isTruthy( input$kints )) {   #if empty
-      
-      orm. <-  Predict(f1, baseline, treatment, fun=mh, kint=k )
-      
-      txt <- paste0("Proportional odds model, intercept ",k," : ",i,"")
-      
-     # r <- rbind(ols      =  Predict(f3, conf.int=FALSE),
-      #           ordinal   = Predict(f2, conf.int=FALSE, kint=k,   type="x")
-                 
-      #)
-      
+      K <- k
+      orm. <-  Predict(f2, baseline, treatment, fun=m, kint=K )
       
     } else {
       
-      kk <-   ( as.numeric(unlist(strsplit(input$kints,","))))
-      
-      orm. <-  Predict(f1,   baseline, treatment,fun=mh, kint=kk)
-      
-      txt <- paste0("Proportional odds model, intercept ",kk," : ",i,"")
-      
-      #r <- rbind(ols      =  Predict(f3, conf.int=FALSE),
-       #          ordinal   = Predict(f2, conf.int=FALSE,   kint=kk,   type="x")
-      #)
-      
-      
-    }
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-   # mh <- Mean(f1) 
-    ols.<- Predict(f3,  conf.type="mean",  baseline, treatment)
-  #  orm. <-  Predict(f1,   baseline, treatment,fun=mh, kint=k)  # trial and error
-   
-    p1 <- ols.
-    p2 <- orm.
-    p  <- rbind(ols=p1, orm=p2)
-    
-    
-    
-   # ggplot(p, label.curve=FALSE)   # uses superposition
-        
-    
-    mh <- Mean(f1) 
-    r <- rbind(ols      =  Predict(f3, conf.int=FALSE),
-               ordinal   = Predict(f1, conf.int=FALSE, fun=mh) 
-    )
-    #plot(r, groups='.set.')
-    
-    
-    return(list(p=p, r=r)) 
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  })
-  
-  
-  output$A <- renderPlot({
-     p <- test()$p
-     ggplot(p, label.curve=FALSE)   # u
-  })
-  
-  
-  output$B <- renderPlot({
-    r<-NULL
-    r <- test()$r
-    plot(r, groups='.set.')
-  }) 
-  
-  
-  
-  
-  
-  
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # tab 2 barplot
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  
-  output$diff <- renderPlot({
-    
-    sample <- random.sample()
-    levz <- sample$lev
-    
-    dat <- mcmc()$dat
-    d <- dat
-    
-    ym <- max(c(as.vector(table(dat$y)), as.vector(table(dat$baseline))))
-    
-    b1 <- barplot(table(d$baseline), las=1, main = ("Baseline distribution of outcome response all patients" ), 
-                  xlab="Ordinal category", ylab = "Count", col=rainbow(50), ylim =c(0,ym))
-    
-    
-  })
-  
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # tab 2 barplot
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  
-  output$diff2 <- renderPlot({
-    
-    sample <- random.sample()
-    levz <- sample$lev
-    
-    dat <- mcmc()$dat
-    d <- dat
-    
-    ym <- max(c(as.vector(table(dat$y)), as.vector(table(dat$baseline))))
-    
-    d <- d[d$treatment %in% 1,]
-    
-    treat <- barplot(table(d$y), las=1, main = ("Distribution of outcome responses treated patients only" ), 
-                     xlab="Ordinal category", ylab = "Count", col=rainbow(50), ylim =c(0,ym))
-    
-  })
-  
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # tab 2 barplot
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  
-  output$diff3 <- renderPlot({
-    
-    sample <- random.sample()
-    levz <- sample$lev
-    
-    dat <- mcmc()$dat
-    d <- dat
-    
-    ym <- max(c(as.vector(table(dat$y)), as.vector(table(dat$baseline))))
-    
-    d <- d[d$treatment %in% 0,]
-    
-    treat <- barplot(table(d$y), las=1, main = ("Distribution of outcome responses placebo patients only" ), 
-                     xlab="Ordinal category", ylab = "Count", col=rainbow(50), ylim =c(0,ym))
-    
-  })
-  
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  #   ggplot barplot on side
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
-  
-  output$reg.plot <- renderPlot({         
-    
-    # Get the current regression data
-    #  sample <- random.sample()
-    # levz <- sample$lev
-    #n   <- sample$n
-    
-    dat <- mcmc()$dat
-    f <-   dat
-    f <-   as.data.frame(table(f$y))
-    
-    f$Percentage <- round(f$Freq / sum(f$Freq)*100,1)
-    
-    z <- f              # data set for plot
-    variable <- "Freq"  # variable of interest
-    pN <- sum(f$Freq)   
-    pN <- format(pN, big.mark=","
-                 ,scientific=FALSE)
-    roundUp <- function(x) 10^ceiling(log10(x))/2
-    gupper <- roundUp((max(f$Freq)))  # plot upper limit
-    gupper <- ceiling((max(f$Freq)))  # plot upper limit
-    glower <- 0                       # plot lower limit
-    gstep <- 5                        # grid steps
-    
-    # text for plot
-    ylabel <- "Counts" 
-    
-    z$N <- z$Freq
-    
-    Gplotx <- function(data,  l1,l2,l3 ) {
-      
-      mlimit=l1
-      
-      p1 <- ggplot(data = data, aes(x =  Var1, y = N, fill = Var1)) + 
-        
-        geom_bar(stat = "identity", width =0.7) 
-      p1 <- p1 + ggtitle( paste("Horizontal bar plot with counts and percentages, N =",pN), ) +
-        
-        
-        theme(plot.title = element_text(size = 20, face = "bold")) +
-        
-        coord_flip()
-      
-      p1 <- p1 + ylab(ylabel ) + 
-        
-        xlab("Ordinal categories") +
-        
-        guides(fill=guide_legend(title=paste0("(",2,"-digit - ICD9 code)")), size = 14) 
-      
-      p1 <- p1 + geom_text(aes(label=paste0(format(N, big.mark=","
-                                                   ,scientific=FALSE)," (",Percentage,"%)")),position = "stack", 
-                           hjust=-0.2, size = 4.2, check_overlap = F)
-      
-      p1 <- p1 + scale_y_continuous(limits = c(0, mlimit)) 
-      
-      p1 <- p1 + theme(panel.background=element_blank(),
-                       plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
-                       legend.text=element_text(size=12),
-                       legend.title=element_text(size=14),
-                       axis.text.x = element_text(size=13),
-                       axis.text.y = element_text(size=15),
-                       axis.line.x = element_line(color="black"),
-                       axis.line.y = element_line(color="black"),
-                       axis.title = element_text(size = 20) , 
-                       plot.caption=element_text(hjust = 0, size = 7))
-      
-      g <- p1 + theme(legend.position="none") 
+      # if there is a value use it.
+      K <- kk
+      orm. <-  Predict(f2,   baseline, treatment,fun=m, kint=K)
       
     }
     
-    gx <- Gplotx(data = z,   l1=gupper,l2=glower,l3=gstep ) 
-    
-    print(gx)
-    
+    P  <- rbind( "Proportional odds model"=orm., "Ordinary least squares"=ols.)
+    P2 <- rbind( "model"=orm., "model"=ols.)
+    # ymin <- min(P$lower)*.9
+    # ymax <- max(P$upper)*1.1
+    return(list( ols.=ols., orm.=orm. , kk=kk , P2=P2, k=k, K=K,dat=dat, m=m, f2=f2, f3=f3, P=P, sf1=sf1 )) 
   })
+  
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1761,12 +725,11 @@ server <- shinyServer(function(input, output   ) {
     
   })
   
-  
-  
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  #   ggplot barplot of beta distribution
+  #  endggplot barplot of beta distribution
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
   
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   output$reg.plotx <- renderPlot({         
     
     # Get the current regression data
@@ -1844,12 +807,7 @@ server <- shinyServer(function(input, output   ) {
     
   })
   
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # text 
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # side by side ggplot
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
+  
   
   output$reg.plot99 <- renderPlot({         
     
@@ -1961,6 +919,469 @@ server <- shinyServer(function(input, output   ) {
     
   })
   
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  
+  
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # non cummulative predicted probabilities plot run the analysis again
+  # not efficient I know
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  
+  output$preds2 <- renderPlot({
+    
+    sample <- random.sample()
+    # n    <- sample$n
+    levz <- sample$lev
+    base <- sample$base
+    
+    datx <- mcmc()$dat
+    
+    
+    
+    
+    # I can get non cummulative probabilites using clm
+    # Don't know how to do it with rms? yet
+    
+    Res.clm <- clm(y ~treatment + baseline, data=datx)
+    
+    # levz <-   length(unique(Res.clm$model$baseline))
+    
+    # summary(Res.clm)
+    
+    newdat <- data.frame(
+      baseline =   (rep(1:levz)),
+      treatment = rep(0:1, each = levz)
+    )
+    # newdat <- data.frame(
+    #   baseline =  factor(sort(unique(Res.clm$model$baseline))),
+    #   treatment = rep(0:1, each = levz)
+    # )
+    
+    
+    newdat <- cbind(newdat, predict(Res.clm, newdata=newdat, se.fit=TRUE,
+                                    interval=TRUE, type="prob"))
+    
+    
+    
+    A<- cbind( newdat[,1:2], newdat[,grep("^fit", colnames(newdat)) ])
+    B<- cbind( newdat[,1:2], newdat[,grep("^lwr", colnames(newdat)) ])
+    C<- cbind( newdat[,1:2], newdat[,grep("^upr", colnames(newdat)) ])
+    
+    lA <- melt(data = A, id.vars = c("baseline","treatment") )
+    lB <- melt(data = B, id.vars = c("baseline","treatment") )
+    lC <- melt(data = C, id.vars = c("baseline","treatment") )
+    
+    lA$variable <-  gsub(".*\\.","", lA$variable)
+    lB$variable <-   gsub(".*\\.","", lB$variable)
+    lC$variable <-   gsub(".*\\.","", lC$variable)
+    
+    l <- cbind(lA,lB,lC)
+    
+    l <- l[,c(1:4,8,12)]
+    
+    names(l) <- c("baseline","treatment","response","estimate","lower", "upper")
+    
+    pd <- position_dodge(0.5) # move them .05 to the left and right
+    
+    
+    l$response <- as.numeric(l$response)
+    l$treatment <- factor( l$treatment)
+    l$treatment <- ifelse( l$treatment %in% 0,"Placebo","Treatment")
+    l$response <- as.factor(l$response)
+    
+    
+  gp <-  ggplot(l, aes(x = baseline,  y = estimate, color = response)) + 
+      geom_line(size = 1) + 
+      geom_ribbon(aes(ymin = lower,   ymax = upper,
+                      fill = response, color = response),  alpha = 0.4, linetype = 0) +
+      facet_grid(~treatment)
+    
+    
+    
+    
+    
+    print(gp)
+    
+  })
+  
+  
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # non cummulative predicted probabilities plot run the analysis again
+  # not efficient I know
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  
+  output$preds <- renderPlot({
+    
+    sample <- random.sample()
+   # n    <- sample$n
+    levz <- sample$lev
+    base <- sample$base
+    
+    datx <- mcmc()$dat
+    
+    
+    
+    
+    # I can get non cummulative probabilites using clm
+    # Don't know how to do it with rms? yet
+    
+    Res.clm <- clm(y ~treatment + baseline, data=datx)
+    
+    # levz <-   length(unique(Res.clm$model$baseline))
+    
+    # summary(Res.clm)
+    
+    newdat <- data.frame(
+      baseline =   (rep(1:levz)),
+      treatment = rep(0:1, each = levz)
+    )
+    # newdat <- data.frame(
+    #   baseline =  factor(sort(unique(Res.clm$model$baseline))),
+    #   treatment = rep(0:1, each = levz)
+    # )
+    
+    
+    newdat <- cbind(newdat, predict(Res.clm, newdata=newdat, se.fit=TRUE,
+                                    interval=TRUE, type="prob"))
+    
+    
+    
+    A<- cbind( newdat[,1:2], newdat[,grep("^fit", colnames(newdat)) ])
+    B<- cbind( newdat[,1:2], newdat[,grep("^lwr", colnames(newdat)) ])
+    C<- cbind( newdat[,1:2], newdat[,grep("^upr", colnames(newdat)) ])
+    
+    lA <- melt(data = A, id.vars = c("baseline","treatment") )
+    lB <- melt(data = B, id.vars = c("baseline","treatment") )
+    lC <- melt(data = C, id.vars = c("baseline","treatment") )
+    
+    lA$variable <-  gsub(".*\\.","", lA$variable)
+    lB$variable <-   gsub(".*\\.","", lB$variable)
+    lC$variable <-   gsub(".*\\.","", lC$variable)
+    
+    l <- cbind(lA,lB,lC)
+    
+    l <- l[,c(1:4,8,12)]
+    
+    names(l) <- c("baseline","treatment","response","estimate","lower", "upper")
+    
+    pd <- position_dodge(0.5) # move them .05 to the left and right
+    
+    
+    l$response <- as.numeric(l$response)
+    l$treatment <- factor( l$treatment)
+    l$treatment <- ifelse( l$treatment %in% 0,"Placebo","Treatment")
+    br1 <- length(unique(l$baseline))
+    
+    lx <- l[l$baseline %in% base,]     # user input selects this
+    
+    gp <- ggplot(lx, aes(response,estimate, color=treatment)) +
+      geom_point(aes(shape=treatment),size=4, position=pd) + 
+      scale_color_manual(name="treatment",values=c("coral","steelblue")) + 
+      theme_bw() + 
+      scale_x_continuous( breaks=1:br1, labels=1:br1) +   
+      #  scale_y_continuous("Probability")   + 
+      geom_line(position=pd, linetype = "dashed")+
+      geom_errorbar(aes(ymin=lower,ymax=upper),width=0.2,position=pd) +
+      
+      theme(panel.background=element_blank(),
+            plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
+            legend.text=element_text(size=12),
+            #legend.title=element_text(size=14),
+            legend.title=element_blank(),
+            axis.text.x = element_text(size=10),
+            axis.text.y = element_text(size=10),
+            axis.line.x = element_line(color="black"),
+            axis.line.y = element_line(color="black"),
+            axis.title.y=element_text(size=16),  
+            axis.title.x=element_text(size=16),  
+            axis.title = element_text(size = 20) , 
+            plot.caption=element_text(hjust = 0, size = 7) ,
+            
+            legend.justification = c(0, 1), 
+            legend.position = c(0.05, .99))  +
+      
+      
+      
+      labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
+           x = "Response category",
+           y = "Predicted probability",
+           subtitle =c("xxxxxxxxxxxxxx"),
+           caption = "")  
+    # guides(fill=guide_legend(title="Treatment"))
+    # 
+    
+    print(gp)
+    
+  })
+  
+  
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~tables of predictions
+  
+  predictz <- reactive({  
+    
+    sample <- random.sample()
+    f    <- analysis()$f2
+    levz <- sample$lev
+    
+    group <- (as.numeric(unlist(strsplit(input$group,","))))    
+    rcat <-  (as.numeric(unlist(strsplit(input$rcat,","))))     
+    
+    require(reshape)
+    
+    newdat <- data.frame(
+      baseline = rep(1:levz),
+      treatment = rep(0:1, each = levz))
+    
+    xx <- predict(f, newdat, type="fitted.ind")    
+    
+    probs <- cbind(newdat,xx )
+    
+    xx <- predict(f, newdat, type="fitted") 
+    
+    cprobs <- cbind(newdat,xx )
+    
+    p.with.ci <- predict_with_ci(f, np = 100, fun = stats::plogis)
+    
+    plotci <- plot(f, baseline, treatment, fun = stats::plogis)
+    
+    #getAnywhere(plot.orm)
+    #getAnywhere(predict_with_ci)
+    return(list(probs=probs, cprobs=cprobs, p.with.ci=p.with.ci , plotci=plotci$data))
+    
+  })
+  
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~plots of predictions
+  
+  output$predicts <- renderPlot({   
+    
+    sample <- random.sample()
+    # 
+    f    <- analysis()$f2
+    # 
+    levz <- sample$lev
+    # rcat <- sample$rcat
+    #  group <- sample$group
+    
+    
+    group <- (as.numeric(unlist(strsplit(input$group,","))))    
+    # R
+    rcat <- (as.numeric(unlist(strsplit(input$rcat,","))))     
+    
+    require(reshape)
+    
+    newdat <- data.frame(
+      baseline = rep(1:levz),
+      treatment = rep(0:1, each = levz))
+    
+    xx <- predict(f, newdat, type="fitted.ind")    #
+    
+    mm <- melt(data.frame(xx))
+    
+    mm <- cbind(newdat,mm )
+    
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    
+    #probs <- cbind(newdat,xx )
+    
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    
+    mm$variable <-  gsub(".*\\.","", mm$variable)
+    
+    mm <- plyr::arrange(mm,treatment,variable,baseline )
+    
+    mm$flag <- rep(seq_along( rle(mm$variable)$values ), times = rle(mm$variable)$lengths )
+    
+    
+    if (group %in% 0) {g = c(0)} else if (group %in% 1) {g = c(1)} else if (group %in% 2) {g = c(0,1)} 
+    
+    mm <-  mm[mm$treatment %in% g,]
+    
+    
+    if (rcat %in% 999) {r = 1:levz} else   {r = rcat} 
+    
+    mm <-  mm[mm$variable %in% r,]
+    
+    A <- ifelse(mm$treatment %in% 0, "Placebo","Treatment")
+    mm$grp <- paste(A, mm$variable)
+    
+    A <- ifelse(mm$treatment %in% 0, "Pl.","Trt.")
+    mm$var2 <- paste(A, mm$variable)
+    
+    
+    
+    gpp <- ggplot(mm, aes(baseline, value, group=factor(grp))) +
+      geom_line(aes(color=factor(A))) +
+      
+      scale_x_continuous( breaks=1:levz, labels=1:levz) +  
+      
+      theme(panel.background=element_blank(),
+            plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
+            legend.text=element_text(size=12),
+            legend.title=element_text(size=0),
+            #legend.title=element_blank(),
+            axis.text.x = element_text(size=10),
+            axis.text.y = element_text(size=10),
+            axis.line.x = element_line(color="black"),
+            axis.line.y = element_line(color="black"),
+            axis.title.y=element_text(size=16),  
+            axis.title.x=element_text(size=16),  
+            axis.title = element_text(size = 20) , 
+            plot.caption=element_text(hjust = 0, size = 7) ,
+            legend.position="none") +
+      
+      labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
+           x = "Baseline category",
+           y = "Predicted probability",
+           subtitle =c("xxxxxxxxxxxxxx"),
+           caption = "")  +
+      geom_dl(aes(label = var2), method = list(dl.combine("first.points", "last.points"),
+                                               cex = 0.9)) 
+    # guides(fill=guide_legend(title="Treatment"))  
+    # 
+    
+    print(gpp)
+    
+    
+  })
+  
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # text 
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
+  
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~baseline plots~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  
+  output$PP.plot <- renderPlot({   
+    
+    K <- analysis()$K
+    
+    txt <- paste0("Ordinal intercept ", K)
+    
+    levz <- input$levels
+    
+    P <- analysis()$P
+    
+    P$treatment <- ifelse(P$treatment %in% 0, "Placebo", "Treatment")
+    
+    # ymin <- analysis()$ymin # min(P$lower)*.9
+    # ymax <- analysis()$ymax # max(P$upper)*1.1
+    # 
+    # ymin <- predt()$ymin # min(P$lower)*.9
+    # ymax <- predt()$ymax # max(P$upper)*1.1
+    
+    ggplot(P ,  ylab='' ) +  
+      scale_x_continuous( breaks=1:levz, labels=1:levz) +  
+      
+      #     coord_cartesian(ylim = c(ymin, ymax)) +
+      # scale_y_continuous( breaks=seq(ymin,ymax, by=1), labels=seq(ymin,ymax, by=1)) +  
+      
+      theme(panel.background=element_blank(),
+            plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
+            legend.text=element_text(size=12),
+            legend.title=element_text(size=0),
+            #legend.title=element_blank(),
+            axis.text.x = element_text(size=10),
+            axis.text.y = element_text(size=10),
+            axis.line.x = element_line(color="black"),
+            axis.line.y = element_line(color="black"),
+            axis.title.y=element_text(size=16),  
+            axis.title.x=element_text(size=16),  
+            axis.title = element_text(size = 20) , 
+            plot.caption=element_text(hjust = 0, size = 7),
+            
+            legend.justification = c(0, 1), 
+            legend.position = c(0.05, .99))  +
+      
+      # legend.position="none") +
+      
+      
+      labs(title="Comparing estimates between models", 
+           x = "Baseline category",
+           y = "Predicted Mean",
+           subtitle =txt,
+           caption = "")
+    
+    
+  }) 
+  
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~baseline plots~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  
+  output$PP.plot2 <- renderPlot({   
+    
+    K <- analysis()$K
+    
+    txt <- paste0("Ordinal intercept ", K)
+    
+    levz <- input$levels
+    
+    P <- analysis()$P
+    
+    P$treatment <- ifelse(P$treatment %in% 0, "Placebo", "Treatment")
+    
+    #P$treatment = paste(P$.set. , P$treatment)
+    
+    # ymin <- analysis()$ymin # min(P$lower)*.9
+    # ymax <- analysis()$ymax # max(P$upper)*1.1
+    # 
+    # ymin <- predt()$ymin # min(P$lower)*.9
+    # ymax <- predt()$ymax # max(P$upper)*1.1
+    
+    ggplot(P,  groups=".set.", ylab='' ) +  
+      
+      scale_x_continuous( breaks=1:levz, labels=1:levz) +  
+      
+      #  coord_cartesian(ylim = c(ymin, ymax)) +
+      # scale_y_continuous( breaks=seq(ymin,ymax, by=1), labels=seq(ymin,ymax, by=1)) +  
+      
+      theme(panel.background=element_blank(),
+            plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
+            legend.text=element_text(size=12),
+            legend.title=element_text(size=0),
+            #legend.title=element_blank(),
+            axis.text.x = element_text(size=10),
+            axis.text.y = element_text(size=10),
+            axis.line.x = element_line(color="black"),
+            axis.line.y = element_line(color="black"),
+            axis.title.y=element_text(size=16),  
+            axis.title.x=element_text(size=16),  
+            axis.title = element_text(size = 20) , 
+            plot.caption=element_text(hjust = 0, size = 7),
+            
+            legend.justification = c(0, 1), 
+            legend.position = c(0.05, .99))  +
+      
+      # legend.position="none") +
+      
+      
+      labs(title="Same data, comparing estimates", 
+           x = "Baseline category",
+           y = "Predicted Mean",
+           subtitle =txt,
+           caption = "")
+    
+    
+  })
+  
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~baseline predictions~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  
+  predz <- reactive({
+    
+    dat <- mcmc()$dat
+    
+    # d <<- datadist(dat)
+    # options(datadist="d") 
+    
+    ols. <- analysis()$ols.
+    orm. <- analysis()$orm.
+    #K <- analysis()$K
+    #m <- analysis()$m
+    
+    
+    p  <- rbind(ols=ols., orm=orm.)
+    
+    return(list( p=p )) 
+  })  
+  
+  
   
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1969,7 +1390,7 @@ server <- shinyServer(function(input, output   ) {
   
   output$textWithNumber <- renderText({ 
     
-    A <- mcmc()$res     
+    A <- analysis()$f2     
     
     
     sample <- random.sample()
@@ -2000,125 +1421,51 @@ server <- shinyServer(function(input, output   ) {
   
   output$textWithNumber1 <- renderText({ 
     
-    A <- mcmc()$res     
+    A <- analysis()$f2     
     
     
   })
   
   
   
-  
-  
-  
-  
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # not used replaced by diff, ggplot 
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  
-  # output$diffx <- renderPlot({         
-  
-  # z <- mcmc()$A
-  # mu1 <- mcmc()$mu1
-  # 
-  # q <- quantile(z,c(.025, 0.25, 0.5, 0.75, 0.975))
-  # par(bg = 'lightgoldenrodyellow') 
-  # par(mfrow=c(1,3))
-  # plot(density(z),
-  #      xlab="Frequentist Bootstrap, Mean estimate",
-  #      ylab="Density",
-  #      main="",
-  #      ylim=c(0,max(density(z)$y)),
-  #      frame.plot=FALSE,cex.lab=1.5,lwd=3,yaxt="no")
-  # abline(v=q[1], col="blue") #95% credible interval
-  # abline(v=q[5], col="blue")
-  # abline(v=q[3], col="red", lty='dashed')
-  # abline(v=mu1, col="black", lty='dashed')
-  # 
-  # z <- (mcmc()$B)
-  # 
-  # q <- quantile(z,c(.025, 0.25, 0.5, 0.75, 0.975))
-  # 
-  # plot(density(z), #log="x",
-  #      xlab="Bayesian Bootstrap, Mean estimate",
-  #      ylab="Density",
-  #      main="",
-  #      ylim=c(0, max(density(z)$y)),##
-  #      frame.plot=FALSE,cex.lab=1.5,lwd=3,yaxt="no")
-  # abline(v=q[1], col="blue") #95% credible interval
-  # abline(v=q[5], col="blue")
-  # abline(v=q[3], col="red", lty='dashed')
-  # abline(v=mu1, col="black", lty='dashed')
-  # 
-  # 
-  # z <- mcmc()$C
-  # 
-  # q <- quantile(z,c(.025, 0.25, 0.5, 0.75, 0.975))
-  # 
-  # plot(density(z), #  log="x",
-  #      xlab="Bayesian Bootstrap 2, Mean estimate",
-  #      ylab="Density",
-  #      main="",
-  #      ylim=c(0, max(density(z)$y)),
-  #      frame.plot=FALSE,cex.lab=1.5,lwd=3,yaxt="no")
-  # abline(v=q[1], col="blue") #95% credible interval
-  # abline(v=q[5], col="blue")
-  # abline(v=q[3], col="red", lty='dashed')
-  # abline(v=mu1, col="black", lty='dashed')
-  # 
-  # #caption=("xxxx")
-  # 
-  # par(mfrow=c(1,1))
-  
-  #})
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  
-  output$ols.prd <- renderPrint({
+  output$dat <- renderPrint({
     
-    return( (lmx()$ols.pred ))
+    d <- mcmc()$dat
     
-  })
-  
-  # output$reg.summarz <- renderPrint({
-  #   
-  #   return( (compair()$r ))
-  #   
-  # })
-  
-  
-  
-  output$reg.summarz <- renderPrint({
+    d <- plyr::arrange(d, baseline, treatment)
     
-    return( (test()$p ))
-    
+    return(print(d, digits=4))
   })
   
   
+  output$predz <- renderPrint({
+    
+    return(print(predz()$p, digits=4))
+  })
   
-  
-  
+  output$predt <- renderPrint({
+    
+    return(print(predt()$pt, digits=4))
+  })
   
   
   output$reg.summary1 <- renderPrint({
     
-    return( (mcmc()$f2 ))
+    return( (analysis()$f2 ))
     
   })
-  output$reg.summary2 <- renderPrint({
-    
-    return( (mcmc()$res ))
-    
-  })
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # output$reg.summary2 <- renderPrint({
+  #   
+  #   return( (mcmc()$res ))
+  #   
+  # })
   # correlation from simulation
   output$reg.summary3 <- renderPrint({
     
-    return(print(mcmc()$sf1, digits=4))
+    return(print(analysis()$sf1, digits=4))
     
   })
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # correlation Efron data
+  
   output$reg.summary4 <- renderPrint({
     
     return(print(lmx()$linear, digits=4))
@@ -2131,8 +1478,24 @@ server <- shinyServer(function(input, output   ) {
     return(print(lmx()$an, digits=4))
     
   })
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # run the correlation analysis for tab 2
+  
+  output$reg.summaryp <- renderPrint({
+    
+    return(print(predictz()$prob, digits=4))
+    
+  })
+  
+  output$reg.summaryc <- renderPrint({
+    
+    return(print(predictz()$cprob, digits=4))
+    
+  })
+  
+  output$reg.summaryci <- renderPrint({
+    
+    return(print(predictz()$plotci, digits=4))
+    
+  })
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
   lmx <- reactive({
@@ -2190,655 +1553,15 @@ server <- shinyServer(function(input, output   ) {
   })
   
   
-  
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # NOT USED REPLACED BY FACET PLOT!!!!!!
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  
-  #output$diff2 <- renderPlot({         
-  # 
-  #         f <- cor1()$f
-  #         b  <- cor1()$b
-  #         BB <-cor1()$BB
-  #         xx1 <- cor1()$xx1
-  #         
-  #         ff <- qlogis(f)
-  #         bb <- qlogis(b)
-  #         BBB <- qlogis(BB)
-  #         xx <- qlogis(xx1)
-  #         
-  #         all <- c(f,b,BB,xx1)
-  #         minx <- min(all)
-  #         maxx <- max(all)
-  #         bz <- c(minx, maxx)
-  #          
-  # 
-  #         a <- x <- c(0.001, 0.003,0.01, 0.05,seq(.1,0.9,0.1),.95,.98,.99,0.995,0.999, 0.9995,0.9999) 
-  #         
-  #         q <- qlogis(x)   
-  #         
-  #         lims <- unique(a[sapply(bz,function(x) which.min(abs(x-a)))])
-  #         
-  #         indx <- which(x %in% lims)
-  #          i = indx[1]-1
-  #          if (i %in% 0) {i=1} 
-  #          j=  indx[2]+1
-  #          limitz = c(q[i], q[j])
-  #          breakz = q[i:j]
-  #          labelz = x[i:j]
-  #         
-  #         require(ggplot2)
-  #         x1 <- xlab("")
-  #         est <- quantile(f, c(.025,.5,.975)) 
-  #         ff <- as.data.frame(ff)
-  #         
-  #         pL1<- ggplot(data = ff, aes(x = ff)) + x1+   
-  #             geom_histogram(bins = 100, fill = rainbow(100))+
-  #             scale_x_continuous(limits =limitz,
-  #                                 breaks= breakz,  # this is where the values go
-  #                                 labels= labelz)   + 
-  #           
-  #           
-  #             labs(title = paste("Frequentist bootstrap: Median",p3(est[2][[1]]),", 95%CI ("
-  #                                , p3(est[1][[1]]) ,", ",  p3(est[3][[1]]) ,")") ) +
-  #             theme_bw()  
-  #         pL1 <- pL1 + theme(axis.line=element_blank(),
-  #                            #axis.text.x=element_blank(),
-  #                            #axis.text.y=element_blank(),
-  #                            #axis.ticks=element_blank(),
-  #                            #axis.title.x=element_blank(),
-  #                            axis.text=element_text(size=14),
-  #                            axis.title=element_text(size=12,face="bold"),
-  #                            #axis.title.y=element_blank(),
-  #                            # legend.position="none",
-  #                            panel.background=element_blank(),
-  #                            panel.border=element_blank(),
-  #                            #panel.grid.major=element_blank(),
-  #                            #panel.grid.minor=element_blank(),
-  #                            # plot.background=element_blank())
-  #                            #plot.margin = unit(c(1,1,1,1), "cm")
-  #                            plot.title = element_text(size = 14)
-  #                            
-  #         )
-  #         
-  #         est <- quantile(b, c(.025,.5,.975))  
-  #         bb <- as.data.frame(bb)
-  #         pL2<- ggplot(data = bb, aes(x = bb)) +x1 +
-  #             geom_histogram(bins = 100, fill = rainbow(100))+
-  #           scale_x_continuous(limits =limitz,
-  #                              breaks= breakz,  # this is where the values go
-  #                              labels= labelz)   + 
-  #             labs(title = paste("Bayesian bootstrap: Median",p3(est[2][[1]]),", 95%CI (", p3(est[1][[1]]) ,", ",  p3(est[3][[1]]) ,")") ) +
-  #             theme_bw()  
-  #         pL2 <- pL2 + theme(axis.line=element_blank(),
-  #                            #axis.text.x=element_blank(),
-  #                            #axis.text.y=element_blank(),
-  #                            #axis.ticks=element_blank(),
-  #                            #axis.title.x=element_blank(),
-  #                            axis.text=element_text(size=14),
-  #                            axis.title=element_text(size=12,face="bold"),
-  #                            #axis.title.y=element_blank(),
-  #                            # legend.position="none",
-  #                            panel.background=element_blank(),
-  #                            panel.border=element_blank(),
-  #                            #panel.grid.major=element_blank(),
-  #                            #panel.grid.minor=element_blank(),
-  #                            # plot.background=element_blank())
-  #                            #plot.margin = unit(c(1,1,1,1), "cm")
-  #                            plot.title = element_text(size = 14)
-  #         )
-  #         
-  #         est <- quantile(BB, c(.025,.5,.975))  
-  #         BBB<- as.data.frame(BBB)
-  #         pL3<- ggplot(data = BBB, aes(x = BBB)) +x1+ 
-  #             geom_histogram(bins = 100, fill = rainbow(100))+
-  #           scale_x_continuous(limits =limitz,
-  #                              breaks= breakz,  # this is where the values go
-  #                              labels= labelz)   + 
-  #             labs(title = paste("LaplaceDemon bootstrap: Median",p3(est[2][[1]]),", 95%CI (", p3(est[1][[1]]) ,", ",  p3(est[3][[1]]) ,")") ) +
-  #             theme_bw()  
-  #         pL3 <- pL3 + theme(axis.line=element_blank(),
-  #                            #axis.text.x=element_blank(),
-  #                            #axis.text.y=element_blank(),
-  #                            #axis.ticks=element_blank(),
-  #                            #axis.title.x=element_blank(),
-  #                            axis.text=element_text(size=14),
-  #                            axis.title=element_text(size=12,face="bold"),
-  #                            #axis.title.y=element_blank(),
-  #                            # legend.position="none",
-  #                            panel.background=element_blank(),
-  #                            panel.border=element_blank(),
-  #                            #panel.grid.major=element_blank(),
-  #                            #panel.grid.minor=element_blank(),
-  #                            # plot.background=element_blank())
-  #                            #plot.margin = unit(c(1,1,1,1), "cm")
-  #                            plot.title = element_text(size = 14)
-  #         )
-  #         
-  #         
-  #         x1 <- xlab(" ")
-  #         est <- quantile(xx1, c(.025,.5,.975))  
-  #         xx<- as.data.frame(xx)
-  #         pL4<- ggplot(data = xx, aes(x = xx)) +x1+ 
-  #             geom_histogram(bins = 100, fill = rainbow(100))+
-  #           scale_x_continuous(limits =limitz,
-  #                              breaks= breakz,  # this is where the values go
-  #                              labels= labelz)   + 
-  #             labs(title = paste("bayesboot bootstrap: Median",p3(est[2][[1]]),", 95%CI (", p3(est[1][[1]]) ,", ",  p3(est[3][[1]]) ,")") ) +
-  #             theme_bw()  
-  #         pL4 <- pL4 + theme(axis.line=element_blank(),
-  #                            #axis.text.x=element_blank(),
-  #                            #axis.text.y=element_blank(),
-  #                            #axis.ticks=element_blank(),
-  #                            #axis.title.x=element_blank(),
-  #                            axis.text=element_text(size=14),
-  #                            axis.title=element_text(size=12,face="bold"),
-  #                            #axis.title.y=element_blank(),
-  #                            # legend.position="none",
-  #                            panel.background=element_blank(),
-  #                            panel.border=element_blank(),
-  #                            #panel.grid.major=element_blank(),
-  #                            #panel.grid.minor=element_blank(),
-  #                            # plot.background=element_blank())
-  #                            #plot.margin = unit(c(1,1,1,1), "cm")
-  #                            plot.title = element_text(size = 14)
-  #         )
-  # 
-  #         gridExtra::grid.arrange(pL1,  pL2, pL3,  pL4, nrow=2) 
-  
-  #   })
-  
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # correlation plot tab 2
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  #output$diff3 <- renderPlot({         
-  
-  #       f <- cor1()$f
-  #       b  <- cor1()$b
-  #       BB <-cor1()$BB
-  #       xx1 <- cor1()$xx1
-  #       
-  #       sample <- random.sample()
-  #    
-  #       r    <- sample$n2
-  # 
-  #     ff <-  (f)
-  #     bb <- (b)
-  #     BBB <- (BB)
-  #     xx <- (xx1)
-  #     foo <- cbind(ff,bb,BBB,xx)
-  #     foo1 <- reshape::melt(foo)
-  # 
-  #     
-  #     levels(foo1$X2)
-  #     
-  #   Ce <-  est <- quantile(f, c(.025,.5,.975)) 
-  #   C <-  paste("Frequentist : Median",p3(est[2][[1]]),", 95%CI (", p3(est[1][[1]]) ,", ",  p3(est[3][[1]]) ,")")  
-  # 
-  #  Ae <-   est <- quantile(b, c(.025,.5,.975))  
-  #   A <-  paste("Bayesian : Median",p3(est[2][[1]]),", 95%CI (", p3(est[1][[1]]) ,", ",  p3(est[3][[1]]) ,")") 
-  # 
-  #   Be<-  est <- quantile(BB, c(.025,.5,.975))  
-  #   B <-  paste("LaplaceDemon : Median",p3(est[2][[1]]),", 95%CI (", p3(est[1][[1]]) ,", ",  p3(est[3][[1]]) ,")") 
-  # 
-  #  De<-    est <- quantile(xx1, c(.025,.5,.975))  
-  #  D <-   paste("bayesboot : Median",p3(est[2][[1]]),", 95%CI (", p3(est[1][[1]]) ,", ",  p3(est[3][[1]]) ,")")  
-  # 
-  #  # make a dataset to add lines to ggplot facets
-  #  
-  #  dummy2 <- data.frame(X2=c(paste("",A),
-  #                         paste("",B),
-  #                         paste("",C),
-  #                         paste("",D)
-  #  ),  
-  #                       q1 =  c(Ae[1], Be[1], Ce[1], De[1]),
-  #                       q50 = c(Ae[2], Be[2], Ce[2], De[2]),
-  #                       q3 =  c(Ae[3], Be[3], Ce[3], De[3])
-  #                       )
-  # 
-  #  
-  #      levels(foo1$X2) <- c(paste("",A),
-  #                           paste("",B),
-  #                           paste("",C),
-  #                           paste("",D)
-  #                           )
-  #      
-  #     p <- sort(c(-.9, .9,-.99,.99 ,.999,.9999,1,-.95, .95,.8,-.8,seq(-.6,.6,0.3))  )
-  #     
-  #    g0 <- ggplot(data=foo1, aes(x = value)) +#
-  #       geom_vline(data = dummy2, aes(xintercept = q1,  colour="red", linetype = "dotdash")) +
-  #       geom_vline(data = dummy2, aes(xintercept = q50, colour="red", linetype = "dotdash")) +
-  #       geom_vline(data = dummy2, aes(xintercept = q3,  colour="red", linetype = "dotdash")) +
-  #      geom_vline( aes(xintercept = r,  colour="black", linetype = "dash")) +
-  #      
-  #      geom_histogram( aes(y = ..density..), bins=100, colour="black" , fill=rainbow(400))+     ylab("")+
-  #       geom_density(alpha = 0.1, fill = "red") +
-  #       facet_wrap(X2~ .) 
-  #     
-  # 
-  #       g0 <- g0  + scale_x_continuous(trans = atanh_trans()  ,
-  #                                     breaks= p, 
-  #                                     xlab("Correlation"),
-  #                                     oob=discard) +
-  #         scale_y_continuous(breaks = NULL) +
-  # 
-  #   theme_bw()  
-  # 
-  #   g0 <- g0 + theme(#axis.line=element_blank(),
-  #                      #axis.text.x=element_blank(),
-  #                      #axis.text.y=element_blank(),
-  #                      #axis.ticks=element_blank(),
-  #                      #axis.title.x=element_blank(),
-  #                      axis.text=element_text(size=12),
-  #                      axis.title=element_text(size=12,face="bold"),
-  #                      #axis.title.y=element_blank(),
-  #                      legend.position="none",
-  #                      #anel.background=element_blank(),
-  #                      #panel.grid.major=element_blank(),
-  #                      #panel.grid.minor=element_blank(),
-  #                      # plot.background=element_blank())
-  #                      #plot.margin = unit(c(1,1,1,1), "cm")
-  #                      plot.title = element_text(size = 16),
-  #                    strip.text.x = element_text(size = 16, colour = "black", angle = 0),
-  #                    strip.background = element_rect(fill="ivory"),
-  #                    panel.border = element_blank(),
-  #                    panel.grid.major = element_blank(), 
-  #                    panel.grid.minor = element_blank(),
-  #                    panel.background = element_blank(), 
-  #                    axis.line = element_line(colour = "black")
-  #                    )
-  #   
-  #   g0 <- g0 + labs(
-  #     caption = "The dotted lines indicate the median, 2.5 and 97.5 percentiles, the red line is the true population value" 
-  #   ) 
-  #   
-  #     print(g0)
-  #     
-  # })
-  #     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  #     # ruben's data
-  #     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # 
-  #   ruben <- reactive({
-  #       
-  #       dye <- c(1.15, 1.7, 1.42, 1.38, 2.8, 4.7, 4.8, 1.41, 3.9)
-  #       efp <- c(1.38, 1.72, 1.59, 1.47, 1.66, 3.45, 3.87, 1.31, 3.75)
-  #       data.set <- data.frame(dye,efp)
-  #       
-  #       z1 <- cor.test(dye,efp)
-  #       xx <- as.integer(as.vector(z1$parameter)+2) 
-  #       z1 <- c( (xx), unlist(z1$estimate), unlist(z1$conf.int)[1:2])
-  #       names(z1) <- c("N","Estimate","Lower","Upper")
-  # 
-  #       return(list(data.set=data.set, z2=z1)) 
-  #       
-  #     })
-  # 
-  #   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  #   # ruben's data analysis correlation plot tab 3
-  #   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  #   
-  #     output$diff4 <- renderPlot({      
-  #       
-  #       sample <- random.sample()
-  #       
-  #       data.set <- ruben()$data.set
-  #       
-  #       reps <- sims <- sample$sims
-  #       
-  #       len <- length(data.set$dye)
-  #       
-  #         sboot <- function() {
-  #           cor(data.set[sample(1:len, replace=T),])[1,2]
-  #         }
-  #         
-  #         bboot <- function() {
-  #           cov.wt(data.set, diff(c(0,sort(runif(len-1)),1)), cor=T)$cor[1,2]
-  #         }
-  #         
-  #        A <- data.set$dye
-  #        B <- data.set$efp
-  #         
-  #       X <- matrix(c(A, B), len, 2)
-  #       colnames(X) <- c("dye","efp")
-  #       BB <- BayesianBootstrap(X=X, n=sims,
-  #                               Method=function(x,w) cov.wt(x, w, cor=TRUE)$cor[1,2]) 
-  #        
-  #       # Using the weighted correlation (corr) from the boot package.
-  #       b4 <- bayesboot(data.set, corr, R = sims, use.weights = TRUE)
-  #        
-  #       
-  #       f<-replicate(sims, sboot())
-  #       b<-replicate(sims, bboot())
-  #       BB <- unlist(BB)
-  #       xx1 <- b4$V1
-  #         
-  #       ff <-  (f)
-  #       bb <- (b)
-  #       BBB <- (BB)
-  #       xx <- (xx1)
-  #       foo <- cbind(ff,bb,BBB,xx)
-  #       foo1 <- reshape::melt(foo)
-  #       
-  #       levels(foo1$X2)
-  #       
-  #       Ce <-  est <- quantile(f, c(.025,.5,.975)) 
-  #       C <-  paste("Frequentist : Median",p3(est[2][[1]]),", 95%CI (", p3(est[1][[1]]) ,", ",  p3(est[3][[1]]) ,")")  
-  #       
-  #       Ae <-   est <- quantile(b, c(.025,.5,.975))  
-  #       A <-  paste("Bayesian : Median",p3(est[2][[1]]),", 95%CI (", p3(est[1][[1]]) ,", ",  p3(est[3][[1]]) ,")") 
-  #       
-  #       Be<-  est <- quantile(BB, c(.025,.5,.975))  
-  #       B <-  paste("LaplaceDemon : Median",p3(est[2][[1]]),", 95%CI (", p3(est[1][[1]]) ,", ",  p3(est[3][[1]]) ,")") 
-  #       
-  #       De<-    est <- quantile(xx1, c(.025,.5,.975))  
-  #       D <-   paste("bayesboot : Median",p3(est[2][[1]]),", 95%CI (", p3(est[1][[1]]) ,", ",  p3(est[3][[1]]) ,")")  
-  #       
-  #       # make a dataset to add lines to ggplot facets
-  #       dummy2 <- data.frame(X2=c(paste("",A),
-  #                                 paste("",B),
-  #                                 paste("",C),
-  #                                 paste("",D)
-  #       ),  
-  #       q1 =  c(Ae[1], Be[1], Ce[1], De[1]),
-  #       q50 = c(Ae[2], Be[2], Ce[2], De[2]),
-  #       q3 =  c(Ae[3], Be[3], Ce[3], De[3])
-  #       )
-  #       
-  #       levels(foo1$X2) <- c(paste("",A),
-  #                            paste("",B),
-  #                            paste("",C),
-  #                            paste("",D)
-  #       )
-  #       
-  #       p <- c(-.9, -.99,.99 , -.95, .95, .999, .9999,c(-.8,-.4,0,.5,.8))  
-  #       g0 <- ggplot(data=foo1, aes(x = value)) +#
-  #         geom_vline(data = dummy2, aes(xintercept = q1,  colour="red", linetype = "dotdash")) +
-  #         geom_vline(data = dummy2, aes(xintercept = q50, colour="red", linetype = "dotdash")) +
-  #         geom_vline(data = dummy2, aes(xintercept = q3,  colour="red", linetype = "dotdash")) +
-  #         geom_histogram(aes(y = ..density..), bins=100, colour="black" , fill=rainbow(400))+  ylab("")+
-  #         geom_density(alpha = 0.1, fill = "red") +
-  #         facet_wrap(X2~ .) 
-  #       
-  #        
-  #       
-  #       g0 <- g0  + scale_x_continuous(trans = atanh_trans()  ,
-  #                                      breaks= p, xlab("Correlation"),
-  #                                      oob=discard) +
-  #         scale_y_continuous(breaks = NULL) +
-  #         
-  #         theme_bw()  
-  #       
-  #       g0 <- g0 + theme(#axis.line=element_blank(),
-  #         #axis.text.x=element_blank(),
-  #         #axis.text.y=element_blank(),
-  #         #axis.ticks=element_blank(),
-  #         #axis.title.x=element_blank(),
-  #         axis.text=element_text(size=12),
-  #         axis.title=element_text(size=12,face="bold"),
-  #         #axis.title.y=element_blank(),
-  #         legend.position="none",
-  #         #anel.background=element_blank(),
-  #         #panel.grid.major=element_blank(),
-  #         #panel.grid.minor=element_blank(),
-  #         # plot.background=element_blank())
-  #         #plot.margin = unit(c(1,1,1,1), "cm")
-  #         plot.title = element_text(size = 16),
-  #         strip.text.x = element_text(size = 16, colour = "black", angle = 0),
-  #         strip.background = element_rect(fill="ivory"),
-  #         panel.border = element_blank(),
-  #         panel.grid.major = element_blank(), 
-  #         panel.grid.minor = element_blank(),
-  #         panel.background = element_blank(), 
-  #         axis.line = element_line(colour = "black")
-  #       )
-  #       
-  #       g0 <- g0 + labs(
-  #         caption = "The lines indicate the median, 2.5 and 97.5 percentiles" 
-  #       ) 
-  #       print(g0)
-  #       
-  #       
-  #     })
-  #     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  #     # loading in user data, see my PBE bio equiv app
-  #     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
-  #     output$contents <- renderTable({
-  #       
-  #       # input$file1 will be NULL initially. After the user selects
-  #       # and uploads a file, head of that data file by default,
-  #       # or all rows if selected, will be shown.
-  #       
-  #       df<- NULL
-  #       req(input$file1)
-  #       df <- read.csv(input$file1$datapath,
-  #                      header = input$header,
-  #                      sep = input$sep,
-  #                      quote = input$quote)
-  #       
-  #       df <- as.data.frame(df)
-  #       
-  #       if(input$disp == "head") {
-  #         
-  #         return(head(df))
-  #       }
-  #       else {
-  #         
-  #         return(df)
-  #       } 
-  #       
-  #     })
-  #     
-  #     
-  #     
-  #    usercor <- reactive({ 
-  #     
-  #      sample <- random.sample()
-  #      reps <- sims <- sample$sims
-  #      
-  #      df<-NULL
-  #      req(input$file1)
-  #      df <- read.csv(input$file1$datapath,
-  #                     header = input$header,
-  #                     sep = input$sep,
-  #                     quote = input$quote)
-  #      
-  #      df<- as.data.frame(df)
-  #      
-  #      
-  #      names(df) <-c("A","B")
-  #      
-  #       z1 <- cor.test(df$A,df$B)
-  #       xx <- as.integer(as.vector(z1$parameter)+2) 
-  #       z1 <- c( (xx), unlist(z1$estimate), unlist(z1$conf.int)[1:2])
-  #    
-  #      names(z1) <- c("N","Estimate","Lower","Upper")
-  #     
-  #      return(list( z1=z1)) 
-  #     
-  #     })
-  #     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  #     # analyse user data
-  #     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  #     output$contents2 <- renderPlot({   
-  #       
-  #       sample <- random.sample()
-  #       reps <- sims <- sample$sims
-  #       
-  #         df<-NULL
-  #         req(input$file1)
-  #         df <- read.csv(input$file1$datapath,
-  #                        header = input$header,
-  #                        sep = input$sep,
-  #                        quote = input$quote)
-  #         
-  #         df<- as.data.frame(df)
-  #         
-  #         
-  #         names(df) <-c("A","B")
-  #         
-  #          data.set <- df
-  #         
-  #         len <- length(data.set$A)
-  #         
-  #         sboot <- function() {
-  #           cor(data.set[sample(1:len, replace=T),])[1,2]
-  #         }
-  #         
-  #         bboot <- function() {
-  #           cov.wt(data.set, diff(c(0,sort(runif(len-1)),1)), cor=T)$cor[1,2]
-  #         }
-  #         
-  #         A <- data.set$A
-  #         B <- data.set$B
-  #         
-  #         X <- matrix(c(A, B), len, 2)
-  #         colnames(X) <- c("A","B")
-  #         BB <- BayesianBootstrap(X=X, n=sims,
-  #                                 Method=function(x,w) cov.wt(x, w, cor=TRUE)$cor[1,2]) 
-  #         
-  #         # Using the weighted correlation (corr) from the boot package.
-  #         b4 <- bayesboot(data.set, corr, R = sims, use.weights = TRUE)
-  #         
-  #         
-  #         f<-replicate(sims, sboot())
-  #         b<-replicate(sims, bboot())
-  #         BB <- unlist(BB)
-  #         xx1 <- b4$V1
-  #         
-  #         ff <-  (f)
-  #         bb <- (b)
-  #         BBB <- (BB)
-  #         xx <- (xx1)
-  #         foo <- cbind(ff,bb,BBB,xx)
-  #         foo1 <- reshape::melt(foo)
-  #         
-  #         levels(foo1$X2)
-  #         
-  #         Ce <-  est <- quantile(f, c(.025,.5,.975)) 
-  #         C <-  paste("Frequentist : Median",p3(est[2][[1]]),", 95%CI (", p3(est[1][[1]]) ,", ",  p3(est[3][[1]]) ,")")  
-  #         
-  #         Ae <-   est <- quantile(b, c(.025,.5,.975))  
-  #         A <-  paste("Bayesian : Median",p3(est[2][[1]]),", 95%CI (", p3(est[1][[1]]) ,", ",  p3(est[3][[1]]) ,")") 
-  #         
-  #         Be<-  est <- quantile(BB, c(.025,.5,.975))  
-  #         B <-  paste("LaplaceDemon : Median",p3(est[2][[1]]),", 95%CI (", p3(est[1][[1]]) ,", ",  p3(est[3][[1]]) ,")") 
-  #         
-  #         De<-    est <- quantile(xx1, c(.025,.5,.975))  
-  #         D <-   paste("bayesboot : Median",p3(est[2][[1]]),", 95%CI (", p3(est[1][[1]]) ,", ",  p3(est[3][[1]]) ,")")  
-  #         
-  #         # make a dataset to add lines to ggplot facets
-  #         
-  #         dummy2 <- data.frame(X2=c(paste("",A),
-  #                                   paste("",B),
-  #                                   paste("",C),
-  #                                   paste("",D)
-  #         ),  
-  #         q1 =  c(Ae[1], Be[1], Ce[1], De[1]),
-  #         q50 = c(Ae[2], Be[2], Ce[2], De[2]),
-  #         q3 =  c(Ae[3], Be[3], Ce[3], De[3])
-  #         )
-  #         
-  #         levels(foo1$X2) <- c(paste("",A),
-  #                              paste("",B),
-  #                              paste("",C),
-  #                              paste("",D)
-  #         )
-  #         
-  #         p <- c(-.9, -.99,.99 , -.95, .95, .999, .9999,c(-.8,-.4,0,.5,.8))  
-  #         g0 <- ggplot(data=foo1, aes(x = value)) +#
-  #           geom_vline(data = dummy2, aes(xintercept = q1,  colour="red", linetype = "dotdash")) +
-  #           geom_vline(data = dummy2, aes(xintercept = q50, colour="red", linetype = "dotdash")) +
-  #           geom_vline(data = dummy2, aes(xintercept = q3,  colour="red", linetype = "dotdash")) +
-  #           geom_histogram(aes(y = ..density..), bins=100, colour="black" , fill=rainbow(400))+  ylab("")+
-  #           geom_density(alpha = 0.1, fill = "red") +
-  #           facet_wrap(X2~ .) 
-  #         
-  #         
-  #         
-  #         g0 <- g0  + scale_x_continuous(trans = atanh_trans()  ,
-  #                                        breaks= p, xlab("Correlation"),
-  #                                        oob=discard) +
-  #           scale_y_continuous(breaks = NULL) +
-  #           
-  #           theme_bw()  
-  #         
-  #         g0 <- g0 + theme(#axis.line=element_blank(),
-  #           #axis.text.x=element_blank(),
-  #           #axis.text.y=element_blank(),
-  #           #axis.ticks=element_blank(),
-  #           #axis.title.x=element_blank(),
-  #           axis.text=element_text(size=12),
-  #           axis.title=element_text(size=12,face="bold"),
-  #           #axis.title.y=element_blank(),
-  #           legend.position="none",
-  #           #anel.background=element_blank(),
-  #           #panel.grid.major=element_blank(),
-  #           #panel.grid.minor=element_blank(),
-  #           # plot.background=element_blank())
-  #           #plot.margin = unit(c(1,1,1,1), "cm")
-  #           plot.title = element_text(size = 16),
-  #           strip.text.x = element_text(size = 16, colour = "black", angle = 0),
-  #           strip.background = element_rect(fill="ivory"),
-  #           panel.border = element_blank(),
-  #           panel.grid.major = element_blank(), 
-  #           panel.grid.minor = element_blank(),
-  #           panel.background = element_blank(), 
-  #           axis.line = element_line(colour = "black")
-  #         )
-  #         
-  #         g0 <- g0 + labs(
-  #           caption = "The lines indicate the median, 2.5 and 97.5 percentiles" 
-  #         ) 
-  #         print(g0)
-  
-  
-  #  })
-  
-  
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # print Efron's data
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  
-  output$table1 <- DT::renderDataTable({
+  output$ormp <- renderPlot({   
     
-    foo<- mcmc()$dat
+    f    <- analysis()$f2
     
-    namez <- c("treatment","baseline","y" )
+    plot(f, baseline, treatment, fun = stats::plogis)
     
-    
-    names(foo) <- namez
-    
-    foo <- plyr::arrange(foo, treatment, baseline)
-    
-    rownames(foo) <- NULL
-    library(DT)
-    
-    datatable(foo,   
-              
-              rownames = FALSE,
-              #           
-              options = list(
-                searching = TRUE,
-                pageLength = 15,
-                paging=TRUE,
-                lengthMenu = FALSE ,
-                lengthChange = FALSE,
-                autoWidth = TRUE,
-                #  colReorder = TRUE,
-                #deferRender = TRUE,
-                # scrollY = 200,
-                scroller = T
-              ))  %>%
-      
-      formatRound(
-        columns= namez,   
-        digits=c(0,0,0)  )
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   })
-  # --------------------------------------------------------------------------
   
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
 })
 
