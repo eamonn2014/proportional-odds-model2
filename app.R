@@ -13,9 +13,9 @@ library(Hmisc)
 library(reshape)
 library(rms)
 library(ormPlot)
-require(ordinal)
-require(ggplot2)
-require(tidyverse)
+library(ordinal)
+library(ggplot2)
+library(tidyverse)
 #options(mc.cores = parallel::detectCores())
 #rstan_options(auto_write = TRUE)
 options(max.print=1000000)    
@@ -599,10 +599,7 @@ server <- shinyServer(function(input, output   ) {
  
     return(list( ols.=ols., orm.=orm. , kk=kk , P2=P2, k=k, K=K,dat=dat, m=m, f2=f2, f3=f3, P=P, sf1=sf1,d=d )) 
   })
-  
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  
-  
+   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # beta dist plot 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~     
@@ -658,7 +655,6 @@ server <- shinyServer(function(input, output   ) {
   #  end ggplot barplot of beta distribution
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
   
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   output$reg.plotx <- renderPlot({         
     
     # Get the current regression data
@@ -736,6 +732,7 @@ server <- shinyServer(function(input, output   ) {
   
   
   
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   output$reg.plot99 <- renderPlot({         
     
     # Get the current regression data
@@ -785,7 +782,6 @@ server <- shinyServer(function(input, output   ) {
     )
     
     
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     Gplotx <- function(data,  l1,l2,l3 ) {
       
@@ -1050,8 +1046,7 @@ server <- shinyServer(function(input, output   ) {
     print(gp)
     
   })
-  
-  
+
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~tables of predictions
   
   predictz <- reactive({  
@@ -1355,8 +1350,6 @@ server <- shinyServer(function(input, output   ) {
     
   })
   
-  
-  
   output$dat <- renderPrint({
     
     d <- mcmc()$dat
@@ -1457,17 +1450,7 @@ server <- shinyServer(function(input, output   ) {
    
   })
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  
- # output$ormp <- renderPlot({   
-    
-  #  f    <- analysis()$f2
-    
-   # plot(f, baseline, treatment, fun = stats::plogis)
-    
-#  })
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  
-  
+ 
 })
 
 # Run the application 
