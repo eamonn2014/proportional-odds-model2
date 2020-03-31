@@ -214,6 +214,19 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        # h4(htmlOutput("textWithNumber1",) ),
                               ) ,
                               
+                              tabPanel("3 Barplots of outcome", value=3, 
+                                       h4("xxxxxxxxxxxxxxxxxxxxxx."),
+                                       h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
+                                       div(plotOutput("reg.plot99", width=fig.width1, height=fig.height1)),
+                                       
+                                       fluidRow(
+                                         column(width = 7, offset = 0, style='padding:1px;',
+                                                h4("xxxxxxxxxxxxxxxxxxxxxn"), 
+                                                # div( verbatimTextOutput("reg.summary4"))
+                                         )),
+                                       
+                                       
+                              ),
                               
                               #####
                               tabPanel("2 Proportional odds model", value=7, 
@@ -257,20 +270,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               
                               #####
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                              tabPanel("3 Barplots of outcome", value=3, 
-                                       h4("xxxxxxxxxxxxxxxxxxxxxx."),
-                                       h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
-                                       div(plotOutput("reg.plot99", width=fig.width1, height=fig.height1)),
-                                       
-                                       fluidRow(
-                                         column(width = 7, offset = 0, style='padding:1px;',
-                                                h4("xxxxxxxxxxxxxxxxxxxxxn"), 
-                                                # div( verbatimTextOutput("reg.summary4"))
-                                         )),
-                                       
-                                       
-                              ),
-                              
+                         
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               
                               tabPanel("4 Predicted Mean", value=3, 
@@ -315,6 +315,25 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               
                               
                               
+                              tabPanel("3 Predicted probabilities", value=3, 
+                                       
+                                       
+                                       textInput('rcat2', 
+                                                 div(h5(tags$span(style="color:blue", 
+                                                                  "Response category, enter 999 to see all levels or select level(s) of interest"))), "999"),
+                                       
+                                       h4("xxxxxxxxxxxxxxxxxxxxxx."),
+                                       h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
+                                       div(plotOutput("preds2", width=fig.width1, height=fig.height1)),
+                                       
+                                       
+                                       
+                                       fluidRow(
+                                         column(width = 7, offset = 0, style='padding:1px;',
+                                                h4("xxxxxxxxxxxxxxxxxxxxxn"), 
+                                                # div( verbatimTextOutput("reg.summary4"))
+                                         )),
+                              ),
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               
                               
@@ -383,41 +402,43 @@ With the default inputs we can see horizontal lines in the treated responses (on
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               
                               
-                              
-                              tabPanel("5 data", 
-                                       
-                                       
-                                       
-                                       div( verbatimTextOutput("dat")),
-                                       
-                                       
-                                       
-                              ),
+                            
                               
                               
-                              tabPanel("6 ormplot is it trustworthy?",
+                              tabPanel("6 tables of probabilities",
                                        
                                        fluidRow(
-                                         column(width = 6, offset = 0, style='padding:1px;',
+                                         column(width = 12, offset = 0, style='padding:1px;',
                                                 #h4("ANCOVA model"), 
-                                                div(plotOutput("ormp", width=fig.width7, height=fig.height7)),
-                                                
+                                             #   div(plotOutput("ormp", width=fig.width7, height=fig.height7)),
+                                             div( verbatimTextOutput("reg.summaryp") ),
+                                             div( verbatimTextOutput("reg.summaryc") ),
                                          ) ,
                                          
-                                         fluidRow(
-                                           column(width = 5, offset = 0, style='padding:1px;',
+                                        # fluidRow(
+                                         #  column(width = 5, offset = 0, style='padding:1px;',
                                                   #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
-                                                  div( verbatimTextOutput("reg.summaryp") ),
-                                                  div( verbatimTextOutput("reg.summaryc") ),
-                                                  div( verbatimTextOutput("reg.summaryci") )
+                                                  
+                                                #  div( verbatimTextOutput("reg.summaryc") ),
+                                                  #div( verbatimTextOutput("reg.summaryci") )
                                                   
                                                   # h4(htmlOutput("textWithNumber",) ),
-                                           ))),
+                                          # )
+                                           
+                                           #)
+                                         
+                                         ),
                                        
                                        
                               ),
                               
                               
+                       
+                              
+                              
+                              
+                                       
+                             
                               tabPanel("7 Linear model", value=3, 
                                        h4("ANCOVA model"),
                                        
@@ -447,25 +468,12 @@ With the default inputs we can see horizontal lines in the treated responses (on
                               
                               
                               
-                              
-                                    tabPanel("3 Barplots of outcome", value=3, 
-                                             
-                                             
-                                             textInput('rcat2', 
-                                                       div(h5(tags$span(style="color:blue", 
-                                                                        "Response category, enter 999 to see all levels or select level(s) of interest"))), "999"),
-                                             
-                                       h4("xxxxxxxxxxxxxxxxxxxxxx."),
-                                       h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
-                                       div(plotOutput("preds2", width=fig.width1, height=fig.height1)),
-                           
+                              tabPanel("5 data", 
                                        
                                        
-                                       fluidRow(
-                                         column(width = 7, offset = 0, style='padding:1px;',
-                                                h4("xxxxxxxxxxxxxxxxxxxxxn"), 
-                                                # div( verbatimTextOutput("reg.summary4"))
-                                         )),
+                                       
+                                       div( verbatimTextOutput("dat")),
+                                       
                                        
                                        
                               )
