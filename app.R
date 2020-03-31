@@ -177,7 +177,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               tabPanel("1 Baseline", value=7, 
                                        h4("The distribution of the baseline version of the response variable is specified here.
                                           By selecting a beta distribution using the shape parameters the
-                                          expected baseline counts in categories can be approximated. The default is Beta(2,1)."),
+                                          expected baseline counts in categories can be approximated. The default is Beta(22,21)."),
                                        
                                        #    h4(paste("Figure 1. Bayesian and frequentist bootstrap distributions, estimating one sample mean")), 
                                        #   div(plotOutput("diff", width=fig.width4, height=fig.height4)),       
@@ -191,14 +191,14 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        
                                        
                                        ###############
-                                       h4(paste("Figures 1&2. Baseline dstribution of outcome")), 
-                                       
+                                    
                                        fluidRow(
                                          column(width = 6, offset = 0, style='padding:1px;',
                                                 #h4("Proportional odds model"), 
                                                 # div( verbatimTextOutput("reg.summary2") )
                                                 div(plotOutput("beta",  width=fig.width7, height=fig.height7)),
                                          ) ,
+                                        
                                          
                                          fluidRow(
                                            column(width = 5, offset = 0, style='padding:1px;',
@@ -207,7 +207,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                                   div(plotOutput("reg.plotx",  width=fig.width7, height=fig.height7)) 
                                                   #  h4(htmlOutput("textWithNumber",) ),
                                            ))),
-                                       
+                                       h4(paste("Figures 1 & 2. Baseline distribution of outcome")), 
                                        
                                        #  h4(htmlOutput("textWithNumber",) ),
                                        
@@ -216,12 +216,13 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               
                               tabPanel("2 Outcome", value=3, 
                                       # h4("xxxxxxxxxxxxxxxxxxxxxx."),
-                                       h4(paste("Figure 3. Observed responses")),  
+                                        
                                        div(plotOutput("reg.plot99", width=fig.width1, height=fig.height1)),
                                        
                                        fluidRow(
                                          column(width = 7, offset = 0, style='padding:1px;',
-                                                h4("xxxxxxxxxxxxxxxxxxxxxn"), 
+                                                h4(paste("Figure 3. Observed responses")), 
+                                               # h4("xxxxxxxxxxxxxxxxxxxxxn"), 
                                                 # div( verbatimTextOutput("reg.summary4"))
                                          )),
                                        
@@ -248,13 +249,13 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        
                                        fluidRow(
                                          column(width = 6, offset = 0, style='padding:1px;',
-                                                h4("Proportional odds model"), 
+                                                h4("Table 1 Proportional odds model"), 
                                                 div( verbatimTextOutput("reg.summary1") )
                                          ) ,
                                          
                                  
                                          
-                                         
+                                         h4("Table 2 Proportional odds ratio summaries. Do we recover the input odds ratios...?"),
                                          fluidRow(
                                            column(width = 6, offset = 0, style='padding:1px;',
 
@@ -263,7 +264,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                                    textInput("bas2", div(h5("Enter a baseline high effect")),value="2", width=100)
                                                  ),
 
-                                                  h4("Proportional odds ratio summaries. Do we recover the input odds ratios...?"),
+                                                 
                                                   div( verbatimTextOutput("reg.summary3")),
 
                                                   h4(htmlOutput("textWithNumber",) ),
@@ -278,7 +279,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               
                               tabPanel("4 Predicted Mean", value=3, 
                                        
-                                       
+                                      
                                        
                                        fluidRow(
                                          column(width = 6, offset = 0, style='padding:1px;',
@@ -288,13 +289,15 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                                                            "Enter an intercept for the ordinal model"))), ""), 
                                                 
                                                 div(plotOutput("PP.plot", width=fig.width7, height=fig.height6)),
+                                                h4("Figure 4 Predicted mean"),
                                                 br() ,
+                                                h4("Table 3 Model predictions"),
                                                 div( verbatimTextOutput("predz"), width = 2), # 
                                                 
                                                 
+                                                
                                          ),
-                                         
-                                         
+                                        
                                          fluidRow(
                                            
                                            br(), br(), br() ,
@@ -306,6 +309,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                                   
                                                   
                                                   div(plotOutput("PP.plot2", width=fig.width7, height=fig.height6)),
+                                                  h4("Figure 5 Predicted mean"),
                                                   # div( verbatimTextOutput("predt") ), # 
                                                   
                                                   
@@ -320,21 +324,19 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               
                               tabPanel("5 Predicted probability plot 1", value=3, 
                                        
-                                        
+                                       h5(paste("Enter 999 in the box below to see all the levels or enter level(s) of interest separated by a comma")), 
                                        textInput('rcat2', 
                                                  div(h5(tags$span(style="color:blue",
-                                                                  "Response category, enter 999 to see all levels or select 
-                                                                  level(s) of interest"))), "999"),
+                                                                  ))), "999"),
                                        
-                                       #h4("xxxxxxxxxxxxxxxxxxxxxx."),
-                                       h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
-                                       div(plotOutput("preds2", width=fig.width1, height=fig.height1)),
+                                       
+                                       div(plotOutput("preds2", width=fig.width1, height=fig.height3)),
                                        
                                        
                                        
                                        fluidRow(
                                          column(width = 7, offset = 0, style='padding:1px;',
-                                                h4("xxxxxxxxxxxxxxxxxxxxxn"), 
+                                                h4(paste("Figure 6. Plot of the predicted probabilities")), 
                                                 # div( verbatimTextOutput("reg.summary4"))
                                          )),
                               ),
@@ -342,7 +344,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               
                               
                               tabPanel("6 Predicted prob. plot 2", 
-                                       
+                                       h4(paste("Figure 7 & 8. Plot of the predicted probabilities (reprise)")),
                                        #div(plotOutput("preds", width=fig.width9, height=fig.height9)),
                                        h4("On the left you are looking at the point of view of what happens to a patient considering their baseline category. We can see the probability of response and how it depends on treatment. With the default inputs we can see a shift in the distribution to the higher categories if treated.  
 
@@ -355,7 +357,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                          column(width = 6, offset = 0, style='padding:1px;',
                                                 #h4("ANCOVA model"), 
                                                 #div(plotOutput("preds", width=fig.width9, height=fig.height9)),
-                                                div(plotOutput("preds", width=fig.width7, height=fig.height7)),
+                                                div(plotOutput("preds", width=fig.width7, height=fig.height3)),
                                                 
                                                 fluidRow(
                                                   
@@ -375,7 +377,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                            column(width = 5, offset = 0, style='padding:1px;',
                                                   #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
                                                   #  div( verbatimTextOutput("reg.summary5")),
-                                                  div(plotOutput("predicts", width=fig.width7, height=fig.height7)),
+                                                  div(plotOutput("predicts", width=fig.width7, height=fig.height3)),
                                                   
                                                   
                                                   
@@ -387,8 +389,8 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                     
                                                     textInput('rcat', 
                                                               div(h5(tags$span(style="color:blue", 
-                                                                               "Response category, enter 999 to see all levels or select level(s) of interest"))), "999"),
-                                                    
+                                                                               "Response category, enter 999 to see all levels or enter level(s) of interest"))), "999"),
+                                                    #""
                                                     
                                                     
                                                     
@@ -410,12 +412,13 @@ With the default inputs we can see horizontal lines in the treated responses (on
                               
                               
                               tabPanel("7 Tables of probabilities",
-                                       
+                                       h4(paste("Table 4 Predicted probabilities ")),
                                        fluidRow(
                                          column(width = 12, offset = 0, style='padding:1px;',
                                                 #h4("ANCOVA model"), 
                                              #   div(plotOutput("ormp", width=fig.width7, height=fig.height7)),
                                              div( verbatimTextOutput("reg.summaryp") ),
+                                             h4(paste("Table 5 Predicted cummulative probabilities ")),
                                              div( verbatimTextOutput("reg.summaryc") ),
                                          ) ,
                                          
@@ -444,7 +447,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                        
                              
                               tabPanel("8 Linear model", value=3, 
-                                       h4("ANCOVA model"),
+                                       h4(" ANCOVA model Tables 6 & 7 and Figure 9"),
                                        
                                        fluidRow(
                                          column(
@@ -475,7 +478,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                               tabPanel("9 Data", 
                                        
                                        
-                                       
+                                       h4("Table 8 Data listing"),
                                        div( verbatimTextOutput("dat")),
                                        
                                        
@@ -806,7 +809,7 @@ server <- shinyServer(function(input, output   ) {
         
         geom_bar(stat = "identity", width =0.7) 
       
-      p1 <- p1 + ggtitle( paste0("Obeserved dist. of baseline version of response, N=",pN), ) +
+      p1 <- p1 + ggtitle( paste0("Observed dist. of baseline version of response, N=",pN), ) +
         theme(plot.title = element_text(size = 20, face = "bold")) #+
       
       #  coord_flip()
