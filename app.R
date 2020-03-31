@@ -449,9 +449,17 @@ With the default inputs we can see horizontal lines in the treated responses (on
                               
                               
                                     tabPanel("3 Barplots of outcome", value=3, 
+                                             
+                                             
+                                             textInput('rcat2', 
+                                                       div(h5(tags$span(style="color:blue", 
+                                                                        "Response category, enter 999 to see all levels or select level(s) of interest"))), "999"),
+                                             
                                        h4("xxxxxxxxxxxxxxxxxxxxxx."),
                                        h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
                                        div(plotOutput("preds2", width=fig.width1, height=fig.height1)),
+                           
+                                       
                                        
                                        fluidRow(
                                          column(width = 7, offset = 0, style='padding:1px;',
@@ -936,7 +944,7 @@ server <- shinyServer(function(input, output   ) {
     
     datx <- mcmc()$dat
     
-    
+    rcat <-  (as.numeric(unlist(strsplit(input$rcat2,","))))   
     
     
     # I can get non cummulative probabilites using clm
@@ -989,15 +997,50 @@ server <- shinyServer(function(input, output   ) {
     l$treatment <- ifelse( l$treatment %in% 0,"Placebo","Treatment")
     l$response <- as.factor(l$response)
     
+    br1 <- length(unique(l$baseline))
+    
+    
+    if (rcat %in% 999) {r = 1:levz} else   {r = rcat} 
+    
+    l <-  l[l$response %in% r,]
+   # lx <- l[l$baseline %in% base,]     # user input selects 
     
   gp <-  ggplot(l, aes(x = baseline,  y = estimate, color = response)) + 
       geom_line(size = 1) + 
       geom_ribbon(aes(ymin = lower,   ymax = upper,
                       fill = response, color = response),  alpha = 0.4, linetype = 0) +
-      facet_grid(~treatment)
+    theme_bw() + 
+    scale_x_continuous( breaks=1:br1, labels=1:br1)+
+      facet_grid(~treatment) +
+    
+    
+  theme(panel.background=element_blank(),
+        plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
+        legend.text=element_text(size=12),
+        legend.title=element_text(size=14),
+       # legend.title=element_blank(),
+        axis.text.x = element_text(size=10),
+        axis.text.y = element_text(size=10),
+        axis.line.x = element_line(color="black"),
+        axis.line.y = element_line(color="black"),
+        axis.title.y=element_text(size=16),  
+        axis.title.x=element_text(size=16),  
+        axis.title = element_text(size = 20) , 
+        plot.caption=element_text(hjust = 0, size = 7),
+       strip.text.x = element_text(size = 14, colour = "black", angle = 0)
+       
+       ) +
+      
+       # legend.justification = c(0, 1), 
+      #  legend.position = c(0.05, .99))  +
     
     
     
+    labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
+         x = "Response category",
+         y = "Predicted probability",
+         subtitle =c("xxxxxxxxxxxxxx"),
+         caption = "")  
     
     
     print(gp)
