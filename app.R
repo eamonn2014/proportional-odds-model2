@@ -238,53 +238,11 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                          
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                              
-                              tabPanel("4 Predicted Mean", value=3, 
-                                       
-                                      
-                                       
-                                       fluidRow(
-                                         column(width = 6, offset = 0, style='padding:1px;',
-                                                
-                                                textInput('kints',
-                                                          div(h5(tags$span(style="color:blue",
-                                                                           "Enter an intercept for the ordinal model"))), ""), 
-                                                
-                                                div(plotOutput("PP.plot", width=fig.width7, height=fig.height6)),
-                                                h4("Figure 4 Predicted mean"),
-                                                br() ,
-                                                h4("Table 3 Model predictions"),
-                                                div( verbatimTextOutput("predz"), width = 2), # 
-                                                
-                                                
-                                                
-                                         ),
-                                        
-                                         fluidRow(
-                                           
-                                           br(), br(), br() ,
-                                           
-                                           
-                                           column(width = 5, offset = 0, style='padding:0px;',
-                                                  
-                                                  div(h5(tags$span(style="color:blue","test"))),  
-                                                  
-                                                  
-                                                  div(plotOutput("PP.plot2", width=fig.width7, height=fig.height6)),
-                                                  h4("Figure 5 Predicted mean"),
-                                                  
-                                                  
-                                                  
-                                           )))
-                                       
-                                       
-                                       
-                                       
-                              ),
+                      
                               
                               
                               
-                              tabPanel("5 Predicted probability plot 1", value=3, 
+                              tabPanel("4 Predicted probability plot 1", value=3, 
                                        
                                        h5(paste("Enter 999 in the box below to see all the levels or enter level(s) of interest separated by a comma")), 
                                        textInput('rcat2', 
@@ -298,15 +256,15 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        
                                        fluidRow(
                                          column(width = 7, offset = 0, style='padding:1px;',
-                                                h4(paste("Figure 6. Plot of the predicted probabilities")), 
+                                                h4(paste("Figure 4. Plot of the predicted probabilities")), 
                                                  
                                          )),
                               ),
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               
                               
-                              tabPanel("6 Predicted prob. plot 2", 
-                                       h4(paste("Figure 7 & 8. Plot of the predicted probabilities (reprise)")),
+                              tabPanel("5 Predicted prob. plot 2", 
+                                       h4(paste("Figure 5 & 6. Plot of the predicted probabilities (reprise)")),
                                         
                                        h4("On the left you are looking at the point of view of what happens to a patient considering their baseline category. We can see the probability of response and how it depends on treatment. With the default inputs we can see a shift in the distribution to the higher categories if treated.  
 
@@ -358,40 +316,25 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                        
                                         
                                        width = 30 )     ,
-                              
-                              
-                              
-                              
-                              
-                              #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                              
-                              
-                            
-                              
-                              
-                              tabPanel("7 Tables of probabilities",
-                                       h4(paste("Table 4 Predicted probabilities ")),
+                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                              tabPanel("6 Tables of probabilities",
+                                       h4(paste("Table 3 Predicted probabilities ")),
                                        fluidRow(
                                          column(width = 12, offset = 0, style='padding:1px;',
                                        
                                              div( verbatimTextOutput("reg.summaryp") ),
-                                             h4(paste("Table 5 Predicted cummulative probabilities ")),
+                                             h4(paste("Table 4 Predicted cummulative probabilities ")),
                                              div( verbatimTextOutput("reg.summaryc") ),
                                          ) ,
                                     
                                          
                                          ),
-                                       
-                                       
+
                               ),
                               
-                             tabPanel("8 Linear model", value=3, 
-                                       h4(" ANCOVA model Tables 6 & 7 and Figure 9"),
-                                       
-                                       fluidRow(
-                                         column(
-                                           DT::dataTableOutput("tablex"),width = 6)
-                                       ),
+                             tabPanel("7 Linear model", value=3, 
+                                       h4(" ANCOVA model Tables 5 & 6 and Figure 7"),
+                                      
                                        
                                        fluidRow(
                                          column(width = 6, offset = 0, style='padding:1px;',
@@ -406,25 +349,50 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                   div(plotOutput("predictl", width=fig.widthx, height=fig.heightx)),
                                               
                                            ))),
-                                       
-                                       
-                                       
+
+                             ),
+                                      
+                                      tabPanel("8 Predicted Mean", value=3, 
+                                            
+                                               fluidRow(
+                                                 column(width = 6, offset = 0, style='padding:1px;',
+                                                        
+                                                        textInput('kints',
+                                                                  div(h5(tags$span(style="color:blue",
+                                                                                   "Enter an intercept for the ordinal model"))), ""), 
+                                                        
+                                                        div(plotOutput("PP.plot", width=fig.width7, height=fig.height6)),
+                                                        h4("Figure 8 Predicted mean"),
+                                                        br() ,
+                                                        h4("Table 7 Model predictions"),
+                                                        div( verbatimTextOutput("predz"), width = 2), # 
+                                                        
+                                                        
+                                                        
+                                                 ),
+                                                 
+                                                 fluidRow(
+                                                   
+                                                   br(), br(), br() ,
+                                                   
+                                                   
+                                                   column(width = 5, offset = 0, style='padding:0px;',
+                                                          
+                                                          div(h5(tags$span(style="color:blue","test"))),  
+                                                          
+                                                          
+                                                          div(plotOutput("PP.plot2", width=fig.width7, height=fig.height6)),
+                                                          h4("Figure 9 Predicted mean"),
+                                                           
+                                                   )))
+                                        
                               ) ,
-                              
-                              
-                              
-                              tabPanel("9 Data", 
-                                       
-                                       
+   
+                                tabPanel("9 Data", 
                                        h4("Table 8 Data listing"),
                                        div( verbatimTextOutput("dat")),
                                        
-                                       
-                                       
                               )
-                       
-                              
-                              
                               
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   END NEW   
                             )
@@ -471,7 +439,7 @@ server <- shinyServer(function(input, output   ) {
       or2=n2y2[1],
       shape1=dis[1], 
       shape2=dis[2],
-      base=base[1]#,
+      base=base[1]
    
       
     ))
@@ -685,7 +653,7 @@ server <- shinyServer(function(input, output   ) {
   })
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  #  endggplot barplot of beta distribution
+  #  end ggplot barplot of beta distribution
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -730,8 +698,6 @@ server <- shinyServer(function(input, output   ) {
       
       p1 <- p1 + ggtitle( paste0("Observed dist. of baseline version of response, N=",pN), ) +
         theme(plot.title = element_text(size = 20, face = "bold")) #+
-      
-      #  coord_flip()
       
       p1 <- p1 + ylab(ylabel ) + 
         
@@ -817,9 +783,8 @@ server <- shinyServer(function(input, output   ) {
     )
     
     
-    
-    
-    
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     Gplotx <- function(data,  l1,l2,l3 ) {
       
       mlimit=l1
@@ -895,24 +860,16 @@ server <- shinyServer(function(input, output   ) {
     
     rcat <-  (as.numeric(unlist(strsplit(input$rcat2,","))))   
     
-    
     # I can get non cummulative probabilites using clm
     # Don't know how to do it with rms? yet
     
     Res.clm <- clm(y ~treatment + baseline, data=datx)
-    
-    # levz <-   length(unique(Res.clm$model$baseline))
-    
-    # summary(Res.clm)
+   
     
     newdat <- data.frame(
       baseline =   (rep(1:levz)),
       treatment = rep(0:1, each = levz)
     )
-    # newdat <- data.frame(
-    #   baseline =  factor(sort(unique(Res.clm$model$baseline))),
-    #   treatment = rep(0:1, each = levz)
-    # )
     
     
     newdat <- cbind(newdat, predict(Res.clm, newdata=newdat, se.fit=TRUE,
@@ -952,7 +909,7 @@ server <- shinyServer(function(input, output   ) {
     if (rcat %in% 999) {r = 1:levz} else   {r = rcat} 
     
     l <-  l[l$response %in% r,]
-   # lx <- l[l$baseline %in% base,]     # user input selects 
+   
     
   gp <-  ggplot(l, aes(x = baseline,  y = estimate, color = response)) + 
       geom_line(size = 1) + 
@@ -1006,10 +963,7 @@ server <- shinyServer(function(input, output   ) {
     base <- sample$base
     
     datx <- mcmc()$dat
-    
-    
-    
-    
+ 
     # I can get non cummulative probabilites using clm
     # Don't know how to do it with rms? yet
     
@@ -1024,11 +978,8 @@ server <- shinyServer(function(input, output   ) {
       treatment = rep(0:1, each = levz)
     )
  
-    
     newdat <- cbind(newdat, predict(Res.clm, newdata=newdat, se.fit=TRUE,
                                     interval=TRUE, type="prob"))
-    
-    
     
     A<- cbind( newdat[,1:2], newdat[,grep("^fit", colnames(newdat)) ])
     B<- cbind( newdat[,1:2], newdat[,grep("^lwr", colnames(newdat)) ])
@@ -1159,11 +1110,7 @@ server <- shinyServer(function(input, output   ) {
     
     mm <- cbind(newdat,mm )
     
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    
-    #probs <- cbind(newdat,xx )
-    
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     
     mm$variable <-  gsub(".*\\.","", mm$variable)
     
@@ -1187,8 +1134,7 @@ server <- shinyServer(function(input, output   ) {
     A <- ifelse(mm$treatment %in% 0, "Pl.","Trt.")
     mm$var2 <- paste(A, mm$variable)
     
-    
-    
+     
     gpp <- ggplot(mm, aes(baseline, value, group=factor(grp))) +
       geom_line(aes(color=factor(A))) +
       
@@ -1227,8 +1173,6 @@ server <- shinyServer(function(input, output   ) {
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # text 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
-  
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~baseline plots~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
   output$PP.plot <- renderPlot({   
     
@@ -1337,9 +1281,6 @@ server <- shinyServer(function(input, output   ) {
     
     return(list( p=p )) 
   })  
-  
-  
-  
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # text 
@@ -1452,8 +1393,7 @@ server <- shinyServer(function(input, output   ) {
     return(print(lmx()$linear, digits=4))
     
   })
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 
+
   output$reg.summary5 <- renderPrint({
     
     return(print(lmx()$an, digits=4))
@@ -1497,7 +1437,7 @@ server <- shinyServer(function(input, output   ) {
     
   })
   
-  
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
   
   output$predictl <- renderPlot({   
@@ -1512,18 +1452,18 @@ server <- shinyServer(function(input, output   ) {
      
     ggplot(Predict(linear, treatment), anova=an1, pval=TRUE)  
     
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   
   })
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
-  
-  output$ormp <- renderPlot({   
+ # output$ormp <- renderPlot({   
     
-    f    <- analysis()$f2
+  #  f    <- analysis()$f2
     
-    plot(f, baseline, treatment, fun = stats::plogis)
+   # plot(f, baseline, treatment, fun = stats::plogis)
     
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  })
+#  })
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
   
 })
