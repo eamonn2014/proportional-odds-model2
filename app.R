@@ -1558,34 +1558,27 @@ server <- shinyServer(function(input, output   ) {
     
     dat$y <- as.numeric(as.character(dat$y))
     
-    f <- lm(y ~treatment + baseline, data=dat)
+    # f <- lm(y ~treatment + baseline, data=dat)
+    # 
+    # linear2 <- summary(f)
     
-    linear <- summary(f)
-    
-    
+   
     d <<- datadist(dat)
     options(datadist="d")
-    linear <- ols(y ~treatment + (baseline), data=dat)
-    an <- anova(linear)
+    
+    # linear <- ols(y ~treatment + (baseline), data=dat)
+    # an <- anova(linear)
     
     
-    dat$y <- as.numeric(as.character(dat$y)) 
-    linear <- ols(y ~treatment + (baseline), data=dat)
-    ols.      = Predict(linear, conf.int=FALSE)
+   # dat$y <- as.numeric(as.character(dat$y)) 
+    f <- ols(y ~treatment + (baseline), data=dat)
+    an <- anova(f)
     
+    #ols.      = Predict(linear, conf.int=FALSE)
+ 
     
-    
-    # P <- predict(linear, dat,
-    #          type=c("lp" ),
-    #          se.fit=FALSE, conf.int=TRUE,
-    #          conf.type=c( 'individual' ),
-    #          ) # ols
-    
-    
-    
-    return(list(linear=linear , an=an, ols.pred=ols.)) 
-    
-    #return(list(linear=linear ))
+    return(list(linear=f , an=an )) 
+     
     
   })
   
@@ -1594,12 +1587,15 @@ server <- shinyServer(function(input, output   ) {
   
   output$predictl <- renderPlot({   
     
-    # sample <- random.sample()
+    dat <- mcmc()$dat
     
-    linear    <- lmx()$linear
-    an <- anova(linear) 
-    ggplot(Predict(linear, treatment), anova=an, pval=TRUE) ############  YES
+    dat$y <- as.numeric(as.character(dat$y))
     
+    linear <- ols(y ~treatment + (baseline), data=dat)
+    
+    an1 <- anova(linear)
+     
+    ggplot(Predict(linear, treatment), anova=an1, pval=TRUE) ############  YES
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   })
