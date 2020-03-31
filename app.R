@@ -82,7 +82,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                 
                                 
                                 actionButton(inputId='ab1', label="R code",   icon = icon("th"),   
-                                             onclick ="window.open('https://raw.githubusercontent.com/eamonn2014/Bayesian_bootstrap/master/Bayesian_bootstrap/app.R', '_blank')"),    
+                                             onclick ="window.open('https://raw.githubusercontent.com/eamonn2014/proportional-odds-model2/master/app.R', '_blank')"),    
                                 actionButton("resample", "simulate a new sample"),
                                 br(),  
                                 tags$style(".well {background-color:#b6aebd ;}"), ##ABB0B4AF
@@ -266,7 +266,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
 
 On the right we can look at ALL baseline categories and see the predicted probability curves. 
 Vertically all the curves will sum to 1 for a treatment group. 
-I a patient is in baseline group category 1 we can see the probability of them being in each category if they were treated (or alternatively if they were in placebo).
+For example, if a patient is in baseline group category 1 we can see the probability of the patient being in each category if they were treated (or alternatively if they were in placebo).
 With the default inputs we can see horizontal lines in the treated responses (only for the default input values), telling us a patient's baseline value is not important to know.
 "),
                                        fluidRow(
@@ -384,7 +384,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                           
                                                           
                                                           div(plotOutput("PP.plot2", width=fig.width7, height=fig.height6)),
-                                                          h4("Figure 9 Predictions for each model arm by trial arm, showing the close similarity in the two model predictions"),
+                                                          h4("Figure 9 Predictions for each model arm by trial arm to assess similarity in the two model predictions"),
                                                            
                                                    )))
                                         
@@ -1311,14 +1311,14 @@ server <- shinyServer(function(input, output   ) {
                  " this is the log odds of having a response in categories 2 and above, so convert this to a probability "
                  , tags$span(style="color:red", p3(expit(A$coefficients[1][[1]]) )) , 
                  " and subtract from one to give the probability of being in the lowest category "
-                 , tags$span(style="color:red", p3(1-  expit(f[1][[1]]) )) ,".",
+                 , tags$span(style="color:red", p3(1-  expit(f[1][[1]]) )) ," for a patient in reference treatment group (placebo).",
                  br(), br(),  
                  
                  " The coefficient alongside y>=",max(dat$y)," is "
                  , tags$span(style="color:red", p2( f     [x][[1]]) ) ,
                  ", this is the log odds of having a response in the top category only, converting this to a probability gives "
                  , tags$span(style="color:red", p3(expit(f[x][[1]]) )) , 
-                 "   "
+                 " for a patient in reference treatment group (placebo)."
                  , tags$span(style="color:red"),  ". Check these probabilities to the tables in tab 6 !" ,
                  br(), br(),  
                  
@@ -1327,7 +1327,7 @@ server <- shinyServer(function(input, output   ) {
                  , tags$span(style="color:red", p3(f['baseline'])[[1]])  , 
                   ", we can exponentiate this to give "
                      , tags$span(style="color:red", p3(exp(f['baseline']))[[1]])  ,
-                 " . We can see the effect of changing multiple categories on the outcome by mutliplying " 
+                 " . We can see the effect of changing multiple categories on the outcome by multiplying " 
                   , tags$span(style="color:red", p3(f['baseline'])[[1]]),  
                 " unit change by the 'Diff.'= ",
                  tags$span(style="color:red", diff ) 
