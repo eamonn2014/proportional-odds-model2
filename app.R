@@ -940,7 +940,7 @@ server <- shinyServer(function(input, output   ) {
  
     
     labs(title=paste0(c("Predicted probabilities of response categories"), collapse=" "), 
-         x = "Response category",
+         x = "Baseline category",
          y = "Predicted probability",
         # subtitle =c("xxxxxxxxxxxxxx"),
          caption = "")  
@@ -1157,7 +1157,7 @@ server <- shinyServer(function(input, output   ) {
             legend.position="none") +
       
       labs(title=paste0(c("Predicted probabilities of response categories"), collapse=" "), 
-           x = "Response category",
+           x = "Baseline category",
            y = "Predicted probability",
            #subtitle =c("xxxxxxxxxxxxxx"),
            caption = "")  +
