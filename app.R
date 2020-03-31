@@ -174,7 +174,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                    ")),
                               
                               
-                              tabPanel("1 Baseline version of response", value=7, 
+                              tabPanel("1 Baseline", value=7, 
                                        h4("The distribution of the baseline version of the response variable is specified here.
                                           By selecting a beta distribution using the shape parameters the
                                           expected baseline counts in categories can be approximated. The default is Beta(2,1)."),
@@ -191,7 +191,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        
                                        
                                        ###############
-                                       
+                                       h4(paste("Figures 1&2. Baseline dstribution of outcome")), 
                                        
                                        fluidRow(
                                          column(width = 6, offset = 0, style='padding:1px;',
@@ -214,9 +214,9 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        # h4(htmlOutput("textWithNumber1",) ),
                               ) ,
                               
-                              tabPanel("2 Barplots of outcome", value=3, 
-                                       h4("xxxxxxxxxxxxxxxxxxxxxx."),
-                                       h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
+                              tabPanel("2 Outcome", value=3, 
+                                      # h4("xxxxxxxxxxxxxxxxxxxxxx."),
+                                       h4(paste("Figure 3. Observed responses")),  
                                        div(plotOutput("reg.plot99", width=fig.width1, height=fig.height1)),
                                        
                                        fluidRow(
@@ -229,8 +229,8 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               ),
                               
                               #####
-                              tabPanel("3 Proportional odds model", value=7, 
-                                       h4("  (when all other variables are set to zero)"),
+                              tabPanel("3 PO model", value=7, 
+                                     #  h4("  (when all other variables are set to zero)"),
                                        
                                        #    h4(paste("Figure 1. Bayesian and frequentist bootstrap distributions, estimating one sample mean")), 
                                        #   div(plotOutput("diff", width=fig.width4, height=fig.height4)),       
@@ -248,24 +248,27 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        
                                        fluidRow(
                                          column(width = 6, offset = 0, style='padding:1px;',
-                                                h4("Proportional odds model orm function"), 
+                                                h4("Proportional odds model"), 
                                                 div( verbatimTextOutput("reg.summary1") )
                                          ) ,
                                          
+                                 
+                                         
+                                         
                                          fluidRow(
                                            column(width = 6, offset = 0, style='padding:1px;',
-                                                  # h4("Proportional odds model orm function"), 
-                                                  # div( verbatimTextOutput("reg.summary1")),
-                                                  h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
+
+                                                 splitLayout(
+                                                   textInput("bas1", div(h5("Enter a baseline low effect")), value="1", width=100),
+                                                   textInput("bas2", div(h5("Enter a baseline high effect")),value="2", width=100)
+                                                 ),
+
+                                                  h4("Proportional odds ratio summaries. Do we recover the input odds ratios...?"),
                                                   div( verbatimTextOutput("reg.summary3")),
-                                                  
+
                                                   h4(htmlOutput("textWithNumber",) ),
                                            ))),
-                                       
-                                       
-                                       #  h4(htmlOutput("textWithNumber",) ),
-                                       
-                                       # h4(htmlOutput("textWithNumber1",) ),
+                                        
                               ) ,
                               
                               #####
@@ -338,7 +341,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               
                               
-                              tabPanel("6 Predicted probability plot 2", 
+                              tabPanel("6 Predicted prob. plot 2", 
                                        
                                        #div(plotOutput("preds", width=fig.width9, height=fig.height9)),
                                        h4("On the left you are looking at the point of view of what happens to a patient considering their baseline category. We can see the probability of response and how it depends on treatment. With the default inputs we can see a shift in the distribution to the higher categories if treated.  
@@ -469,7 +472,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                               
                               
                               
-                              tabPanel("9 data", 
+                              tabPanel("9 Data", 
                                        
                                        
                                        
@@ -527,6 +530,9 @@ server <- shinyServer(function(input, output   ) {
     
     base<- as.numeric(unlist(strsplit(input$base,",")))
     
+   # bas1 <- as.numeric(input$bas1)
+  #  bas2 <- as.numeric(input$bas2)
+    
     return(list(  
       n=trt[1],  
       lev=ctr[1],
@@ -534,7 +540,9 @@ server <- shinyServer(function(input, output   ) {
       or2=n2y2[1],
       shape1=dis[1], 
       shape2=dis[2],
-      base=base[1]
+      base=base[1]#,
+   #   bas1=bas1,
+    #  bas2=bas2
       
     ))
     
@@ -555,6 +563,9 @@ server <- shinyServer(function(input, output   ) {
     shape2  <- sample$shape2
     group  <- sample$group
     rcat  <- sample$rcat
+    bas1  <- sample$bas1
+    bas2  <- sample$bas2
+    
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Parameters 
     
@@ -640,19 +651,33 @@ server <- shinyServer(function(input, output   ) {
   
   analysis <- reactive({
     
+   # sample <- random.sample()
+    
+ 
+    bas1  <-  as.numeric(unlist(input$bas1))
+    bas2  <-  as.numeric(unlist(input$bas2))
+    
+    
+    
     dat <- mcmc()$dat
     kk <-   ( as.numeric(unlist(strsplit(input$kints,","))))
     dat$y <- as.numeric(as.character(dat$y)) 
     
-    # dat$baseline <- factor(dat$baseline)
-    # use harrell's po function analyse the data
-    d <<- datadist(dat)
-    options(datadist="d") 
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    options(datadist=NULL)  
+    d <<- datadist(dat)              # 
+    d$limits["Low:effect","baseline"]  <- bas1  #reset adjustment level to 
+    d$limits["High:effect","baseline"] <- bas2  #reset adjustment level to 
+    d <<- datadist(dat)  
+    options(datadist="d")
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     
+    sf1=NULL
     f2 <- orm(y ~baseline + treatment, data=dat )
     f3 <- ols(y ~baseline + treatment, data=dat )
-    sf1 <- summary(f3, antilog=TRUE, verbose=FALSE)
-    
+    sf1 <- summary(f2, antilog=TRUE, verbose=FALSE)
+    sf1 <- summary(f2, baseline=c(bas1,bas2),antilog=TRUE, verbose=FALSE)
+ 
     k <- NULL
     m <- Mean(f2, codes=FALSE)
     ml <- as.list(m)
@@ -678,7 +703,7 @@ server <- shinyServer(function(input, output   ) {
     P2 <- rbind( "model"=orm., "model"=ols.)
     # ymin <- min(P$lower)*.9
     # ymax <- max(P$upper)*1.1
-    return(list( ols.=ols., orm.=orm. , kk=kk , P2=P2, k=k, K=K,dat=dat, m=m, f2=f2, f3=f3, P=P, sf1=sf1 )) 
+    return(list( ols.=ols., orm.=orm. , kk=kk , P2=P2, k=k, K=K,dat=dat, m=m, f2=f2, f3=f3, P=P, sf1=sf1,d=d )) 
   })
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1444,12 +1469,19 @@ server <- shinyServer(function(input, output   ) {
     
     A <- analysis()$f2     
     
+    d <- analysis()$d
+    
+    dat <- mcmc()$dat
+    
+    dat$y <- as.numeric(as.character(dat$y))
     
     sample <- random.sample()
     levz <- sample$lev
     
     f <- A$coefficients
     x <-length(f) -2
+    
+    diff <- d$limits["High:effect","baseline"]-d$limits["Low:effect","baseline"]
     
     HTML(paste0( "Let's interpret the output on the left. The coefficient alongside y>=2 is "
                  , tags$span(style="color:red", p2( f     [1][[1]]) ) ,
@@ -1459,14 +1491,26 @@ server <- shinyServer(function(input, output   ) {
                  , tags$span(style="color:red", p3(1-  expit(f[1][[1]]) )) ,".",
                  br(), br(),  
                  
-                 " The coefficient alongside y>=",levz," is "
+                 " The coefficient alongside y>=",max(dat$y)," is "
                  , tags$span(style="color:red", p2( f     [x][[1]]) ) ,
                  " this is the log odds of having a response in the top category only, converting this to a probability gives "
                  , tags$span(style="color:red", p3(expit(f[x][[1]]) )) , 
                  "   "
                  , tags$span(style="color:red",  ) ,
+                 br(), br(),  
                  
+                 " The coefficient 'baseline' is a log odds ratio
+                 comparing an individual one baseline category higher whilst being identical in all other predictors is "
+                 , tags$span(style="color:red", p3(f['baseline'])[[1]])  , 
+                  " we can exponentiate this and multiple by the 'Diff.'  ",
+                 diff
+                 ," above to give "
+                 , tags$span(style="color:red", p3(exp(f['baseline']*2) ) [[1]] )  , 
                  ""))    
+    
+    
+    
+    
     
   })
   
