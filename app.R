@@ -650,15 +650,10 @@ server <- shinyServer(function(input, output   ) {
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~DO THE ANALYSIS~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
   analysis <- reactive({
-    
-   # sample <- random.sample()
-    
- 
+   
     bas1  <-  as.numeric(unlist(input$bas1))
     bas2  <-  as.numeric(unlist(input$bas2))
-    
-    
-    
+ 
     dat <- mcmc()$dat
     kk <-   ( as.numeric(unlist(strsplit(input$kints,","))))
     dat$y <- as.numeric(as.character(dat$y)) 
@@ -1493,20 +1488,37 @@ server <- shinyServer(function(input, output   ) {
                  
                  " The coefficient alongside y>=",max(dat$y)," is "
                  , tags$span(style="color:red", p2( f     [x][[1]]) ) ,
-                 " this is the log odds of having a response in the top category only, converting this to a probability gives "
+                 ", this is the log odds of having a response in the top category only, converting this to a probability gives "
                  , tags$span(style="color:red", p3(expit(f[x][[1]]) )) , 
                  "   "
-                 , tags$span(style="color:red",  ) ,
+                 , tags$span(style="color:red"),  ". Check these probabilities to the tables in tab 7 !" ,
                  br(), br(),  
                  
-                 " The coefficient 'baseline' is a log odds ratio
-                 comparing an individual one baseline category higher whilst being identical in all other predictors is "
+                 " The coefficient left, 'baseline' is a log odds ratio
+                 comparing an individual one baseline category higher whilst being identical in all other predictors and is "
                  , tags$span(style="color:red", p3(f['baseline'])[[1]])  , 
-                  " we can exponentiate this and multiple by the 'Diff.'  ",
-                 diff
-                 ," above to give "
-                 , tags$span(style="color:red", p3(exp(f['baseline']*2) ) [[1]] )  , 
-                 ""))    
+                  ", we can exponentiate this to give "
+                     , tags$span(style="color:red", p3(exp(f['baseline']))[[1]])  ,
+                 " . We can see the effect of changing multiple categories on the outcome by mutliplying " 
+                  , tags$span(style="color:red", p3(f['baseline'])[[1]]),  
+                " unit change by the 'Diff.'= ",
+                 tags$span(style="color:red", diff ) 
+                 ," which is selectable above and exponentiating...to give..." 
+                 , tags$span(style="color:red", p3(exp(f['baseline']*diff) ) [[1]] )  , 
+                 " and so on.",
+                br(), br(),  
+                " The coefficient left, 'treatment' is a log odds ratio
+                 comparing an individual in the treated group to the placebo group whilst 
+                being identical in all other predictors and is "
+                , tags$span(style="color:red", p3(f['treatment'])[[1]])  , 
+                ", we can exponentiate this to give the odds ratio: "
+                , tags$span(style="color:red", p3(exp(f['treatment']))[[1]])     , 
+                " "
+                
+                ))    
+                
+                
+                 
     
     
     
