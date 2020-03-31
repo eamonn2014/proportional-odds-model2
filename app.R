@@ -177,6 +177,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                          column(width = 6, offset = 0, style='padding:1px;',
                                                 
                                                 div(plotOutput("beta",  width=fig.width7, height=fig.height7)),
+                                                 
                                          ) ,
                                         
                                          
@@ -362,8 +363,8 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                                                    "Enter an intercept for the ordinal model"))), ""), 
                                                         
                                                         div(plotOutput("PP.plot", width=fig.width7, height=fig.height6)),
-                                                        h4("Figure 8 Predicted mean"),
-                                                        br() ,
+                                                        h4("Figure 8 Predictions for each trial arm by model"),
+                                                        br() , 
                                                         h4("Table 7 Model predictions"),
                                                         div( verbatimTextOutput("predz"), width = 2), # 
                                                         
@@ -373,16 +374,16 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                  
                                                  fluidRow(
                                                    
-                                                   br(), br(), br() ,
+                                                   br(), br(), br() , br() , br() ,
                                                    
                                                    
                                                    column(width = 5, offset = 0, style='padding:0px;',
                                                           
-                                                          div(h5(tags$span(style="color:blue","test"))),  
+                                                          #div(h5(tags$span(style="color:blue","test"))),  
                                                           
                                                           
                                                           div(plotOutput("PP.plot2", width=fig.width7, height=fig.height6)),
-                                                          h4("Figure 9 Predicted mean"),
+                                                          h4("Figure 9 Predictions for each model arm by trial arm, showing the close similarity in the two model predictions"),
                                                            
                                                    )))
                                         
@@ -938,10 +939,10 @@ server <- shinyServer(function(input, output   ) {
        ) +
  
     
-    labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
-         x = "Baseline category",
+    labs(title=paste0(c("Predicted probabilities of response categories"), collapse=" "), 
+         x = "Response category",
          y = "Predicted probability",
-         subtitle =c("xxxxxxxxxxxxxx"),
+        # subtitle =c("xxxxxxxxxxxxxx"),
          caption = "")  
     
     
@@ -1037,10 +1038,10 @@ server <- shinyServer(function(input, output   ) {
       
       
       
-      labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
-           x = "Response category",
+      labs(title=paste0(c("Predicted probabilities of response categories"), collapse=" "), 
+           x = "Baseline category",
            y = "Predicted probability",
-           subtitle =c("xxxxxxxxxxxxxx"),
+           #subtitle =c("xxxxxxxxxxxxxx"),
            caption = "")  
     # guides(fill=guide_legend(title="Treatment"))
     # 
@@ -1155,10 +1156,10 @@ server <- shinyServer(function(input, output   ) {
             plot.caption=element_text(hjust = 0, size = 7) ,
             legend.position="none") +
       
-      labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
-           x = "Baseline category",
+      labs(title=paste0(c("Predicted probabilities of response categories"), collapse=" "), 
+           x = "Response category",
            y = "Predicted probability",
-           subtitle =c("xxxxxxxxxxxxxx"),
+           #subtitle =c("xxxxxxxxxxxxxx"),
            caption = "")  +
       geom_dl(aes(label = var2), method = list(dl.combine("first.points", "last.points"),
                                                cex = 0.9)) 
@@ -1317,7 +1318,7 @@ server <- shinyServer(function(input, output   ) {
                  ", this is the log odds of having a response in the top category only, converting this to a probability gives "
                  , tags$span(style="color:red", p3(expit(f[x][[1]]) )) , 
                  "   "
-                 , tags$span(style="color:red"),  ". Check these probabilities to the tables in tab 7 !" ,
+                 , tags$span(style="color:red"),  ". Check these probabilities to the tables in tab 6 !" ,
                  br(), br(),  
                  
                  " The coefficient left, 'baseline' is a log odds ratio
