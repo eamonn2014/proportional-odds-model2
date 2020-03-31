@@ -4,19 +4,12 @@
 rm(list=ls()) 
 set.seed(333) # reproducible
 library(directlabels)
-# library(ggplot2)
 library(shiny) 
 library(shinyWidgets)
 library(shinythemes)  # more funky looking apps
 library(DT)
 library(shinyalert)
-# library(gtools)
 library(Hmisc)
-# library(scales)
-# library(LaplacesDemon)
-# library(bayesboot)
-# library(boot)
-
 library(reshape)
 library(rms)
 library(ormPlot)
@@ -56,11 +49,9 @@ p5 <- function(x) {formatC(x, format="f", digits=5)}
 logit <- function(p) log(1/(1/p-1))
 expit <- function(x) 1/(1/exp(x) + 1)
 inv_logit <- function(logit) exp(logit) / (1 + exp(logit))
-
+is.even <- function(x){ x %% 2 == 0 } # function to id. odd maybe useful
 options(width=200)
 
-
-is.even <- function(x){ x %% 2 == 0 } # function to id. odd maybe useful
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/packages/shinythemes/versions/1.1.2
                 # paper
@@ -178,52 +169,35 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        h4("The distribution of the baseline version of the response variable is specified here.
                                           By selecting a beta distribution using the shape parameters the
                                           expected baseline counts in categories can be approximated. The default is Beta(22,21)."),
-                                       
-                                       #    h4(paste("Figure 1. Bayesian and frequentist bootstrap distributions, estimating one sample mean")), 
-                                       #   div(plotOutput("diff", width=fig.width4, height=fig.height4)),       
-                                       
-                                       # fluidRow(
-                                       #     column(width = 6, offset = 0, style='padding:1px;',
-                                       #            h4("Proprtional odds model"), 
-                                       #            div( verbatimTextOutput("reg.summary2") )
-                                       #     )
-                                       #     ),
-                                       
+                              
                                        
                                        ###############
                                     
                                        fluidRow(
                                          column(width = 6, offset = 0, style='padding:1px;',
-                                                #h4("Proportional odds model"), 
-                                                # div( verbatimTextOutput("reg.summary2") )
+                                                
                                                 div(plotOutput("beta",  width=fig.width7, height=fig.height7)),
                                          ) ,
                                         
                                          
                                          fluidRow(
                                            column(width = 5, offset = 0, style='padding:1px;',
-                                                  # h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
-                                                  # div( verbatimTextOutput("reg.summary3")),
+                                            
                                                   div(plotOutput("reg.plotx",  width=fig.width7, height=fig.height7)) 
-                                                  #  h4(htmlOutput("textWithNumber",) ),
+                                                  
                                            ))),
                                        h4(paste("Figures 1 & 2. Baseline distribution of outcome")), 
-                                       
-                                       #  h4(htmlOutput("textWithNumber",) ),
-                                       
-                                       # h4(htmlOutput("textWithNumber1",) ),
+                                    
                               ) ,
                               
                               tabPanel("2 Outcome", value=3, 
-                                      # h4("xxxxxxxxxxxxxxxxxxxxxx."),
-                                        
+                                            
                                        div(plotOutput("reg.plot99", width=fig.width1, height=fig.height1)),
                                        
                                        fluidRow(
                                          column(width = 7, offset = 0, style='padding:1px;',
                                                 h4(paste("Figure 3. Observed responses")), 
-                                               # h4("xxxxxxxxxxxxxxxxxxxxxn"), 
-                                                # div( verbatimTextOutput("reg.summary4"))
+                                           
                                          )),
                                        
                                        
@@ -231,19 +205,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               
                               #####
                               tabPanel("3 PO model", value=7, 
-                                     #  h4("  (when all other variables are set to zero)"),
-                                       
-                                       #    h4(paste("Figure 1. Bayesian and frequentist bootstrap distributions, estimating one sample mean")), 
-                                       #   div(plotOutput("diff", width=fig.width4, height=fig.height4)),       
-                                       
-                                       # fluidRow(
-                                       #     column(width = 6, offset = 0, style='padding:1px;',
-                                       #            h4("Proprtional odds model"), 
-                                       #            div( verbatimTextOutput("reg.summary2") )
-                                       #     )
-                                       #     ),
-                                       
-                                       
+                                     
                                        ###############
                                        
                                        
@@ -272,7 +234,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                         
                               ) ,
                               
-                              #####
+                             
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                          
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -310,7 +272,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                                   
                                                   div(plotOutput("PP.plot2", width=fig.width7, height=fig.height6)),
                                                   h4("Figure 5 Predicted mean"),
-                                                  # div( verbatimTextOutput("predt") ), # 
+                                                  
                                                   
                                                   
                                            )))
@@ -337,7 +299,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        fluidRow(
                                          column(width = 7, offset = 0, style='padding:1px;',
                                                 h4(paste("Figure 6. Plot of the predicted probabilities")), 
-                                                # div( verbatimTextOutput("reg.summary4"))
+                                                 
                                          )),
                               ),
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -345,7 +307,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               
                               tabPanel("6 Predicted prob. plot 2", 
                                        h4(paste("Figure 7 & 8. Plot of the predicted probabilities (reprise)")),
-                                       #div(plotOutput("preds", width=fig.width9, height=fig.height9)),
+                                        
                                        h4("On the left you are looking at the point of view of what happens to a patient considering their baseline category. We can see the probability of response and how it depends on treatment. With the default inputs we can see a shift in the distribution to the higher categories if treated.  
 
 On the right we can look at ALL baseline categories and see the predicted probability curves. 
@@ -355,8 +317,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
 "),
                                        fluidRow(
                                          column(width = 6, offset = 0, style='padding:1px;',
-                                                #h4("ANCOVA model"), 
-                                                #div(plotOutput("preds", width=fig.width9, height=fig.height9)),
+                                                
                                                 div(plotOutput("preds", width=fig.width7, height=fig.height3)),
                                                 
                                                 fluidRow(
@@ -371,12 +332,9 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                          
                                          fluidRow(
                                            
-                                           
-                                           
-                                           
+                                          
                                            column(width = 5, offset = 0, style='padding:1px;',
-                                                  #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
-                                                  #  div( verbatimTextOutput("reg.summary5")),
+                                                 
                                                   div(plotOutput("predicts", width=fig.width7, height=fig.height3)),
                                                   
                                                   
@@ -395,10 +353,10 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                     
                                                     
                                                   ),
-                                                  # h4(htmlOutput("textWithNumber",) ),
+                                               
                                            ))),
                                        
-                                       #h4(htmlOutput("textWithNumber4",) ) ,
+                                        
                                        width = 30 )     ,
                               
                               
@@ -415,38 +373,19 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                        h4(paste("Table 4 Predicted probabilities ")),
                                        fluidRow(
                                          column(width = 12, offset = 0, style='padding:1px;',
-                                                #h4("ANCOVA model"), 
-                                             #   div(plotOutput("ormp", width=fig.width7, height=fig.height7)),
+                                       
                                              div( verbatimTextOutput("reg.summaryp") ),
                                              h4(paste("Table 5 Predicted cummulative probabilities ")),
                                              div( verbatimTextOutput("reg.summaryc") ),
                                          ) ,
-                                         
-                                        # fluidRow(
-                                         #  column(width = 5, offset = 0, style='padding:1px;',
-                                                  #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
-                                                  
-                                                #  div( verbatimTextOutput("reg.summaryc") ),
-                                                  #div( verbatimTextOutput("reg.summaryci") )
-                                                  
-                                                  # h4(htmlOutput("textWithNumber",) ),
-                                          # )
-                                           
-                                           #)
+                                    
                                          
                                          ),
                                        
                                        
                               ),
                               
-                              
-                       
-                              
-                              
-                              
-                                       
-                             
-                              tabPanel("8 Linear model", value=3, 
+                             tabPanel("8 Linear model", value=3, 
                                        h4(" ANCOVA model Tables 6 & 7 and Figure 9"),
                                        
                                        fluidRow(
@@ -456,17 +395,16 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                        
                                        fluidRow(
                                          column(width = 6, offset = 0, style='padding:1px;',
-                                                #h4("ANCOVA model"), 
+                                                
                                                 div( verbatimTextOutput("reg.summary4") )
                                          ) ,
                                          
                                          fluidRow(
                                            column(width = 5, offset = 0, style='padding:1px;',
-                                                  #   h4("Proportional odds ratio summaries. Do we recover the input odds ratios..."),
+                                                  
                                                   div( verbatimTextOutput("reg.summary5")),
                                                   div(plotOutput("predictl", width=fig.widthx, height=fig.heightx)),
-                                                  
-                                                  # h4(htmlOutput("textWithNumber",) ),
+                                              
                                            ))),
                                        
                                        
@@ -484,15 +422,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                        
                                        
                               )
-                              
-                              #~~~~~~~~~
-                              
-                              
-                              
-                              
-                              
-                              
-                              
+                       
                               
                               
                               
@@ -509,7 +439,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
 server <- shinyServer(function(input, output   ) {
   
   shinyalert("Welcome! \nExplore the Proportional odds model!",
-             "It's in progress! https://rdrr.io/cran/rms/man/residuals.lrm.html baseline categorical continuous", 
+             "Use at your own risk", 
              type = "info")
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -532,9 +462,7 @@ server <- shinyServer(function(input, output   ) {
     
     
     base<- as.numeric(unlist(strsplit(input$base,",")))
-    
-   # bas1 <- as.numeric(input$bas1)
-  #  bas2 <- as.numeric(input$bas2)
+     
     
     return(list(  
       n=trt[1],  
@@ -544,8 +472,7 @@ server <- shinyServer(function(input, output   ) {
       shape1=dis[1], 
       shape2=dis[2],
       base=base[1]#,
-   #   bas1=bas1,
-    #  bas2=bas2
+   
       
     ))
     
@@ -699,8 +626,7 @@ server <- shinyServer(function(input, output   ) {
     
     P  <- rbind( "Proportional odds model"=orm., "Ordinary least squares"=ols.)
     P2 <- rbind( "model"=orm., "model"=ols.)
-    # ymin <- min(P$lower)*.9
-    # ymax <- max(P$upper)*1.1
+ 
     return(list( ols.=ols., orm.=orm. , kk=kk , P2=P2, k=k, K=K,dat=dat, m=m, f2=f2, f3=f3, P=P, sf1=sf1,d=d )) 
   })
   
@@ -720,8 +646,7 @@ server <- shinyServer(function(input, output   ) {
     
     x_values <- seq(0,1, length.out = 1000)
     
-    # require(ggplot2)
-    # require(tidyverse)
+ 
     data.frame(x_values) %>%
       ggplot(aes(x_values))+
       stat_function(fun=dbeta, args=list(shape1=shape1.,shape2=shape2.)) +
@@ -741,11 +666,7 @@ server <- shinyServer(function(input, output   ) {
         # axis.ticks.y=element_blank(),
         # https://stackoverflow.com/questions/46482846/ggplot2-x-axis-extreme-right-tick-label-clipped-after-insetting-legend
         # stop axis being clipped
-        
-        
-        
-        
-        
+
         plot.title=element_text(size = 20, face = "bold"), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
         legend.text=element_text(size=12),
         legend.title=element_text(size=14),
@@ -760,8 +681,6 @@ server <- shinyServer(function(input, output   ) {
         
         
       )
-    
-    
     
   })
   
@@ -960,9 +879,7 @@ server <- shinyServer(function(input, output   ) {
   })
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  
-  
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # non cummulative predicted probabilities plot run the analysis again
   # not efficient I know
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1062,11 +979,7 @@ server <- shinyServer(function(input, output   ) {
        strip.text.x = element_text(size = 14, colour = "black", angle = 0)
        
        ) +
-      
-       # legend.justification = c(0, 1), 
-      #  legend.position = c(0.05, .99))  +
-    
-    
+ 
     
     labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
          x = "Baseline category",
@@ -1110,11 +1023,7 @@ server <- shinyServer(function(input, output   ) {
       baseline =   (rep(1:levz)),
       treatment = rep(0:1, each = levz)
     )
-    # newdat <- data.frame(
-    #   baseline =  factor(sort(unique(Res.clm$model$baseline))),
-    #   treatment = rep(0:1, each = levz)
-    # )
-    
+ 
     
     newdat <- cbind(newdat, predict(Res.clm, newdata=newdat, se.fit=TRUE,
                                     interval=TRUE, type="prob"))
@@ -1218,9 +1127,7 @@ server <- shinyServer(function(input, output   ) {
     p.with.ci <- predict_with_ci(f, np = 100, fun = stats::plogis)
     
     plotci <- plot(f, baseline, treatment, fun = stats::plogis)
-    
-    #getAnywhere(plot.orm)
-    #getAnywhere(predict_with_ci)
+ 
     return(list(probs=probs, cprobs=cprobs, p.with.ci=p.with.ci , plotci=plotci$data))
     
   })
@@ -1234,8 +1141,6 @@ server <- shinyServer(function(input, output   ) {
     f    <- analysis()$f2
     # 
     levz <- sample$lev
-    # rcat <- sample$rcat
-    #  group <- sample$group
     
     
     group <- (as.numeric(unlist(strsplit(input$group,","))))    
@@ -1336,20 +1241,11 @@ server <- shinyServer(function(input, output   ) {
     P <- analysis()$P
     
     P$treatment <- ifelse(P$treatment %in% 0, "Placebo", "Treatment")
-    
-    # ymin <- analysis()$ymin # min(P$lower)*.9
-    # ymax <- analysis()$ymax # max(P$upper)*1.1
-    # 
-    # ymin <- predt()$ymin # min(P$lower)*.9
-    # ymax <- predt()$ymax # max(P$upper)*1.1
+     
     
     ggplot(P ,  ylab='' ) +  
       scale_x_continuous( breaks=1:levz, labels=1:levz) +  
-      
-      #     coord_cartesian(ylim = c(ymin, ymax)) +
-      # scale_y_continuous( breaks=seq(ymin,ymax, by=1), labels=seq(ymin,ymax, by=1)) +  
-      
-      theme(panel.background=element_blank(),
+         theme(panel.background=element_blank(),
             plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
             legend.text=element_text(size=12),
             legend.title=element_text(size=0),
@@ -1392,21 +1288,12 @@ server <- shinyServer(function(input, output   ) {
     
     P$treatment <- ifelse(P$treatment %in% 0, "Placebo", "Treatment")
     
-    #P$treatment = paste(P$.set. , P$treatment)
-    
-    # ymin <- analysis()$ymin # min(P$lower)*.9
-    # ymax <- analysis()$ymax # max(P$upper)*1.1
-    # 
-    # ymin <- predt()$ymin # min(P$lower)*.9
-    # ymax <- predt()$ymax # max(P$upper)*1.1
-    
+     
     ggplot(P,  groups=".set.", ylab='' ) +  
       
       scale_x_continuous( breaks=1:levz, labels=1:levz) +  
       
-      #  coord_cartesian(ylim = c(ymin, ymax)) +
-      # scale_y_continuous( breaks=seq(ymin,ymax, by=1), labels=seq(ymin,ymax, by=1)) +  
-      
+       
       theme(panel.background=element_blank(),
             plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
             legend.text=element_text(size=12),
@@ -1441,16 +1328,11 @@ server <- shinyServer(function(input, output   ) {
   predz <- reactive({
     
     dat <- mcmc()$dat
-    
-    # d <<- datadist(dat)
-    # options(datadist="d") 
+     
     
     ols. <- analysis()$ols.
     orm. <- analysis()$orm.
-    #K <- analysis()$K
-    #m <- analysis()$m
-    
-    
+   
     p  <- rbind(ols=ols., orm=orm.)
     
     return(list( p=p )) 
@@ -1520,13 +1402,6 @@ server <- shinyServer(function(input, output   ) {
                 
                 ))    
                 
-                
-                 
-    
-    
-    
-    
-    
   })
   
   
@@ -1565,12 +1440,7 @@ server <- shinyServer(function(input, output   ) {
     return( (analysis()$f2 ))
     
   })
-  # output$reg.summary2 <- renderPrint({
-  #   
-  #   return( (mcmc()$res ))
-  #   
-  # })
-  # correlation from simulation
+  
   output$reg.summary3 <- renderPrint({
     
     return(print(analysis()$sf1, digits=4))
@@ -1583,7 +1453,7 @@ server <- shinyServer(function(input, output   ) {
     
   })
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # correlation user data
+ 
   output$reg.summary5 <- renderPrint({
     
     return(print(lmx()$an, digits=4))
@@ -1611,30 +1481,16 @@ server <- shinyServer(function(input, output   ) {
   
   lmx <- reactive({
     
-    #sample <- random.sample()
-    
+     
     dat <- mcmc()$dat
     
     dat$y <- as.numeric(as.character(dat$y))
-    
-    # f <- lm(y ~treatment + baseline, data=dat)
-    # 
-    # linear2 <- summary(f)
-    
-   
+     
     d <<- datadist(dat)
     options(datadist="d")
     
-    # linear <- ols(y ~treatment + (baseline), data=dat)
-    # an <- anova(linear)
-    
-    
-   # dat$y <- as.numeric(as.character(dat$y)) 
     f <- ols(y ~treatment + (baseline), data=dat)
     an <- anova(f)
-    
-    #ols.      = Predict(linear, conf.int=FALSE)
- 
     
     return(list(linear=f , an=an )) 
      
@@ -1654,7 +1510,7 @@ server <- shinyServer(function(input, output   ) {
     
     an1 <- anova(linear)
      
-    ggplot(Predict(linear, treatment), anova=an1, pval=TRUE) ############  YES
+    ggplot(Predict(linear, treatment), anova=an1, pval=TRUE)  
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   })
