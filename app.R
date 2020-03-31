@@ -214,7 +214,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        # h4(htmlOutput("textWithNumber1",) ),
                               ) ,
                               
-                              tabPanel("3 Barplots of outcome", value=3, 
+                              tabPanel("2 Barplots of outcome", value=3, 
                                        h4("xxxxxxxxxxxxxxxxxxxxxx."),
                                        h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
                                        div(plotOutput("reg.plot99", width=fig.width1, height=fig.height1)),
@@ -229,7 +229,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               ),
                               
                               #####
-                              tabPanel("2 Proportional odds model", value=7, 
+                              tabPanel("3 Proportional odds model", value=7, 
                                        h4("  (when all other variables are set to zero)"),
                                        
                                        #    h4(paste("Figure 1. Bayesian and frequentist bootstrap distributions, estimating one sample mean")), 
@@ -315,14 +315,15 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               
                               
                               
-                              tabPanel("3 Predicted probabilities", value=3, 
+                              tabPanel("5 Predicted probability plot 1", value=3, 
                                        
-                                       
+                                        
                                        textInput('rcat2', 
-                                                 div(h5(tags$span(style="color:blue", 
-                                                                  "Response category, enter 999 to see all levels or select level(s) of interest"))), "999"),
+                                                 div(h5(tags$span(style="color:blue",
+                                                                  "Response category, enter 999 to see all levels or select 
+                                                                  level(s) of interest"))), "999"),
                                        
-                                       h4("xxxxxxxxxxxxxxxxxxxxxx."),
+                                       #h4("xxxxxxxxxxxxxxxxxxxxxx."),
                                        h4(paste("Figure 3. xxxxxxxxxxxxxxxxxx")),  
                                        div(plotOutput("preds2", width=fig.width1, height=fig.height1)),
                                        
@@ -337,7 +338,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               
                               
-                              tabPanel("5 Predicted probabilities", 
+                              tabPanel("6 Predicted probability plot 2", 
                                        
                                        #div(plotOutput("preds", width=fig.width9, height=fig.height9)),
                                        h4("On the left you are looking at the point of view of what happens to a patient considering their baseline category. We can see the probability of response and how it depends on treatment. With the default inputs we can see a shift in the distribution to the higher categories if treated.  
@@ -405,7 +406,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                             
                               
                               
-                              tabPanel("6 tables of probabilities",
+                              tabPanel("7 Tables of probabilities",
                                        
                                        fluidRow(
                                          column(width = 12, offset = 0, style='padding:1px;',
@@ -439,7 +440,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                               
                                        
                              
-                              tabPanel("7 Linear model", value=3, 
+                              tabPanel("8 Linear model", value=3, 
                                        h4("ANCOVA model"),
                                        
                                        fluidRow(
@@ -468,7 +469,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                               
                               
                               
-                              tabPanel("5 data", 
+                              tabPanel("9 data", 
                                        
                                        
                                        
@@ -785,7 +786,7 @@ server <- shinyServer(function(input, output   ) {
         
         geom_bar(stat = "identity", width =0.7) 
       
-      p1 <- p1 + ggtitle( paste0("Theorized dist. of baseline version of response, N=",pN), ) +
+      p1 <- p1 + ggtitle( paste0("Obeserved dist. of baseline version of response, N=",pN), ) +
         theme(plot.title = element_text(size = 20, face = "bold")) #+
       
       #  coord_flip()
@@ -1045,7 +1046,7 @@ server <- shinyServer(function(input, output   ) {
     
     
     labs(title=paste0(c("xxxxxxxxxxxxxxxx"), collapse=" "), 
-         x = "Response category",
+         x = "Baseline category",
          y = "Predicted probability",
          subtitle =c("xxxxxxxxxxxxxx"),
          caption = "")  
