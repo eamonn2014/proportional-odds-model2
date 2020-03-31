@@ -135,7 +135,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                   div(p(" ")),
                                   tags$a(href = "https://blogs.sas.com/content/iml/2017/09/20/fishers-transformation-correlation.html", tags$span(style="color:blue", "[4] xxxxxx"),),  
                                   div(p(" ")),
-                                  tags$a(href = "https://en.wikisource.org/wiki/Keats;_poems_published_in_1820/Bards_of_Passion_and_of_Mirth", tags$span(style="color:blue", "xxxxxx"),),  
+                                  tags$a(href = "https://rdrr.io/cran/rms/man/predict.lrm.html", tags$span(style="color:blue", "prediction of nodel mean"),),  
                                   div(p(" ")),
                                   tags$hr()
                                 )
@@ -197,7 +197,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        
                                        fluidRow(
                                          column(width = 7, offset = 0, style='padding:1px;',
-                                                h4(paste("Figure 3. Observed responses")), 
+                                                h4(paste("Figure 3. Observed responses, dictated by the user inputs on the left.")), 
                                            
                                          )),
                                        
@@ -239,10 +239,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                          
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                      
-                              
-                              
-                              
+             
                               tabPanel("4 Predicted probability plot 1", value=3, 
                                        
                                        h5(paste("Enter 999 in the box below to see all the levels or enter level(s) of interest separated by a comma")), 
@@ -262,8 +259,6 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                          )),
                               ),
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                              
-                              
                               tabPanel("5 Predicted prob. plot 2", 
                                        h4(paste("Figure 5 & 6. Plot of the predicted probabilities (reprise)")),
                                         
@@ -365,6 +360,12 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                         div(plotOutput("PP.plot", width=fig.width7, height=fig.height6)),
                                                         h4("Figure 8 Predictions for each trial arm by model"),
                                                         br() , 
+                                                        
+                                                        
+                                                        #h5("For the ordinal model the estimated mean Y is calculated by summing values of 
+                                                        #Y multiplied by the estimated Prob(Y=j)."),
+                                                        
+                                                        
                                                         h4("Table 7 Model predictions"),
                                                         div( verbatimTextOutput("predz"), width = 2), # 
                                                         
@@ -1214,7 +1215,7 @@ server <- shinyServer(function(input, output   ) {
            x = "Baseline category",
            y = "Predicted Mean",
            subtitle =txt,
-           caption = "")
+           caption = "- For the ordinal model the estimated mean Y is calculated by summing \nvalues of Y multiplied by the estimated Prob(Y=j).")
     
     
   }) 
