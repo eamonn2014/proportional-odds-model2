@@ -1301,20 +1301,26 @@ server <- shinyServer(function(input, output   ) {
     
     diff <- d$limits["High:effect","baseline"]-d$limits["Low:effect","baseline"]
     
-    HTML(paste0( "Let's interpret the output on the left. The coefficient alongside y>=2 is "
+    c1  <-expit(f[1][[1]]  + f['baseline'][[1]])
+    
+    c10 <- expit(f[x][[1]]  + f['baseline'][[1]])
+    
+    HTML(paste0( "Let's interpret the output on the left. The coefficient alongside y>=",min(dat$y)+1," is "
                  , tags$span(style="color:red", p2( f     [1][[1]]) ) ,
-                 " this is the log odds of having a response in categories 2 and above, so convert this to a probability "
-                 , tags$span(style="color:red", p3(expit(A$coefficients[1][[1]]) )) , 
+                 " this is the log odds of having a response in categories ",min(dat$y)+1," and above, when treatment and baseline are 0. 
+                So convert this to a probability after adding the contribution on the log scale of being in baseline category 1, for example gives "
+                 , tags$span(style="color:red", p3(c1)) , 
                  " and subtract from one to give the probability of being in the lowest category "
-                 , tags$span(style="color:red", p3(1-  expit(f[1][[1]]) )) ," for a patient in reference treatment group (placebo).",
+                 , tags$span(style="color:red", p3(1-  c1 )) ," for a patient in reference treatment group (placebo).",
                  br(), br(),  
                  
                  " The coefficient alongside y>=",max(dat$y)," is "
                  , tags$span(style="color:red", p2( f     [x][[1]]) ) ,
-                 ", this is the log odds of having a response in the top category only, converting this to a probability gives "
-                 , tags$span(style="color:red", p3(expit(f[x][[1]]) )) , 
+                 ", this is the log odds of having a response in the top category only, converting this to a probability 
+                 after adding on the log scale the contribution of being in baseline category 1, for example gives "
+                 , tags$span(style="color:red", p3(c10)) , 
                  " for a patient in reference treatment group (placebo)."
-                 , tags$span(style="color:red"),  ". Check these probabilities to the tables in tab 6 !" ,
+                 , tags$span(style="color:red"),  ". Check these probabilities to the top left cell and top right cell of Table 3, tab 6 !" ,
                  br(), br(),  
                  
                  " The coefficient left, 'baseline' is a log odds ratio
