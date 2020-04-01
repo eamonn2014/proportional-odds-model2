@@ -391,9 +391,25 @@ With the default inputs we can see horizontal lines in the treated responses (on
                               ) ,
    
                                 tabPanel("9 Data", 
+                                         
+                                         fluidRow(
+                                           column(width = 3, offset = 0, style='padding:1px;',
                                        h4("Table 8 Data listing"),
                                        div( verbatimTextOutput("dat")),
+                                           ),
                                        
+                                       column(width = 9, offset = 0, style='padding:1px;',
+                                              h4("Notes"),
+                                              h6("We fit the baseline response as a continuous variable in the model\n"),
+                                               h6("   To do check assumptions\n"),
+                                                 h6("    add column to probabilites calculation mean y"),
+                                              h6("    add references here to allow use of space on landing page"),
+                                              h6("    feedback on ormfit not working as expected"),
+                                                  
+                                       )
+                                       
+                                       
+                                       )
                               )
                               
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   END NEW   
