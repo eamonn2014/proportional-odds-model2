@@ -314,7 +314,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                        width = 30 )     ,
                                #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                               tabPanel("6 Tables of probabilities",
-                                       h4(paste("Table 3 Predicted probabilities ")),
+                                       h4(paste("Table 3 Predicted probabilities, the estimated mean Y (meanY) is calculated by summing values of Y multiplied by the estimated Prob(Y=j)")),
                                        fluidRow(
                                          column(width = 12, offset = 0, style='padding:1px;',
                                        
@@ -401,11 +401,10 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                        column(width = 9, offset = 0, style='padding:1px;',
                                               h4("Notes"),
                                               h6("We fit the baseline response as a continuous variable in the model\n"),
-                                               h6("   To do check assumptions\n"),
-                                                 h6("    add column to probabilites calculation mean y"),
+                                              h6("   To do check assumptions\n"),
                                               h6("    add references here to allow use of space on landing page"),
                                               h6("    feedback on ormfit not working as expected"),
-                                                  
+                                              h6("    calculate means when intercept changes"),
                                        )
                                        
                                        
@@ -1082,7 +1081,15 @@ server <- shinyServer(function(input, output   ) {
     
     xx <- predict(f, newdat, type="fitted.ind")    
     
-    probs <- cbind(newdat,xx )
+    probs <- cbind(newdat,xx )   
+    
+    # adding mean to right of dataframe
+    d1 <- probs[-1:-2] 
+    v1 <- 1:length(names(probs)[-1:-2])
+    d2 <- t(t(d1)*v1)
+    meanY <- apply(d2,1,sum)
+    probs <- cbind(probs, meanY)
+    # end
     
     xx <- predict(f, newdat, type="fitted") 
     
