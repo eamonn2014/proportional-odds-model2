@@ -240,7 +240,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                          
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
              
-                              tabPanel("4 Predicted probability plot 1", value=3, 
+                              tabPanel("4 probability plot 1", value=3, 
                                        
                                        h5(paste("Enter 999 in the box below to see all the levels or enter level(s) of interest separated by a comma")), 
                                        textInput('rcat2', 
@@ -259,7 +259,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                          )),
                               ),
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                              tabPanel("5 Predicted prob. plot 2", 
+                              tabPanel("5 Prob. plot 2", 
                                        h4(paste("Figure 5 & 6. Plot of the predicted probabilities (reprise)")),
                                         
                                        h4("On the left you are looking at the point of view of what happens to a patient considering their baseline category. We can see the probability of response and how it depends on treatment. With the default inputs we can see a shift in the distribution to the higher categories if treated.  
@@ -409,7 +409,24 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                        
                                        
                                        )
-                              )
+                              ),
+                             
+                             tabPanel("10 Assumptions", value=3, 
+                                      
+                                      h5(paste("Checking assumptions")), 
+                                     
+                                      div( verbatimTextOutput("assump")),
+                                  
+                                  div(plotOutput("assumption", width=fig.width1, height=fig.height3)),
+                                      
+                                      
+                                      
+                                     # fluidRow(
+                                      #  column(width = 7, offset = 0, style='padding:1px;',
+                                       #        h4(paste("Figure 4. Plot of the predicted probabilities")), 
+                                               
+                                        #)),
+                             )
                               
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   END NEW   
                             )
@@ -1240,6 +1257,7 @@ server <- shinyServer(function(input, output   ) {
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~baseline plots~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
+  
   output$PP.plot2 <- renderPlot({   
     
     K <- analysis()$K
@@ -1286,6 +1304,72 @@ server <- shinyServer(function(input, output   ) {
     
     
   })
+  
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~assumption plot~~~~~~~~~~~~~~~~~~~~~~~~    
+  # on the fly plot harrell's PO assumption plot...
+  
+  output$assumption <- renderPlot({   
+    
+    #dat <- mcmc()$dat
+    levz <- input$levels
+    l2 <- as.numeric(levz)-1
+    y <- as.integer(dat$y)  
+    
+    s <- assump()$s
+    
+    #s[is.na(s)] <- 0
+    
+    plot(s, which=1:l2, pch=1:l2, xlab='logit' )
+    
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        
+  }) 
+  
+  
+  assump <- reactive({
+    
+    dat <- mcmc()$dat
+    levz <- input$levels
+    l2 <- as.numeric(levz)-1
+    y <- as.integer(dat$y)  
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    
+    start <- "function(y)
+   c("
+    
+    res <-  vector()
+    
+    x <- for(i in 2:levz) {
+      res[i] <- paste0(" 'y>=" ,i, "'=qlogis(mean(y>=",i,")),") 
+    }
+    
+    txt <- paste(res[-1], collapse = '')
+    z <- gsub(".{1}$", "", txt)
+    v <- z[]
+    
+    this <- paste0(start, v, ")",collapse='')
+    
+    #~~~~~~~~~~~~~~~~~~
+    Assumption <-  eval(parse(text= (this)))
+    
+    s<- summary(y ~ treatment + baseline, fun=Assumption, data=dat)
+  
+   
+    return(list( s=s  )) 
+    
+  })  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~baseline predictions~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
@@ -1370,6 +1454,19 @@ server <- shinyServer(function(input, output   ) {
                 ))    
                 
   })
+  # output$assump <- renderText({ 
+  #   
+  #   st <- assump()$st     
+  #   
+  #   
+  # })
+  
+  output$assump <- renderPrint({
+   
+    return(print(assump()$s, digits=4))
+  
+  }) 
+  
   
   
   output$textWithNumber1 <- renderText({ 
