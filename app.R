@@ -1310,16 +1310,18 @@ server <- shinyServer(function(input, output   ) {
   
   output$assumption <- renderPlot({   
     
-    #dat <- mcmc()$dat
+    
     levz <- input$levels
     l2 <- as.numeric(levz)-1
     y <- as.integer(dat$y)  
     
     s <- assump()$s
     
-    #s[is.na(s)] <- 0
+    s[is.na(s)] <- 99
+    is.na(s) <- do.call(cbind,lapply(s, is.infinite))
     
     plot(s, which=1:l2, pch=1:l2, xlab='logit' )
+ 
     
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         
@@ -1354,21 +1356,11 @@ server <- shinyServer(function(input, output   ) {
     
     s<- summary(y ~ treatment + baseline, fun=Assumption, data=dat)
   
-   
     return(list( s=s  )) 
     
   })  
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~baseline predictions~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1463,7 +1455,7 @@ server <- shinyServer(function(input, output   ) {
   
   output$assump <- renderPrint({
    
-    return(print(assump()$s, digits=4))
+    return(print(assump()$s, digits=3))
   
   }) 
   
