@@ -424,13 +424,13 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                div(h5("References:")),  
                                                tags$a(href = "https://stats.stackexchange.com/search?q=proportional+odds+model", tags$span(style="color:blue", "[1] Proportional Odds Model"),),   
                                                div(p(" ")),
-                                               tags$a(href = "hhttps://en.wikipedia.org/wiki/Ordered_logit",  tags$span(style="color:blue", "[2] Wiki"),),   
+                                               tags$a(href = "hhttps://en.wikipedia.org/wiki/Ordered_logit",  tags$span(style="color:blue", "[2] Proportional Odds Wiki"),),   
                                                div(p(" ")),
                                              #  tags$a(href = "https://projecteuclid.org/download/pdf_1/euclid.aos/1176344552", tags$span(style="color:blue", "[3] Krushke"),),
                                              #  div(p(" ")),
                                               # tags$a(href = "https://blogs.sas.com/content/iml/2017/09/20/fishers-transformation-correlation.html", tags$span(style="color:blue", "[4] xxxxxx"),),  
                                              #  div(p(" ")),
-                                               tags$a(href = "https://rdrr.io/cran/rms/man/predict.lrm.html", tags$span(style="color:blue", "[3] prediction of model mean"),),  
+                                               tags$a(href = "https://rdrr.io/cran/rms/man/predict.lrm.html", tags$span(style="color:blue", "[3] Prediction of model mean"),),  
                                                div(p(" ")),
                                                tags$hr()
                                                

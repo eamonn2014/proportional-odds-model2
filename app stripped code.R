@@ -59,41 +59,29 @@ dist <- c(22,21)
 levels <- 10
 b1<-or1<-2
 b2<-or2 <-1
-                              
 bas1=1
 bas2=2
 rcat2<- 999 
- group <-1
- rcat <-999
- kints<- "" 
-      base=1                                          
+group <-1
+rcat <-999
+kints<- "" 
+base=1                                          
                                                  
-                              
- 
     
-    dis <- dist
-    
-    trt <- n 
-    
-    ctr <- levels 
-    
-    n1y1 <-   or1 
-    
-    n2y2 <-  or2 
-    
-    
-    base <- base 
-    
-    
-   
-      n=trt  
-      lev=ctr 
-      or1=n1y1 
-      or2=n2y2 
-      shape1=dis[1] 
-      shape2=dis[2] 
-      base=base 
-      levz=ctr 
+dis <- dist
+trt <- n 
+ctr <- levels 
+n1y1 <-   or1 
+n2y2 <-  or2 
+base <- base 
+n=trt  
+lev=ctr 
+or1=n1y1 
+or2=n2y2 
+shape1=dis[1] 
+shape2=dis[2] 
+base=base 
+levz=ctr 
       
  
     
@@ -172,8 +160,7 @@ rcat2<- 999
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # put the data together
     dat99 <- dat <- data.frame(treatment, baseline, y = factor(y))
-    #      sf1 <- summary(f1, antilog=TRUE, verbose=FALSE)
-    
+     
  
  ###########################
     
