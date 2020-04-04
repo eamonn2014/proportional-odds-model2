@@ -39,13 +39,13 @@ fig.heightx <- 268
 fig.height7 <- 600
 fig.width9 <- 1380
 fig.height9 <- 500
+
+## convenience functions
 p0 <- function(x) {formatC(x, format="f", digits=1)}
 p1 <- function(x) {formatC(x, format="f", digits=1)}
 p2 <- function(x) {formatC(x, format="f", digits=2)}
 p3 <- function(x) {formatC(x, format="f", digits=3)}
 p5 <- function(x) {formatC(x, format="f", digits=5)}
-
-## convenience functions
 logit <- function(p) log(1/(1/p-1))
 expit <- function(x) 1/(1/exp(x) + 1)
 inv_logit <- function(logit) exp(logit) / (1 + exp(logit))
@@ -240,7 +240,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                          
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
              
-                              tabPanel("4 probability plot 1", value=3, 
+                              tabPanel("4 Prob. plot1", value=3, 
                                        
                                        h5(paste("Enter 999 in the box below to see all the levels or enter level(s) of interest separated by a comma")), 
                                        textInput('rcat2', 
@@ -259,7 +259,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                          )),
                               ),
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                              tabPanel("5 Prob. plot 2", 
+                              tabPanel("5 Prob. plot2", 
                                        h4(paste("Figure 5 & 6. Plot of the predicted probabilities (reprise)")),
                                         
                                        h4("On the left you are looking at the point of view of what happens to a patient considering their baseline category. We can see the probability of response and how it depends on treatment. With the default inputs we can see a shift in the distribution to the higher categories if treated.  
@@ -313,7 +313,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                         
                                        width = 30 )     ,
                                #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                              tabPanel("6 Tables of probabilities",
+                              tabPanel("6 Tables of prob.",
                                        h4(paste("Table 3 Predicted probabilities, the estimated mean Y (meanY) is calculated by summing values of Y multiplied by the estimated Prob(Y=j)")),
                                        fluidRow(
                                          column(width = 12, offset = 0, style='padding:1px;',
@@ -328,7 +328,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
 
                               ),
                               
-                             tabPanel("7 Linear model", value=3, 
+                             tabPanel("7 Ancova", value=3, 
                                        h4(" ANCOVA model Tables 5 & 6 and Figure 7"),
                                       
                                        
@@ -413,19 +413,47 @@ With the default inputs we can see horizontal lines in the treated responses (on
                              
                              tabPanel("10 Assumptions", value=3, 
                                       
-                                      h5(paste("Checking assumptions")), 
-                                     
-                                      div( verbatimTextOutput("assump")),
-                                  
+                                  h5(paste("Checking assumptions")), 
                                   div(plotOutput("assumption", width=fig.width1, height=fig.height3)),
-                                      
-                                      
+                                  h4("Figure 10 Checking assumptions, visual inspection"),
+                                  h5( "Checking assumptions, the predictors are " ),
+                                  h4("Table 9 Checking PO assumption, tabulation"),
+                                  #h5(paste("Checking assumptions table")), 
+                                  div( verbatimTextOutput("assump")),  
+                                 # h4("Figure 11 Checking assumptions, coefficients from a series of binary models using different cut offs for Y"),  
+                                  #div(plotOutput("logitseries", width=fig.width1, height=fig.height3)),
+                                  
                                       
                                      # fluidRow(
                                       #  column(width = 7, offset = 0, style='padding:1px;',
                                        #        h4(paste("Figure 4. Plot of the predicted probabilities")), 
                                                
                                         #)),
+                             ),
+                             
+                             
+                             tabPanel("11 Assumptions 2", value=3, 
+                                      
+                                   #   h5(paste("Checking assumptions")), 
+                                    #  div(plotOutput("assumption", width=fig.width1, height=fig.height3)),
+                                     # h4("Figure 10 Checking assumptions, visual inspection"),
+                                      #h5( "Checking assumptions, the predictors are " ),
+                                      #h4("Table 9 Checking PO assumption, tabulation"),
+                                      #h5(paste("Checking assumptions table")), 
+                                      #div( verbatimTextOutput("assump")),  
+                                      div(plotOutput("logitseries", width=fig.width1, height=fig.height3)),
+                                   h4("Figure 11 Checking assumptions, coefficients from a series of binary models using different cut offs for Y"),  
+                                   
+                                   h4("Using the low and high effects from the rms package datadist as the lower and upper cut point limits 
+                                      we fit a series of logistic regression models and collect the coefficients. We expect them to be 
+                                      similar and in line with the proportional odds model coefficent's. The PO model and and 95% 
+                                      confidence limits are superimposed (solid lines) as well as 
+                                      the true value (dashed line).")
+                                      # fluidRow(
+                                      #  column(width = 7, offset = 0, style='padding:1px;',
+                                      #        h4(paste("Figure 4. Plot of the predicted probabilities")), 
+                                      
+                                      #)),
                              )
                               
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   END NEW   
@@ -1304,25 +1332,119 @@ server <- shinyServer(function(input, output   ) {
     
     
   })
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # a plot of coef from series of logistic regression models. checking assumptions
+
+  output$logitseries <- renderPlot({   
+    
+    sample <- random.sample()
+  
+    #levz <- sample$lev
+    dat <- mcmc()$dat
+    
+    f1    <- analysis()$f2
+
+    # x <- plyr::arrange(x, variable, value)
+    # I recommend partial residual plots using the rms package's 
+    # lrm and residuals.lrm functions. You can also fit a series of binary models using different 
+    # #cutoffs for Y and plot the log odds ratios vs. cutoff.
+    #https://stats.stackexchange.com/questions/25988/proportional-odds-assumption-in-ordinal-logistic-regression-in-r-with-the-packag?noredirect=1&lq=1
+    
+    ps <- sort(unique(dat$y))  # get cut offs
+    
+    d <<- datadist(dat)
+    options(datadist="d")
+    A <- d$limits["Low:effect",]$baseline -0
+    B <- d$limits["High:effect",]$baseline +0
+    ps <- ps[1:(length(ps)-1)] # not using highest one
+    ps <- ps[A:B] # n
+    
+    x<- matrix(NA, ncol = length(ps), nrow = 3)  # matrix to collect estimates
+    
+    Y <- as.numeric(dat$y) 
+    # function to run logistic regression and capture coefs
+    for ( i in 1:length(ps)) {
+      
+      dat$y1 <- ifelse(Y <=  as.numeric(ps[i]) ,0,1)
+      x[1,i] <- coef(orm(y1 ~treatment + baseline, data=dat))["baseline"][[1]]
+      x[2,i] <- coef(orm(y1 ~treatment + baseline, data=dat))["treatment"][[1]]
+      x[3,i] <- ps[i]
+    }
+    
+    # manage 
+    x <- t(as.data.frame(x))
+    x <-  as.data.frame(x)
+    
+    names(x) <- c("baseline","treatment","cutoff")
+    x<- melt(x, id.vars= c("cutoff"))
+    x$true <- ifelse(x$variable %in% "baseline",b2,b1)
+    
+    # bring in the PO estimates
+    co <- confint(f1)[c("baseline","treatment"),]
+    ceb <- coef(f1)[c("baseline" )]
+    cet <- coef(f1)[c( "treatment")]
+    
+    xx <- rbind(ceb, cet) 
+    xx <- cbind(xx,co)
+    xx <- as.data.frame(xx)
+    xx$variable <- c("baseline","treatment")
+    xx <- merge(x,xx)
+    
+    names(xx) <- c("variable","cutoff", "value", "true","est","lower", "upper")
+    require(ggrepel)
+    p <- ggplot(xx, aes(x=cutoff , y= value  , colour=variable, label=cutoff))+
+      geom_point(size = 5)+ ylab("Logit")+xlab("A series of binary models using different cutoffs for Y") +
+      facet_wrap(.~variable, scales="free") +
+      geom_text_repel(aes(label = cutoff),
+                      size = 5) +
+      geom_hline(data = xx, aes(yintercept = true), linetype="dashed", color="black", size=.7) +
+      geom_hline(data = xx, aes(yintercept = lower), linetype="solid", color="blue", size=.7) +
+      geom_hline(data = xx, aes(yintercept = upper), linetype="solid", color="blue", size=.7) +
+      geom_hline(data = xx, aes(yintercept = est), linetype="solid", color="blue", size=.7)   
+    
+    
+    p <- p + theme(panel.background=element_blank(),
+                   plot.title=element_text(), plot.margin = unit(c(5.5,12,5.5,5.5), "pt"), 
+                   legend.text=element_text(size=12),
+                   legend.title=element_text(size=14),
+                   axis.text.x = element_text(size=12),
+                   axis.text.y = element_text(size=10),
+                   axis.line.x = element_line(color="black"),
+                   axis.line.y = element_line(color="black"),
+                   axis.title = element_text(size = 20) , 
+                   plot.caption=element_text(hjust = 0, size = 13),  #left align
+                   strip.text = element_text(size=15),
+                   axis.title.x = element_text(color = "grey20",size = 15) ,
+                   axis.title.y = element_text(color = "grey20",size = 15)
+    )
+    
+    g <- p + theme(legend.position="none") 
+    g
+    
+    
+    
+  })
+  
+  
+  
+  
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~assumption plot~~~~~~~~~~~~~~~~~~~~~~~~    
   # on the fly plot harrell's PO assumption plot...
   
   output$assumption <- renderPlot({   
     
-    
     levz <- input$levels
     l2 <- as.numeric(levz)-1
     y <- as.integer(dat$y)  
     
     s <- assump()$s
+  
+    is.na(s) <- do.call(cbind,lapply(s, is.infinite))  # need to remove infinity as plot will return xlim error
     
-    s[is.na(s)] <- 99
-    is.na(s) <- do.call(cbind,lapply(s, is.infinite))
-    
-    plot(s, which=1:l2, pch=1:l2, xlab='logit' )
+    plot(s, which=1:l2, pch=1:l2, xlab='Logit',
+         main ="Checking the proportional odds assumption")
  
-    
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         
   }) 
@@ -1335,7 +1457,7 @@ server <- shinyServer(function(input, output   ) {
     l2 <- as.numeric(levz)-1
     y <- as.integer(dat$y)  
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    
+    # here turn text into a function to allow flexibilty in changing levels
     start <- "function(y)
    c("
     
