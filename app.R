@@ -1343,6 +1343,10 @@ server <- shinyServer(function(input, output   ) {
     
     f1    <- analysis()$f2
 
+    or1 <- log(as.numeric(unlist(strsplit(input$or1,","))))   # user enter odds , need log for the maths
+    # R
+    or2 <- log(as.numeric(unlist(strsplit(input$or2,","))))    # user enter odds , need log for the maths
+    
     # x <- plyr::arrange(x, variable, value)
     # I recommend partial residual plots using the rms package's 
     # lrm and residuals.lrm functions. You can also fit a series of binary models using different 
@@ -1376,7 +1380,7 @@ server <- shinyServer(function(input, output   ) {
     
     names(x) <- c("baseline","treatment","cutoff")
     x<- melt(x, id.vars= c("cutoff"))
-    x$true <- ifelse(x$variable %in% "baseline",b2,b1)
+    x$true <- ifelse(x$variable %in% "baseline",  or2,  or1)  #baslein
     
     # bring in the PO estimates
     co <- confint(f1)[c("baseline","treatment"),]
@@ -1424,15 +1428,13 @@ server <- shinyServer(function(input, output   ) {
     
   })
   
-  
-  
-  
-  
+ 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~assumption plot~~~~~~~~~~~~~~~~~~~~~~~~    
   # on the fly plot harrell's PO assumption plot...
   
   output$assumption <- renderPlot({   
     
+    dat <- mcmc()$dat
     levz <- input$levels
     l2 <- as.numeric(levz)-1
     y <- as.integer(dat$y)  
