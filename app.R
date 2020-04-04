@@ -81,8 +81,10 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                 tags$style(type="text/css", ".span8 .well { background-color: #00FFFF; }"),
                                 
                                 
+                                actionButton(inputId='ab1', label="R Shiny code",   icon = icon("th"),   
+                                             onclick ="window.open('https://raw.githubusercontent.com/eamonn2014/proportional-odds-model2/master/app.R', '_blank')"), 
                                 actionButton(inputId='ab1', label="R code",   icon = icon("th"),   
-                                             onclick ="window.open('https://raw.githubusercontent.com/eamonn2014/proportional-odds-model2/master/app.R', '_blank')"),    
+                                             onclick ="window.open('https://raw.githubusercontent.com/eamonn2014/proportional-odds-model2/master/app%20stripped%20code.R', '_blank')"),  
                                 actionButton("resample", "simulate a new sample"),
                                 br(),  
                                 tags$style(".well {background-color:#b6aebd ;}"), 

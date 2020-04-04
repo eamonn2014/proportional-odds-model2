@@ -954,7 +954,7 @@ rcat2<- 999
     )
     
     g <- p + theme(legend.position="none") 
-    g
+    print(g)
     
     
   
@@ -1028,7 +1028,7 @@ rcat2<- 999
     dat$y <- as.numeric(as.character(dat$y))
     
    
-    levz <- leva
+    levz <- levz
     
     f <- A$coefficients
     x <-length(f) -2
