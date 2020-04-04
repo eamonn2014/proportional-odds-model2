@@ -348,7 +348,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
 
                              ),
                                       
-                                      tabPanel("8 Predicted Mean", value=3, 
+                                      tabPanel("8 Pred. Mu", value=3, 
                                             
                                                fluidRow(
                                                  column(width = 6, offset = 0, style='padding:1px;',
@@ -390,7 +390,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                         
                               ) ,
    
-                                tabPanel("9 Data", 
+                                tabPanel("9 Data/Notes", 
                                          
                                          fluidRow(
                                            column(width = 3, offset = 0, style='padding:1px;',
@@ -401,7 +401,6 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                        column(width = 9, offset = 0, style='padding:1px;',
                                               h4("Notes"),
                                               h6("We fit the baseline response as a continuous variable in the model\n"),
-                                              h6("   To do check assumptions\n"),
                                               h6("    add references here to allow use of space on landing page"),
                                               h6("    feedback on ormfit not working as expected"),
                                               h6("    calculate means when intercept changes"),
