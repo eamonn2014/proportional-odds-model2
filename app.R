@@ -410,12 +410,12 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                   Table 2 on the third tab also allows the user to present the effect on the outcome over any range of the baseline version of the outcome. 
                                                   On the fourth tab the model's predicted probabilites are graphed. Any response level or combination of levels can be presented.
                                                   The next tab, five presents the predicted probabilites once again and again the user can specifiy what to present.
-                                                  Table 6 presents tables of the predicted and cumulative predicted probabilites. Table 3 also presentes 
+                                                  Table 6 presents tables of the predicted and cummulative predicted probabilites. Table 3 also presentes 
                                                   the estimated mean Y (meanY) calculated by summing values of Y multiplied by the estimated Prob(Y=j).
                                                   Moving on to tab 7 we see the results of the linear model fit.  On tab 8 the predicted mean of the numeric ordered response variable 
                                                   given the linear predictor, which is assumed to use the first intercept in its computation is plotted. The linear model predicted mean 
                                                   is also presented. The user can specify the proportional odds intercept. The next two tabs check the assumptions of the proportional odds model.
-                                                  Proportional odds are simulated so we would expect the figures to reflect this fact. The last tab contains notes and a reference list  
+                                                  Proportional odds are simulated so we would expect the figures to reflect this fact. The last tab contains notes and a reference list. 
                                                   \n"),
                                                
                                                tags$hr(),
