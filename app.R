@@ -64,7 +64,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                 
                 h2("The Proportional Odds Model"), 
                 
-                h4("The proportional odds model is a recommended approach for modelliing an ordinal response. 
+                h4("The ordinal logistic regression model also known as the proportional odds model is a recommended approach for modelliing an ordinal response. 
                 Patient reported outcomes are often reported using an ordinal reponse. Often they are analysed using a linear model treating the outcome as continuous. 
                 This is not a correct assumption. For example the outcomes are strict integers there are no in between levels.
                 The scales too have a distinct bottom level and top level, a likert scale may have 5 levels, so there is no level 6. 
@@ -85,7 +85,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                              onclick ="window.open('https://raw.githubusercontent.com/eamonn2014/proportional-odds-model2/master/app.R', '_blank')"),    
                                 actionButton("resample", "simulate a new sample"),
                                 br(),  
-                                tags$style(".well {background-color:#b6aebd ;}"), ##ABB0B4AF
+                                tags$style(".well {background-color:#b6aebd ;}"), 
                                 
                                 h4("Instructions: The first input below is the number of total patients randomised 1:1 to treatment vrs placebo. 
                                      The next input is the number of ordinal levels in the response. This is followed by the 
@@ -118,7 +118,6 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                   
                                   
                                   textInput('or2', 
-                                            #   div(h5("Number of samples for Correlation (tab 2)")), "10"),
                                             div(h5(tags$span(style="color:blue", "Odds ratio of effect of baseline version of outcome"))), "1"),
                                   
                                   #  textInput('n2y2', 
@@ -126,18 +125,18 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                   # div(h5(tags$span(style="color:blue", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"))), "0.8"),
                                   # tags$hr(),
                                   
-                                  div(h5("References:")),  
-                                  tags$a(href = "https://en.wikipedia.org/wiki/Bootstrapping_%28statistics%29", tags$span(style="color:blue", "[1] PRO"),),   
-                                  div(p(" ")),
-                                  tags$a(href = "https://projecteuclid.org/download/pdf_1/euclid.aos/1176345338",  tags$span(style="color:blue", "[2] PO"),),   
-                                  div(p(" ")),
-                                  tags$a(href = "https://projecteuclid.org/download/pdf_1/euclid.aos/1176344552", tags$span(style="color:blue", "[3] Krushke"),),
-                                  div(p(" ")),
-                                  tags$a(href = "https://blogs.sas.com/content/iml/2017/09/20/fishers-transformation-correlation.html", tags$span(style="color:blue", "[4] xxxxxx"),),  
-                                  div(p(" ")),
-                                  tags$a(href = "https://rdrr.io/cran/rms/man/predict.lrm.html", tags$span(style="color:blue", "prediction of nodel mean"),),  
-                                  div(p(" ")),
-                                  tags$hr()
+                                  # div(h5("References:")),  
+                                  # tags$a(href = "https://en.wikipedia.org/wiki/Bootstrapping_%28statistics%29", tags$span(style="color:blue", "[1] PRO"),),   
+                                  # div(p(" ")),
+                                  # tags$a(href = "https://projecteuclid.org/download/pdf_1/euclid.aos/1176345338",  tags$span(style="color:blue", "[2] PO"),),   
+                                  # div(p(" ")),
+                                  # tags$a(href = "https://projecteuclid.org/download/pdf_1/euclid.aos/1176344552", tags$span(style="color:blue", "[3] Krushke"),),
+                                  # div(p(" ")),
+                                  # tags$a(href = "https://blogs.sas.com/content/iml/2017/09/20/fishers-transformation-correlation.html", tags$span(style="color:blue", "[4] xxxxxx"),),  
+                                  # div(p(" ")),
+                                  # tags$a(href = "https://rdrr.io/cran/rms/man/predict.lrm.html", tags$span(style="color:blue", "prediction of model mean"),),  
+                                  # div(p(" ")),
+                                  # tags$hr()
                                 )
                                 
                                 
@@ -147,7 +146,6 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                   mainPanel(width=9,
                             
                             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                            #    tabsetPanel(type = "tabs", 
                             navbarPage(       
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  
                               tags$style(HTML("
@@ -170,9 +168,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                           By selecting a beta distribution using the shape parameters the
                                           expected baseline counts in categories can be approximated. The default is Beta(22,21)."),
                               
-                                       
-                                       ###############
-                                    
+              
                                        fluidRow(
                                          column(width = 6, offset = 0, style='padding:1px;',
                                                 
@@ -204,12 +200,8 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                        
                               ),
                               
-                              #####
                               tabPanel("3 PO model", value=7, 
-                                     
-                                       ###############
-                                       
-                                       
+                               
                                        fluidRow(
                                          column(width = 6, offset = 0, style='padding:1px;',
                                                 h4("Table 1 Proportional odds model"), 
@@ -237,7 +229,6 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                               
                              
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                         
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
              
                               tabPanel("4 Prob. plot1", value=3, 
@@ -264,7 +255,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                         
                                        h4("On the left you are looking at the point of view of what happens to a patient considering their baseline category. We can see the probability of response and how it depends on treatment. With the default inputs we can see a shift in the distribution to the higher categories if treated.  
 
-On the right we can look at ALL baseline categories and see the predicted probability curves. 
+On the right we can look at ALL baseline categories and see the predicted probability curves. This is the same presentation as that shown on the previous tab.
 Vertically all the curves will sum to 1 for a treatment group. 
 For example, if a patient is in baseline group category 1 we can see the probability of the patient being in each category if they were treated (or alternatively if they were in placebo).
 With the default inputs we can see horizontal lines in the treated responses (only for the default input values), telling us a patient's baseline value is not important to know.
@@ -291,8 +282,6 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                  
                                                   div(plotOutput("predicts", width=fig.width7, height=fig.height3)),
                                                   
-                                                  
-                                                  
                                                   fluidRow(
                                                     
                                                     textInput('group', 
@@ -302,10 +291,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                     textInput('rcat', 
                                                               div(h5(tags$span(style="color:blue", 
                                                                                "Response category, enter 999 to see all levels or enter level(s) of interest"))), "999"),
-                                                    #""
-                                                    
-                                                    
-                                                    
+
                                                   ),
                                                
                                            ))),
@@ -313,7 +299,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                         
                                        width = 30 )     ,
                                #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                              tabPanel("6 Tables of prob.",
+                              tabPanel("6 Prob. tables",
                                        h4(paste("Table 3 Predicted probabilities, the estimated mean Y (meanY) is calculated by summing values of Y multiplied by the estimated Prob(Y=j)")),
                                        fluidRow(
                                          column(width = 12, offset = 0, style='padding:1px;',
@@ -323,7 +309,6 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                              div( verbatimTextOutput("reg.summaryc") ),
                                          ) ,
                                     
-                                         
                                          ),
 
                               ),
@@ -361,17 +346,9 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                         h4("Figure 8 Predictions for each trial arm by model"),
                                                         br() , 
                                                         
-                                                        
-                                                        #h5("For the ordinal model the estimated mean Y is calculated by summing values of 
-                                                        #Y multiplied by the estimated Prob(Y=j)."),
-                                                        
-                                                        
                                                         h4("Table 7 Model predictions"),
                                                         div( verbatimTextOutput("predz"), width = 2), # 
-                                                        
-                                                        
-                                                        
-                                                 ),
+                                  ),
                                                  
                                                  fluidRow(
                                                    
@@ -379,10 +356,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                    
                                                    
                                                    column(width = 5, offset = 0, style='padding:0px;',
-                                                          
-                                                          #div(h5(tags$span(style="color:blue","test"))),  
-                                                          
-                                                          
+
                                                           div(plotOutput("PP.plot2", width=fig.width7, height=fig.height6)),
                                                           h4("Figure 9 Predictions for each model arm by trial arm to assess similarity in the two model predictions"),
                                                            
@@ -390,71 +364,83 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                         
                               ) ,
    
-                                tabPanel("9 Data/Notes", 
-                                         
-                                         fluidRow(
-                                           column(width = 3, offset = 0, style='padding:1px;',
-                                       h4("Table 8 Data listing"),
-                                       div( verbatimTextOutput("dat")),
-                                           ),
-                                       
-                                       column(width = 9, offset = 0, style='padding:1px;',
-                                              h4("Notes"),
-                                              h6("We fit the baseline response as a continuous variable in the model\n"),
-                                              h6("    add references here to allow use of space on landing page"),
-                                              h6("    feedback on ormfit not working as expected"),
-                                              h6("    calculate means when intercept changes"),
-                                       )
-                                       
-                                       
-                                       )
-                              ),
-                             
-                             tabPanel("10 Assumptions", value=3, 
+
+                             tabPanel("9 Assumptions", value=3, 
                                       
                                   h5(paste("Checking assumptions")), 
                                   div(plotOutput("assumption", width=fig.width1, height=fig.height3)),
                                   h4("Figure 10 Checking assumptions, visual inspection"),
                                   h5( "Checking assumptions, the predictors are " ),
-                                  h4("Table 9 Checking PO assumption, tabulation"),
-                                  #h5(paste("Checking assumptions table")), 
+                                  h4("Table 8 Checking PO assumption, tabulation"),
                                   div( verbatimTextOutput("assump")),  
-                                 # h4("Figure 11 Checking assumptions, coefficients from a series of binary models using different cut offs for Y"),  
-                                  #div(plotOutput("logitseries", width=fig.width1, height=fig.height3)),
-                                  
-                                      
-                                     # fluidRow(
-                                      #  column(width = 7, offset = 0, style='padding:1px;',
-                                       #        h4(paste("Figure 4. Plot of the predicted probabilities")), 
-                                               
-                                        #)),
+                                
                              ),
                              
                              
-                             tabPanel("11 Assumptions 2", value=3, 
+                             tabPanel("10 Assumptions2", value=3, 
                                       
-                                   #   h5(paste("Checking assumptions")), 
-                                    #  div(plotOutput("assumption", width=fig.width1, height=fig.height3)),
-                                     # h4("Figure 10 Checking assumptions, visual inspection"),
-                                      #h5( "Checking assumptions, the predictors are " ),
-                                      #h4("Table 9 Checking PO assumption, tabulation"),
-                                      #h5(paste("Checking assumptions table")), 
-                                      #div( verbatimTextOutput("assump")),  
+  
                                       div(plotOutput("logitseries", width=fig.width1, height=fig.height3)),
                                    h4("Figure 11 Checking assumptions, coefficients from a series of binary models using different cut offs for Y"),  
                                    
-                                   h4("Using the low and high effects from the rms package datadist as the lower and upper cut point limits 
+                                   h4("Using the low and high effects from the rms package datadist function as the lower and upper cut point limits 
                                       we fit a series of logistic regression models and collect the coefficients. We expect them to be 
-                                      similar and in line with the proportional odds model coefficent's. The PO model and and 95% 
+                                      similar and in line with the proportional odds model coefficents. The PO model and 95% 
                                       confidence limits are superimposed (solid lines) as well as 
                                       the true value (dashed line).")
-                                      # fluidRow(
-                                      #  column(width = 7, offset = 0, style='padding:1px;',
-                                      #        h4(paste("Figure 4. Plot of the predicted probabilities")), 
-                                      
-                                      #)),
-                             )
+                               
+                             ),
                               
+                             
+                             tabPanel("11 Data/Notes", 
+                                      
+                                      fluidRow(
+                                        column(width = 3, offset = 0, style='padding:1px;',
+                                               h4("Table 9 Data listing"),
+                                               div( verbatimTextOutput("dat")),
+                                        ),
+                                        
+                                        column(width = 9, offset = 0, style='padding:1px;',
+                                               h4("Notes"),
+                                               h4("The user can define the predictor response relationships in terms of odds ratios and also define the baseline
+                                                  version of the outcome distribution (odds ratio and number of levels) as well as the total sample size for a RCT with 1:1 randomisation.
+                                                  The first tab is where the baseline distribution is presented.
+                                                  The second tab presents the distribution of the outcome that is dictated by the inputs, the third tab then 
+                                                  displays the results of the proportional odds regression analysis, the output of which is explained. 
+                                                  Table 2 on the third tab also allows the user to present the effect on the outcome over any range of the baseline version of the outcome. 
+                                                  On the fourth tab the model's predicted probabilites are graphed. Any response level or combination of levels can be presented.
+                                                  The next tab, five presents the predicted probabilites once again and again the user can specifiy what to present.
+                                                  Table 6 presents tables of the predicted and cumulative predicted probabilites. Table 3 also presentes 
+                                                  the estimated mean Y (meanY) calculated by summing values of Y multiplied by the estimated Prob(Y=j).
+                                                  Moving on to tab 7 we see the results of the linear model fit.  On tab 8 the predicted mean of the numeric ordered response variable 
+                                                  given the linear predictor, which is assumed to use the first intercept in its computation is plotted. The linear model predicted mean 
+                                                  is also presented. The user can specify the proportional odds intercept. The next two tabs check the assumptions of the proportional odds model.
+                                                  Proportional odds are simulated so we would expect the figures to reflect this fact. The last tab contains notes and a reference list  
+                                                  \n"),
+                                               
+                                               tags$hr(),
+                                               div(h5("References:")),  
+                                               tags$a(href = "https://stats.stackexchange.com/search?q=proportional+odds+model", tags$span(style="color:blue", "[1] Proportional Odds Model"),),   
+                                               div(p(" ")),
+                                               tags$a(href = "hhttps://en.wikipedia.org/wiki/Ordered_logit",  tags$span(style="color:blue", "[2] Wiki"),),   
+                                               div(p(" ")),
+                                             #  tags$a(href = "https://projecteuclid.org/download/pdf_1/euclid.aos/1176344552", tags$span(style="color:blue", "[3] Krushke"),),
+                                             #  div(p(" ")),
+                                              # tags$a(href = "https://blogs.sas.com/content/iml/2017/09/20/fishers-transformation-correlation.html", tags$span(style="color:blue", "[4] xxxxxx"),),  
+                                             #  div(p(" ")),
+                                               tags$a(href = "https://rdrr.io/cran/rms/man/predict.lrm.html", tags$span(style="color:blue", "[3] prediction of model mean"),),  
+                                               div(p(" ")),
+                                               tags$hr()
+                                               
+                                        )
+                                        
+                                        
+                                      )
+                             )##end
+                             
+                             
+                             
+                             
                               #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   END NEW   
                             )
                             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -483,10 +469,9 @@ server <- shinyServer(function(input, output   ) {
     trt <- as.numeric(unlist(strsplit(input$n,",")))
     
     ctr <- as.numeric(unlist(strsplit(input$levels,",")))
-    
-    #sample size for correlation
+
     n1y1 <- log(as.numeric(unlist(strsplit(input$or1,","))))   # user enter odds , need log for the maths
-    # R
+
     n2y2 <- log(as.numeric(unlist(strsplit(input$or2,","))))    # user enter odds , need log for the maths
     
     
@@ -840,7 +825,6 @@ server <- shinyServer(function(input, output   ) {
                      labels = c(lab1, lab2)
     )
     
-    
 
     Gplotx <- function(data,  l1,l2,l3 ) {
       
@@ -994,7 +978,6 @@ server <- shinyServer(function(input, output   ) {
        
        ) +
  
-    
     labs(title=paste0(c("Predicted probabilities of response categories"), collapse=" "), 
          x = "Baseline category",
          y = "Predicted probability",
@@ -1005,7 +988,6 @@ server <- shinyServer(function(input, output   ) {
     print(gp)
     
   })
-  
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # non cummulative predicted probabilities plot run the analysis again
@@ -1027,7 +1009,6 @@ server <- shinyServer(function(input, output   ) {
     Res.clm <- clm(y ~treatment + baseline, data=datx)
     
     # levz <-   length(unique(Res.clm$model$baseline))
-    
     # summary(Res.clm)
     
     newdat <- data.frame(
@@ -1092,8 +1073,7 @@ server <- shinyServer(function(input, output   ) {
             legend.justification = c(0, 1), 
             legend.position = c(0.05, .99))  +
       
-      
-      
+
       labs(title=paste0(c("Predicted probabilities of response categories"), collapse=" "), 
            x = "Response category",
            y = "Predicted probability",
@@ -1226,9 +1206,7 @@ server <- shinyServer(function(input, output   ) {
            caption = "")  +
       geom_dl(aes(label = var2), method = list(dl.combine("first.points", "last.points"),
                                                cex = 0.9)) 
-    # guides(fill=guide_legend(title="Treatment"))  
-    # 
-    
+
     print(gpp)
     
     
@@ -1569,12 +1547,7 @@ server <- shinyServer(function(input, output   ) {
                 ))    
                 
   })
-  # output$assump <- renderText({ 
-  #   
-  #   st <- assump()$st     
-  #   
-  #   
-  # })
+
   
   output$assump <- renderPrint({
    
@@ -1582,8 +1555,7 @@ server <- shinyServer(function(input, output   ) {
   
   }) 
   
-  
-  
+
   output$textWithNumber1 <- renderText({ 
     
     A <- analysis()$f2     
@@ -1670,11 +1642,9 @@ server <- shinyServer(function(input, output   ) {
     
     return(list(linear=f , an=an )) 
      
-    
   })
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  
   
   output$predictl <- renderPlot({   
     
