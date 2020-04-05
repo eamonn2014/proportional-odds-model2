@@ -65,11 +65,12 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                 h2("The Proportional Odds Model"), 
                 
                 h4("The ordinal logistic regression model also known as the proportional odds model is a recommended approach for modelliing an ordinal response. 
-                Patient reported outcomes are often reported using an ordinal reponse. Often they are analysed using a linear model treating the outcome as continuous. 
+                Patient reported outcomes are often reported using an ordinal reponse and analysed using a linear model treating the reponse as continuous. 
                 This is not a correct assumption. For example the outcomes are strict integers there are no in between levels.
-                The scales too have a distinct bottom level and top level, a likert scale may have 5 levels, so there is no level 6. 
-                A linear model may predict responses above or below the only levels possible! We simulate, analyse and explore an ordinal response, adding a treatment effect and adjust for the baseline 
-                version of the response variable, to increase power, for an RCT with 1:1 randomisation of patients to treatment arm.
+                The scales too have a distinct bottom level and top level, a likert scale may have 5 levels, there is no level 6. 
+                A linear model may predict responses above or below the only levels possible! We simulate, analyse and explore an ordinal response, adding a treatment effect 
+                and adjust for the baseline 
+                version of the response variable, to increase power, for an RCT with 1:1 randomisation of patients to treatment arms.
          "), 
                 
                 h3("  "), 
