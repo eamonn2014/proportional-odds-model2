@@ -324,7 +324,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                 
                                                 div( verbatimTextOutput("reg.summary4") )
                                          ) ,
-                                         
+                                        
                                          fluidRow(
                                            column(width = 5, offset = 0, style='padding:1px;',
                                                   
@@ -332,25 +332,24 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                   div(plotOutput("predictl", width=fig.widthx, height=fig.heightx)),
                                               
                                            ))),
-
+                                      h4("Perhaps fit the model with restricted cubic splines for the baseline predictor."),
                              ),
                                       
                                       tabPanel("8 Mean Y", value=3, 
                                             
                                                fluidRow(
                                                  column(width = 6, offset = 0, style='padding:1px;',
-                                                        
+                                                        h4("Sometimes it is helpful to present the mean Y as a function of one or more model predictors. 
+                                                           \n Enter an intercept for the ordinal model in the box below.."),
                                                         textInput('kints',
                                                                   div(h5(tags$span(style="color:blue",
-                                                                                   "Enter an intercept for the ordinal model"))), ""), 
+                                                                                   ""))), ""), 
                                                         
                                                         div(plotOutput("PP.plot", width=fig.width7, height=fig.height6)),
                                                         h4("Figure 8 Predictions for each trial arm by model"),
                                                         br() , 
                                                         
-                                                        h4("Sometime it is helpful to present the mean Y as a function of one or more predictors. 
-                                                           This assumes a spacing for the Y levels. Try different odds ratios to see when the linear model 
-                                                           and PO model are no longer similar."),
+                                                        h4(""),
                                                         
                                                         h4("Table 7 Model predictions"),
                                                         div( verbatimTextOutput("predz"), width = 2), # 
@@ -358,7 +357,11 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                  
                                                  fluidRow(
                                                    
-                                                   br(), br(), br() , br() , br() ,
+                                                  
+                                                   h4(" This assumes a spacing for the Y levels."),
+                                                   h4("Try different odds ratios to see when the linear model 
+                                                           and PO model are no longer similar."),
+                                                   br(), br(), br() ,  
                                                    
                                                    
                                                    column(width = 5, offset = 0, style='padding:0px;',
@@ -436,13 +439,13 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                
                                                tags$hr(),
                                                div(h4("References:")),  
-                                               tags$a(href = "https://stats.stackexchange.com/search?q=proportional+odds+model", tags$span(style="color:blue", "[1] Proportional Odds Model"),),   
+                                               tags$a(href = "https://stats.stackexchange.com/search?q=proportional+odds+model", tags$span(style="color:blue", "[1] Proportional odds model"),),   
                                                div(p(" ")),
-                                               tags$a(href = "hhttps://en.wikipedia.org/wiki/Ordered_logit",  tags$span(style="color:blue", "[2] Proportional Odds Wiki"),),   
+                                               tags$a(href = "hhttps://en.wikipedia.org/wiki/Ordered_logit",  tags$span(style="color:blue", "[2] Proportional odds wiki"),),   
                                                div(p(" ")),
                                              #  tags$a(href = "https://projecteuclid.org/download/pdf_1/euclid.aos/1176344552", tags$span(style="color:blue", "[3] Krushke"),),
                                              #  div(p(" ")),
-                                                tags$a(href = "http://hbiostat.org/doc/rms.pdf", tags$span(style="color:blue", "[3] Regression Modelling strategies"),),  
+                                                tags$a(href = "http://hbiostat.org/doc/rms.pdf", tags$span(style="color:blue", "[3] Regression modelling strategies"),),  
                                                div(p(" ")),
                                                tags$a(href = "https://rdrr.io/cran/rms/man/predict.lrm.html", tags$span(style="color:blue", "[4] Prediction of model mean"),),  
                                                div(p(" ")),
@@ -628,8 +631,8 @@ server <- shinyServer(function(input, output   ) {
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     
     sf1=NULL
-    f2 <- orm(y ~baseline + treatment, data=dat )
-    f3 <- ols(y ~baseline + treatment, data=dat )
+    f2 <- orm(y ~(baseline) + treatment, data=dat )  # rcs?
+    f3 <- ols(y ~(baseline) + treatment, data=dat )  #rcs?
     sf1 <- summary(f2, antilog=TRUE, verbose=FALSE)
     sf1 <- summary(f2, baseline=c(bas1,bas2),antilog=TRUE, verbose=FALSE)
  
