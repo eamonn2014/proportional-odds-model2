@@ -474,7 +474,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
 server <- shinyServer(function(input, output   ) {
   
   shinyalert("Welcome! \nExplore the Proportional odds model!",
-             "Use at your own risk", 
+             "Respect the ordinal reponse", 
              type = "info")
   
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
