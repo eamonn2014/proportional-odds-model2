@@ -1092,6 +1092,50 @@ levz=ctr
     
     ggplot(Predict(linear, treatment), anova=an1, pval=TRUE)  
     
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    
+    
+    #ECDF
+    
+    
+    a <- Ecdf(~ baseline , group= y, fun=qnorm, xlab='baseline',label.curves=FALSE, data=dat , ylab=expression(paste(Phi^-1, (F[n](x)))))
+    
+    b <- Ecdf(~ baseline , group= y, fun=qlogis, xlab='baseline',
+              label.curves=FALSE, data=dat ,  #list(keys='lines')
+              ylab=expression(logit(F[n](x))) )  
+    
+    
+    print(a, more=T, split=c(1,1,2,1))
+    print(b,   split=c(2,1,2,1))
+    
+    
+    
+    
+    a <- Ecdf(~ treatment , group= y, fun=qnorm, xlab='baseline',label.curves=FALSE, data=dat , ylab=expression(paste(Phi^-1, (F[n](x)))))
+    
+    b <- Ecdf(~ treatment , group= y, fun=qlogis, xlab='baseline',
+              label.curves=FALSE, data=dat , 
+              ylab=expression(logit(F[n](x))) )  
+    
+    
+    print(a, more=T, split=c(1,1,2,1))
+    print(b,   split=c(2,1,2,1))
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
  
  

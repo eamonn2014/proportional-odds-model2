@@ -81,11 +81,11 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                 tags$style(type="text/css", ".span8 .well { background-color: #00FFFF; }"),
                                 
                                 
-                                actionButton(inputId='ab1', label="R Shiny code",   icon = icon("th"),   
+                                actionButton(inputId='ab1', label="R Shiny ",   icon = icon("th"),   
                                              onclick ="window.open('https://raw.githubusercontent.com/eamonn2014/proportional-odds-model2/master/app.R', '_blank')"), 
                                 actionButton(inputId='ab1', label="R code",   icon = icon("th"),   
                                              onclick ="window.open('https://raw.githubusercontent.com/eamonn2014/proportional-odds-model2/master/app%20stripped%20code.R', '_blank')"),  
-                                actionButton("resample", "simulate a new sample"),
+                                actionButton("resample", "Simulate a new sample"),
                                 br(),  
                                 tags$style(".well {background-color:#b6aebd ;}"), 
                                 
@@ -335,7 +335,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
 
                              ),
                                       
-                                      tabPanel("8 Pred. Mu", value=3, 
+                                      tabPanel("8 Mean Y", value=3, 
                                             
                                                fluidRow(
                                                  column(width = 6, offset = 0, style='padding:1px;',
@@ -347,6 +347,10 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                         div(plotOutput("PP.plot", width=fig.width7, height=fig.height6)),
                                                         h4("Figure 8 Predictions for each trial arm by model"),
                                                         br() , 
+                                                        
+                                                        h4("Sometime it is helpful to present the mean Y as a function of one or more predictors. 
+                                                           This assumes a spacing for the Y levels. Try different odds ratios to see when the linear model 
+                                                           and PO model are no longer similar."),
                                                         
                                                         h4("Table 7 Model predictions"),
                                                         div( verbatimTextOutput("predz"), width = 2), # 
@@ -367,23 +371,31 @@ With the default inputs we can see horizontal lines in the treated responses (on
                               ) ,
    
 
-                             tabPanel("9 Assumptions", value=3, 
+                             tabPanel("9 Assumptions1", value=3, 
                                       
-                                  h5(paste("Checking assumptions")), 
+                                  #h5(paste("Checking assumptions")), 
                                   div(plotOutput("assumption", width=fig.width1, height=fig.height3)),
                                   h4("Figure 10 Checking assumptions, visual inspection"),
-                                  h5( "Checking assumptions, the predictors are " ),
+                                  h4( "Checking assumptions, for each predictor separately We stratify each predictor and calculate the logit of all proportions pf the form 
+                                  Y>=j, j=1,2,...,k.
+                                      When proportional odds hold, the differences in logits between different values of j should be the same for all values of X. (This may
+                                      get crowded with many levels of Y)" ),
                                   h4("Table 8 Checking PO assumption, tabulation"),
                                   div( verbatimTextOutput("assump")),  
                                 
                              ),
                              
                              
-                             tabPanel("10 Assumptions2", value=3, 
+                             tabPanel("10 Assump.2", value=3, 
                                       
-  
-                                      div(plotOutput("logitseries", width=fig.width1, height=fig.height3)),
-                                   h4("Figure 11 Checking assumptions, coefficients from a series of binary models using different cut offs for Y"),  
+                                      div(plotOutput("ecdfs", width=fig.width1, height=fig.height3)),
+                                      h4("Figure 11 Transformed empirical cumulative distribution functions by baseline. Left checking all assumptions of the parametric ANCOVA.
+                                         Right panel check all assumptions of the PO model."), 
+                                      h4("Does the right panel above display more parallelism than the left panel displays linearity?"), 
+                                    div(plotOutput("logitseries", width=fig.width1, height=fig.height3)),
+                                     
+                                      
+                                   h4("Figure 12 Checking assumptions, coefficients from a series of binary models using different cut offs for Y"),  
                                    
                                    h4("Using the low and high effects from the rms package datadist function as the lower and upper cut point limits 
                                       we fit a series of logistic regression models and collect the coefficients. We expect them to be 
@@ -394,7 +406,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                              ),
                               
                              
-                             tabPanel("11 Data/Notes", 
+                             tabPanel("11 Data/Notes/Ref.", 
                                       
                                       fluidRow(
                                         column(width = 3, offset = 0, style='padding:1px;',
@@ -417,20 +429,22 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                   Moving on to tab 7 we see the results of the linear model fit.  On tab 8 the predicted mean of the numeric ordered response variable 
                                                   given the linear predictor, which is assumed to use the first intercept in its computation is plotted. The linear model predicted mean 
                                                   is also presented. The user can specify the proportional odds intercept. The next two tabs check the assumptions of the proportional odds model.
-                                                  Proportional odds are simulated so we would expect the figures to reflect this fact. The last tab contains notes and a reference list. 
+                                                  Proportional odds are simulated so we would expect the figures to reflect this fact. 
+                                                  The last tab contains notes and a reference list. The app allows the user to see the R Shiny code and the R code. 
+                                                  Another dataset can also be simulated by pressing the 'Simulate a new sample' button. 
                                                   \n"),
                                                
                                                tags$hr(),
-                                               div(h5("References:")),  
+                                               div(h4("References:")),  
                                                tags$a(href = "https://stats.stackexchange.com/search?q=proportional+odds+model", tags$span(style="color:blue", "[1] Proportional Odds Model"),),   
                                                div(p(" ")),
                                                tags$a(href = "hhttps://en.wikipedia.org/wiki/Ordered_logit",  tags$span(style="color:blue", "[2] Proportional Odds Wiki"),),   
                                                div(p(" ")),
                                              #  tags$a(href = "https://projecteuclid.org/download/pdf_1/euclid.aos/1176344552", tags$span(style="color:blue", "[3] Krushke"),),
                                              #  div(p(" ")),
-                                              # tags$a(href = "https://blogs.sas.com/content/iml/2017/09/20/fishers-transformation-correlation.html", tags$span(style="color:blue", "[4] xxxxxx"),),  
-                                             #  div(p(" ")),
-                                               tags$a(href = "https://rdrr.io/cran/rms/man/predict.lrm.html", tags$span(style="color:blue", "[3] Prediction of model mean"),),  
+                                                tags$a(href = "http://hbiostat.org/doc/rms.pdf", tags$span(style="color:blue", "[3] Regression Modelling strategies"),),  
+                                               div(p(" ")),
+                                               tags$a(href = "https://rdrr.io/cran/rms/man/predict.lrm.html", tags$span(style="color:blue", "[4] Prediction of model mean"),),  
                                                div(p(" ")),
                                                tags$hr()
                                                
@@ -1663,7 +1677,25 @@ server <- shinyServer(function(input, output   ) {
    
   })
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 
+  
+  output$ecdfs <- renderPlot({   
+    
+    dat <- mcmc()$dat
+
+    a <- Ecdf(~ baseline , group= y, fun=qnorm, xlab='baseline',label.curves=FALSE, data=dat , ylab=expression(paste(Phi^-1, (F[n](x)))))
+    
+    b <- Ecdf(~ baseline , group= y, fun=qlogis, xlab='baseline',
+              label.curves=FALSE, data=dat ,  #list(keys='lines')
+              ylab=expression(logit(F[n](x))) )  
+    
+    
+    print(a,    more=T, split=c(1,1,2,1))
+    print(b,   split=c(2,1,2,1))
+    
+    
+    
+  })
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 })
 
 # Run the application 
