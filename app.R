@@ -91,7 +91,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                 br(),  
                                 tags$style(".well {background-color:#b6aebd ;}"), 
                                 
-                                h4("Instructions: The first input below is the number of total patients randomised 1:1 to treatment vrs placebo. 
+                                h4("Instructions: The first input below is the total patients randomised 1:1 to treatment vrs placebo. 
                                      The next input is the number of ordinal levels in the response. This is followed by the 
                                      treatment proportional odds ratio. The last input is the proportional odds ratio for the baseline version of the response variable.
                                      The distribution of the baseline version of the response can be specified by selecting a Beta distribution that approximates that 
