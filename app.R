@@ -68,7 +68,8 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                 Patient reported outcomes are often reported using an ordinal reponse. Often they are analysed using a linear model treating the outcome as continuous. 
                 This is not a correct assumption. For example the outcomes are strict integers there are no in between levels.
                 The scales too have a distinct bottom level and top level, a likert scale may have 5 levels, so there is no level 6. 
-                A linear model may predict responses above or below the only levels possible!
+                A linear model may predict responses above or below the only levels possible! We simulate, analyse and explore an ordinal response, adding a treatment effect and adjust for the baseline 
+                version of the response variable, to increase power, for an RCT with 1:1 randomisation of patients to treatment arm.
          "), 
                 
                 h3("  "), 
@@ -91,8 +92,8 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                 
                                 h4("Instructions: The first input below is the number of total patients randomised 1:1 to treatment vrs placebo. 
                                      The next input is the number of ordinal levels in the response. This is followed by the 
-                                     treatment proportional odds ratio. The last input is the proportional odds ratio for the baseline version of the outcome.
-                                     The distribution of the baseline version of the outcome can be specified by selecting a Beta distribution that approximates that 
+                                     treatment proportional odds ratio. The last input is the proportional odds ratio for the baseline version of the response variable.
+                                     The distribution of the baseline version of the response can be specified by selecting a Beta distribution that approximates that 
                                    which is expected."),
                                 div(
                                   
@@ -120,7 +121,7 @@ ui <- fluidPage(theme = shinytheme("journal"), #https://www.rdocumentation.org/p
                                   
                                   
                                   textInput('or2', 
-                                            div(h5(tags$span(style="color:blue", "Odds ratio of effect of baseline version of outcome"))), "1"),
+                                            div(h5(tags$span(style="color:blue", "Odds ratio of effect of baseline version of response variable"))), "1"),
                                   
                                   #  textInput('n2y2', 
                                   # #      div(h5("Enter the true correlation (tab 2)")), ".8"),
@@ -332,7 +333,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                   div(plotOutput("predictl", width=fig.widthx, height=fig.heightx)),
                                               
                                            ))),
-                                      h4("Perhaps fit the model with restricted cubic splines for the baseline predictor."),
+                                      h4("Perhaps fit the model with restricted cubic splines for the baseline predictor to test or describe non linear relationships."),
                              ),
                                       
                                       tabPanel("8 Mean Y", value=3, 
@@ -420,11 +421,11 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                         column(width = 9, offset = 0, style='padding:1px;',
                                                h4("Notes"),
                                                h4("The user can define the predictor response relationships in terms of odds ratios and also define the baseline
-                                                  version of the outcome distribution (odds ratio and number of levels) as well as the total sample size for a RCT with 1:1 randomisation.
+                                                  version of the response distribution (odds ratio and number of levels) as well as the total sample size for a RCT with 1:1 randomisation.
                                                   The first tab is where the baseline distribution is presented.
                                                   The second tab presents the distribution of the outcome that is dictated by the inputs, the third tab then 
                                                   displays the results of the proportional odds regression analysis, the output of which is explained. 
-                                                  Table 2 on the third tab also allows the user to present the effect on the outcome over any range of the baseline version of the outcome. 
+                                                  Table 2 on the third tab also allows the user to present the effect on the outcome over any range of the baseline version of the response variable. 
                                                   On the fourth tab the model's predicted probabilites are graphed. Any response level or combination of levels can be presented.
                                                   The next tab, five presents the predicted probabilites once again and again the user can specifiy what to present.
                                                   Table 6 presents tables of the predicted and cummulative predicted probabilites. Table 3 also presentes 
