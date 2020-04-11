@@ -451,6 +451,12 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                div(p(" ")),
                                                tags$a(href = "https://rdrr.io/cran/rms/man/predict.lrm.html", tags$span(style="color:blue", "[4] Prediction of model mean"),),  
                                                div(p(" ")),
+                                             tags$a(href = "https://psyarxiv.com/x8swp/", tags$span(style="color:blue", "[5] Ordinal Regression Models in Psychology: A Tutorial"),),  
+                                             div(p(" ")),
+                                             tags$a(href = "
+https://stats.stackexchange.com/questions/89474/interpretation-of-ordinal-logistic-regression#89485
+", tags$span(style="color:blue", "[6] Stackexchange"),),  
+                                             div(p(" ")),
                                                tags$hr()
                                                
                                         )
@@ -1526,7 +1532,7 @@ server <- shinyServer(function(input, output   ) {
     
     c10 <- expit(f[x][[1]]  + f['baseline'][[1]])
     
-    HTML(paste0( "Let's interpret the output on the left. The coefficient alongside y>=",min(dat$y)+1," is "
+    HTML(paste0( "Let's interpret the output on the left. All the coefficients with 'y>=' are intercepts.  The coefficient alongside y>=",min(dat$y)+1," is "
                  , tags$span(style="color:red", p2( f     [1][[1]]) ) ,
                  " this is the log odds of having a response in categories ",min(dat$y)+1," and above, when treatment and baseline are 0. 
                 So convert this to a probability after adding the contribution on the log scale of being in baseline category 1, for example gives "
@@ -1544,26 +1550,40 @@ server <- shinyServer(function(input, output   ) {
                  , tags$span(style="color:red"),  ". Check these probabilities to the top left cell and top right cell of Table 3, tab 6 !" ,
                  br(), br(),  
                  
-                 " The coefficient left, 'baseline' is a log odds ratio
-                 comparing an individual one baseline category higher whilst being identical in all other predictors and is "
+                 "All the coefficients not labelled with a 'y>=' are proportional odds ratios (shown on the log scale). 
+                 A proportional odds ratio compares all possible thresholds, 
+                 so we do not compare any specific categories, 
+                 but rather compare the odds for falling into a one to a higher category.  
+                 For a one unit increase in the baseline, the odds of observing category 1 vs. any other higher category 
+                 (or the odds of observing any category below a certain cutoff vs. observing any category above the same cutoff) are multiplied by "
+               
+                 
+                 
+                 
                  , tags$span(style="color:red", p3(f['baseline'])[[1]])  , 
-                  ", we can exponentiate this to give "
+                  ", we can exponentiate this to give the proportional odds ratio "
                      , tags$span(style="color:red", p3(exp(f['baseline']))[[1]])  ,
-                 " . We can see the effect of changing multiple categories on the outcome by multiplying " 
-                  , tags$span(style="color:red", p3(f['baseline'])[[1]]),  
-                " unit change by the 'Diff.'= ",
-                 tags$span(style="color:red", diff ) 
-                 ," which is selectable above and exponentiating...to give..." 
-                 , tags$span(style="color:red", p3(exp(f['baseline']*diff) ) [[1]] )  , 
-                 " and so on.",
+                 " . We can see the effect of increasing baseline by multiplying "
+                  , tags$span(style="color:red", p3(f['baseline'])[[1]]),
+                " a unit change by the 'Diff.'= ",
+                tags$span(style="color:red", diff )
+                ," which is selectable above and exponentiating...to give..."
+                , tags$span(style="color:red", p3(exp(f['baseline']*diff) ) [[1]] )  ,
+                " and so on.",
                 br(), br(),  
-                " The coefficient left, 'treatment' is a log odds ratio
+                
+                " The coefficient 'treatment' is a log odds ratio
                  comparing an individual in the treated group to the placebo group whilst 
                 being identical in all other predictors and is "
                 , tags$span(style="color:red", p3(f['treatment'])[[1]])  , 
                 ", we can exponentiate this to give the odds ratio: "
                 , tags$span(style="color:red", p3(exp(f['treatment']))[[1]])     , 
-                " "
+                ". For a one unit increase, that is treatment v placebo the odds of observing category 1 vs. any other higher category 
+                 (or the odds of observing any category below a certain cutoff vs. observing any category above the same cutoff) are multiplied by  "
+                , tags$span(style="color:red", p3(exp(f['treatment']))[[1]])     , "."
+                
+                
+                
                 
                 ))    
                 
