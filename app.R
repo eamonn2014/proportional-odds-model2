@@ -404,7 +404,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                    
                                    h4("Using the low and high effects from the rms package datadist function as the lower and upper cut point limits 
                                       we fit a series of logistic regression models and collect the coefficients. We expect them to be 
-                                      similar and in line with the proportional odds model coefficents. The PO model and 95% 
+                                      similar and in line with the proportional odds model coefficients. The PO model and 95% 
                                       confidence limits are superimposed (solid lines) as well as 
                                       the true value (dashed line).")
                                
