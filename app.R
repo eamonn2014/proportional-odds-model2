@@ -441,6 +441,7 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                
                                                tags$hr(),
                                                div(h4("References:")),  
+                                               
                                                tags$a(href = "https://stats.stackexchange.com/search?q=proportional+odds+model", tags$span(style="color:blue", "[1] Proportional odds model"),),   
                                                div(p(" ")),
                                                tags$a(href = "hhttps://en.wikipedia.org/wiki/Ordered_logit",  tags$span(style="color:blue", "[2] Proportional odds wiki"),),   
@@ -453,10 +454,13 @@ With the default inputs we can see horizontal lines in the treated responses (on
                                                div(p(" ")),
                                              tags$a(href = "https://psyarxiv.com/x8swp/", tags$span(style="color:blue", "[5] Ordinal Regression Models in Psychology: A Tutorial"),),  
                                              div(p(" ")),
-                                             tags$a(href = "
-https://stats.stackexchange.com/questions/89474/interpretation-of-ordinal-logistic-regression#89485
-", tags$span(style="color:blue", "[6] Stackexchange"),),  
+                                             tags$a(href = "https://stats.stackexchange.com/questions/89474/interpretation-of-ordinal-logistic-regression#89485", tags$span(style="color:blue", "[6] Stackexchange"),),  
                                              div(p(" ")),
+                                             tags$a(href = "https://www.youtube.com/watch?v=iYfuwIk-Cvg&feature=emb_logo&ab_channel=BBRcourse", tags$span(style="color:blue", "Frank Harrell tutorial"),),   
+                                             div(p(" ")),
+                                             
+                                             
+                                             
                                                tags$hr()
                                                
                                         )
