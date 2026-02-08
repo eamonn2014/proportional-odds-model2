@@ -1,6 +1,32 @@
 # Shiny app: Classic OBF NI (Ordinal PO) — Theory vs Monte-Carlo + Winner’s Curse
 # Endpoint: ordinal 0..K (BEST → WORST), COR < 1 favors treatment
 
+#  Alex theoretical 
+#   
+#   effect estimate = true effect (no sampling variability)
+#   no selection
+#   no conditioning
+#   
+#   But your simulation includes:
+#     
+#     sampling variability
+#   selection at IA
+#   conditioning on which trials reach final
+#   OBF boundaries
+#   only looking at the subset that crosses each boundary
+
+# Shiny app: Classic OBF NI (Ordinal PO) — Theory vs Monte-Carlo + Winner’s Curse
+# Endpoint: ordinal 0..K (BEST → WORST), COR < 1 favors treatment
+#
+# NOTE:
+# - Theoretical "borderline_COR" is a DESIGN THRESHOLD (depends on N, alpha, margin, control PMF),
+#   so it will NOT change when COR_true changes. That is expected.
+# - FIX APPLIED: theoretical borderline calculation was previously inconsistent with the
+#   simulation's definition logCOR_hat = - polr(trt coefficient).
+#
+# Main fix: borderline_beta_one_look() now solves on log(COR) scale but internally converts
+# to the polr coefficient scale for SE computation.
+
 suppressPackageStartupMessages({
   library(shiny)
   library(MASS)   # polr
@@ -31,6 +57,7 @@ theta_from_control_pmf <- function(p_control) {
 }
 
 pmf_from_beta <- function(theta, beta, x) {
+  # PO model with cumulative logits: logit(P(Y<=k | x)) = theta_k - beta * x
   cdf <- ilogit(theta - beta * x)
   cdf <- c(cdf, 1)
   pmf <- diff(c(0, cdf))
@@ -57,17 +84,51 @@ se_beta_polr <- function(N_total, theta, beta) {
   sqrt(vcov(fit)["trt", "trt"])
 }
 
-borderline_beta_one_look <- function(N_total, alpha, M_margin, theta,
-                                     beta_lower = -6, beta_upper = log(M_margin) - 1e-8) {
+# ────────────────────────────────────────
+# Theoretical borderline (one look)
+# ────────────────────────────────────────
+#
+# GOAL (unchanged): Find the effect (COR) such that the (asymptotic) Z-statistic hits the boundary:
+#   Z = (logCOR - log(M_margin))/SE_logCOR  = z_alpha
+#
+# IMPORTANT: In this app, simulation uses:
+#   logCOR_hat = - (polr coefficient for treatment)
+# so logCOR = -beta_polr
+#
+# FIX: Solve on logCOR scale, but compute SE by passing beta_polr = -logCOR into se_beta_polr().
+
+borderline_beta_one_look <- function(
+    N_total, alpha, M_margin, theta,
+    # user-specified bounds: keep intent the same as before
+    beta_lower = -6,
+    beta_upper = log(M_margin) - 1e-8
+) {
   logM <- log(M_margin)
   z_a  <- qnorm(alpha)
-  f <- function(beta) (beta - logM) / se_beta_polr(N_total, theta, beta) - z_a
-  fL <- f(beta_lower)
-  fU <- f(beta_upper)
+  
+  # Interpret beta_* bounds as bounds on logCOR (kept for backward compatibility with call sites)
+  logCOR_lower <- beta_lower
+  logCOR_upper <- beta_upper
+  
+  f <- function(logCOR) {
+    beta_polr <- -logCOR
+    se_logCOR <- se_beta_polr(N_total, theta, beta_polr)
+    (logCOR - logM) / se_logCOR - z_a
+  }
+  
+  fL <- f(logCOR_lower)
+  fU <- f(logCOR_upper)
+  
   if (anyNA(c(fL, fU))) return(NA_real_)
+  if (!is.finite(fL) || !is.finite(fU)) return(NA_real_)
+  
+  # If even very favorable logCOR doesn't cross, no solution
   if (fL > 0) return(NA_real_)
-  if (fU < 0) return(beta_upper)
-  uniroot(f, lower = beta_lower, upper = beta_upper)$root
+  
+  # If upper bound already below boundary, return upper (closest feasible)
+  if (fU < 0) return(logCOR_upper)
+  
+  uniroot(f, lower = logCOR_lower, upper = logCOR_upper)$root
 }
 
 # ────────────────────────────────────────
@@ -82,6 +143,7 @@ fit_logCOR <- function(df) {
   trt_name <- coef_names[grepl("^trt", coef_names)][1]
   if (is.na(trt_name)) return(NULL)
   
+  # Simulation convention: logCOR_hat = - polr(trt coefficient)
   logCOR_hat <- - as.numeric(fit$coefficients[[trt_name]])
   
   v <- vcov(fit)
@@ -126,6 +188,7 @@ simulate_obf_ordinal <- function(
   zcrit2 <- qnorm(alpha2)
   
   for (i in seq_len(nSims)) {
+    # ---- Stage 1 ----
     s1 <- split_n(n1_total)
     yC1 <- sample(0:K, s1$nC, TRUE, pi_control)
     yT1 <- sample(0:K, s1$nT, TRUE, pi_treat)
@@ -155,6 +218,7 @@ simulate_obf_ordinal <- function(
       }
     }
     
+    # ---- Stage 2 ----
     n2_total <- n_total - n1_total
     s2 <- split_n(n2_total)
     yC2 <- sample(0:K, s2$nC, TRUE, pi_control)
@@ -203,8 +267,8 @@ summ_or <- function(x) {
     N      = length(x),
     mean   = mean(x),
     median = median(x),
-    q025   = quantile(x, 0.025),
-    q975   = quantile(x, 0.975)
+    q025   = unname(quantile(x, 0.025)),
+    q975   = unname(quantile(x, 0.975))
   )
 }
 
@@ -246,7 +310,7 @@ ui <- fluidPage(
     
     mainPanel(
       tabsetPanel(
-        tabPanel("Interim (Z1 & OR1)", 
+        tabPanel("Interim (Z1 & OR1)",
                  plotOutput("plot_compare", height = "520px"),
                  tags$hr(),
                  tags$p(
@@ -257,8 +321,8 @@ ui <- fluidPage(
                    "Right panel: Density plots of the interim OR estimate (exp(log(COR_hat))) from IA data. The blue curve is for all trials (unconditional). The red curve is conditional on stopping at IA (Z1 ≤ zcrit1). Note that conditioning on stopping selects for trials with unusually favorable (low) OR estimates, demonstrating the winner's curse: the conditional distribution is shifted left (better than true COR) due to selection bias."
                  )
         ),
-        tabPanel("Final (Z2 & OR2)",   
-                 plotOutput("plot_final",   height = "520px"),
+        tabPanel("Final (Z2 & OR2)",
+                 plotOutput("plot_final", height = "520px"),
                  tags$hr(),
                  tags$p(
                    strong("Detailed explanation:"),
@@ -268,7 +332,7 @@ ui <- fluidPage(
                    "Right panel: Density plots of the final pooled OR estimate. The blue curve is for all trials that reached final (conditional on not stopping at IA). The red curve is further conditional on stopping at final (Z2 ≤ zcrit2). The blue distribution may appear slightly pessimistic (shifted right, worse than true COR) due to the inverse selection: trials reaching final had insufficiently favorable interim results to stop early. The red distribution shifts back left among those that succeed at final."
                  )
         ),
-        tabPanel("Selection Bias Overview", 
+        tabPanel("Selection Bias Overview",
                  plotOutput("plot_overview", height = "560px"),
                  tags$hr(),
                  tags$p(
@@ -329,18 +393,20 @@ server <- function(input, output, session) {
     
     sim_for_plot <- NULL
     N_eff_plot <- max(N_eff)
-    N1_plot    <- N1[N_eff == N_eff_plot]
+    N1_plot    <- N1[N_eff == N_eff_plot][1]
     
     withProgress(message = "Running simulations...", value = 0, {
       for (i in seq_along(N_eff)) {
         incProgress(1 / length(N_eff), detail = paste("N =", N_eff[i]))
         
+        # Theory: borderline effect hitting boundary (DESIGN threshold)
         b1 <- borderline_beta_one_look(N1[i],    input$alpha1, input$M_margin, theta)
         b2 <- borderline_beta_one_look(N_eff[i], input$alpha2, input$M_margin, theta)
         
         theory$borderline_COR_IA[i]    <- if (is.na(b1)) NA_real_ else exp(b1)
         theory$borderline_COR_final[i] <- if (is.na(b2)) NA_real_ else exp(b2)
         
+        # Simulation
         sim <- simulate_obf_ordinal(
           COR_true  = input$COR_true,
           COR_NI    = input$M_margin,
@@ -388,7 +454,6 @@ server <- function(input, output, session) {
   # ── Plot: Interim ────────────────────────────────────────────────────────
   
   output$plot_compare <- renderPlot({
-    req(input$run)
     msg <- invalid_probs_msg()
     if (!is.null(msg)) {
       plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
@@ -414,9 +479,9 @@ server <- function(input, output, session) {
          main = sprintf("Interim Z1 (N1 = %d of %d)", sim$N1_plot, sim$N_eff_plot),
          xlab = "Z1 = (loĝCOR – log M) / SE")
     abline(v = sim$zcrit1, col = "red3", lwd = 2.5, lty = 2)
-    lines(density(Z1), lwd = 2)
+    if (length(Z1) > 5) lines(density(Z1), lwd = 2)
     
-    # Right: OR1 densities with proper y-limit
+    # Right: OR1 densities
     if (length(OR1) < 5) {
       plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
       text(0.5, 0.5, "Too few valid OR1 values", cex = 1.3, col = "gray50")
@@ -431,7 +496,7 @@ server <- function(input, output, session) {
         ymax <- max(d_all$y, na.rm = TRUE) * 1.1
       }
       
-      xlim <- quantile(OR1, c(0.005, 0.995), na.rm = TRUE)
+      xlim <- unname(quantile(OR1, c(0.005, 0.995), na.rm = TRUE))
       xlim <- c(xlim[1] * 0.95, xlim[2] * 1.05)
       
       plot(d_all, lwd = 2, col = "#1f77b4",
@@ -456,7 +521,6 @@ server <- function(input, output, session) {
   # ── Plot: Final ──────────────────────────────────────────────────────────
   
   output$plot_final <- renderPlot({
-    req(input$run)
     msg <- invalid_probs_msg()
     if (!is.null(msg)) {
       plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
@@ -485,9 +549,9 @@ server <- function(input, output, session) {
          main = sprintf("Final Z2 (reached: %d/%d; stop: %d)", n_final, sim$nSims, n_stop),
          xlab = "Z2 (pooled)")
     abline(v = sim$zcrit2, col = "red3", lwd = 2.5, lty = 2)
-    lines(density(Z2), lwd = 2)
+    if (length(Z2) > 5) lines(density(Z2), lwd = 2)
     
-    # Right: OR2 densities with proper y-limit
+    # Right: OR2 densities
     if (length(OR2) < 5) {
       plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
       text(0.5, 0.5, "Too few valid OR2 values", cex = 1.3, col = "gray50")
@@ -502,7 +566,7 @@ server <- function(input, output, session) {
         ymax <- max(d_all$y, na.rm = TRUE) * 1.1
       }
       
-      xlim <- quantile(OR2, c(0.005, 0.995), na.rm = TRUE)
+      xlim <- unname(quantile(OR2, c(0.005, 0.995), na.rm = TRUE))
       xlim <- c(xlim[1] * 0.95, xlim[2] * 1.05)
       
       plot(d_all, lwd = 2, col = "#1f77b4",
@@ -527,7 +591,6 @@ server <- function(input, output, session) {
   # ── Plot: Overview ───────────────────────────────────────────────────────
   
   output$plot_overview <- renderPlot({
-    req(input$run)
     msg <- invalid_probs_msg()
     if (!is.null(msg)) {
       plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
@@ -595,8 +658,8 @@ server <- function(input, output, session) {
     
     # C) Boxplot summary
     groups <- list(
-      "IA all"     = L1_all,
-      "IA stopped" = L1_stop,
+      "IA all"        = L1_all,
+      "IA stopped"    = L1_stop,
       "Final reached" = L2_reach,
       "Final stopped" = L2_stop
     )
@@ -616,7 +679,6 @@ server <- function(input, output, session) {
   # ── Tables ───────────────────────────────────────────────────────────────
   
   output$tbl_theory <- renderTable({
-    req(input$run)
     msg <- invalid_probs_msg()
     if (!is.null(msg)) {
       data.frame(Note = msg)
@@ -630,17 +692,16 @@ server <- function(input, output, session) {
   }, digits = 3)
   
   output$tbl_sim <- renderTable({
-    req(input$run)
     msg <- invalid_probs_msg()
     if (!is.null(msg)) {
       data.frame(Note = msg)
     } else {
       req(results())$sim |>
         transform(
-          mean   = round(mean,   3),
-          median = round(median, 3),
-          q025   = round(q025,   3),
-          q975   = round(q975,   3),
+          mean    = round(mean,   3),
+          median  = round(median, 3),
+          q025    = round(q025,   3),
+          q975    = round(q975,   3),
           Pr_stop = round(Pr_stop, 3)
         )
     }
