@@ -1,31 +1,14 @@
 # Shiny app: Classic OBF NI (Ordinal PO) — Theory vs Monte-Carlo + Winner’s Curse
 # Endpoint: ordinal 0..K (BEST → WORST), COR < 1 favors treatment
-
-#  Alex theoretical 
-#   
-#   effect estimate = true effect (no sampling variability)
-#   no selection
-#   no conditioning
-#   
-#   But your simulation includes:
-#     
-#     sampling variability
-#   selection at IA
-#   conditioning on which trials reach final
-#   OBF boundaries
-#   only looking at the subset that crosses each boundary
-
-# Shiny app: Classic OBF NI (Ordinal PO) — Theory vs Monte-Carlo + Winner’s Curse
-# Endpoint: ordinal 0..K (BEST → WORST), COR < 1 favors treatment
 #
-# NOTE:
+# NOTES:
 # - Theoretical "borderline_COR" is a DESIGN THRESHOLD (depends on N, alpha, margin, control PMF),
 #   so it will NOT change when COR_true changes. That is expected.
-# - FIX APPLIED: theoretical borderline calculation was previously inconsistent with the
-#   simulation's definition logCOR_hat = - polr(trt coefficient).
-#
-# Main fix: borderline_beta_one_look() now solves on log(COR) scale but internally converts
-# to the polr coefficient scale for SE computation.
+# - FIX: theoretical borderline calculation is consistent with simulation definition:
+#       logCOR_hat = - polr(trt coefficient).
+# - Boxplot proportions are DRAWN on the plot (Panel C), not in axis labels.
+# - Interpretation text is added under each plot, with clarified language:
+#   the final estimator is not biased; any shifts are due to selection/conditioning.
 
 suppressPackageStartupMessages({
   library(shiny)
@@ -36,7 +19,6 @@ suppressPackageStartupMessages({
 # Core helpers
 # ────────────────────────────────────────
 
-logit  <- function(p) log(p / (1 - p))
 ilogit <- function(z) 1 / (1 + exp(-z))
 
 parse_probs <- function(txt) {
@@ -88,7 +70,7 @@ se_beta_polr <- function(N_total, theta, beta) {
 # Theoretical borderline (one look)
 # ────────────────────────────────────────
 #
-# GOAL (unchanged): Find the effect (COR) such that the (asymptotic) Z-statistic hits the boundary:
+# GOAL (unchanged): Find the effect (COR) such that the asymptotic Z-statistic hits the boundary:
 #   Z = (logCOR - log(M_margin))/SE_logCOR  = z_alpha
 #
 # IMPORTANT: In this app, simulation uses:
@@ -99,14 +81,12 @@ se_beta_polr <- function(N_total, theta, beta) {
 
 borderline_beta_one_look <- function(
     N_total, alpha, M_margin, theta,
-    # user-specified bounds: keep intent the same as before
     beta_lower = -6,
     beta_upper = log(M_margin) - 1e-8
 ) {
   logM <- log(M_margin)
   z_a  <- qnorm(alpha)
   
-  # Interpret beta_* bounds as bounds on logCOR (kept for backward compatibility with call sites)
   logCOR_lower <- beta_lower
   logCOR_upper <- beta_upper
   
@@ -122,10 +102,7 @@ borderline_beta_one_look <- function(
   if (anyNA(c(fL, fU))) return(NA_real_)
   if (!is.finite(fL) || !is.finite(fU)) return(NA_real_)
   
-  # If even very favorable logCOR doesn't cross, no solution
   if (fL > 0) return(NA_real_)
-  
-  # If upper bound already below boundary, return upper (closest feasible)
   if (fU < 0) return(logCOR_upper)
   
   uniroot(f, lower = logCOR_lower, upper = logCOR_upper)$root
@@ -305,7 +282,7 @@ ui <- fluidPage(
       tags$hr(),
       actionButton("run", "Run Simulation", class = "btn-primary", width = "100%"),
       tags$br(), tags$br(),
-      helpText("Early stopping selects overly optimistic estimates (winner’s curse). Reaching final selects the opposite bias.")
+      helpText("Early stopping selects overly optimistic estimates (winner’s curse). Reaching final selects the opposite selection effect.")
     ),
     
     mainPanel(
@@ -313,38 +290,50 @@ ui <- fluidPage(
         tabPanel("Interim (Z1 & OR1)",
                  plotOutput("plot_compare", height = "520px"),
                  tags$hr(),
-                 tags$p(
-                   strong("Detailed explanation:"),
-                   br(),
-                   "Left panel: Histogram of the interim Z1 statistic across all simulations. Z1 is the standardized test statistic at the interim analysis (IA): Z1 = (log(COR_hat) - log(M_margin)) / SE, where COR_hat is the estimated common odds ratio from the proportional odds model. The red dashed line is the OBF stopping boundary (zcrit1 = qnorm(alpha1)). Values below this boundary (red shaded area) lead to early stopping for success. This histogram is unconditional on stopping—it shows the full distribution of Z1 from all trials.",
-                   br(),
-                   "Right panel: Density plots of the interim OR estimate (exp(log(COR_hat))) from IA data. The blue curve is for all trials (unconditional). The red curve is conditional on stopping at IA (Z1 ≤ zcrit1). Note that conditioning on stopping selects for trials with unusually favorable (low) OR estimates, demonstrating the winner's curse: the conditional distribution is shifted left (better than true COR) due to selection bias."
+                 tags$div(style="font-size: 15px; line-height: 1.4;",
+                          tags$b("Interpretation:"),
+                          tags$br(), tags$br(),
+                          tags$ul(
+                            tags$li("The left panel shows interim (early) results across many simulated trials. Further left means the treatment looks more favourable relative to the non-inferiority margin."),
+                            tags$li("The red dashed line is the pre-set early stopping rule for success. Trials left of this line would stop early and declare non-inferiority at interim."),
+                            tags$li("The right panel shows the estimated treatment effect (OR) at interim. Blue is all trials; red is only those that stopped early."),
+                            tags$li("Because early stopping requires an unusually strong early signal, the trials that stop early tend to look more favourable than average. This is the expected ‘winner’s curse’: the subgroup that stops early often has an over-optimistic estimate compared with the true underlying effect.")
+                          )
                  )
         ),
+        
         tabPanel("Final (Z2 & OR2)",
                  plotOutput("plot_final", height = "520px"),
                  tags$hr(),
-                 tags$p(
-                   strong("Detailed explanation:"),
-                   br(),
-                   "Left panel: Histogram of the final pooled Z2 statistic among trials that reached the final analysis (did not stop at IA). Z2 = (log(COR_hat_pooled) - log(M_margin)) / SE_pooled. The red dashed line is the final OBF boundary (zcrit2 = qnorm(alpha2)). Values below this lead to stopping for success at final. This histogram is conditional on not stopping early, so it reflects trials with less favorable interim noise on average.",
-                   br(),
-                   "Right panel: Density plots of the final pooled OR estimate. The blue curve is for all trials that reached final (conditional on not stopping at IA). The red curve is further conditional on stopping at final (Z2 ≤ zcrit2). The blue distribution may appear slightly pessimistic (shifted right, worse than true COR) due to the inverse selection: trials reaching final had insufficiently favorable interim results to stop early. The red distribution shifts back left among those that succeed at final."
+                 tags$div(style="font-size: 15px; line-height: 1.4;",
+                          tags$b("Interpretation:"),
+                          tags$br(), tags$br(),
+                          tags$ul(
+                            tags$li("These results are for trials that did not stop early at interim and therefore continued to the planned final analysis."),
+                            tags$li("The red dashed line is the final decision boundary for non-inferiority at the end of the study."),
+                            tags$li("On the right, blue shows the estimated treatment effect among trials that reached final; red shows the subset that succeeded at final."),
+                            tags$li(tags$b("Important clarification: "),
+                                    "the final statistical method is not ‘biased’. Any shift you see is because we are looking at a selected subgroup (only trials that did not stop early). Trials that continue tend to be those without a strong early signal, so their distribution can look less favourable on average — but the final estimator remains valid.")
+                          )
                  )
         ),
+        
         tabPanel("Selection Bias Overview",
                  plotOutput("plot_overview", height = "560px"),
                  tags$hr(),
-                 tags$p(
-                   strong("Detailed explanation:"),
-                   br(),
-                   "Panel A: Density of log(COR) estimates at interim. Blue: unconditional across all trials. Red: conditional on stopping at IA. The red curve is shifted left (better) due to winner's curse—stopping requires extreme favorable noise.",
-                   br(),
-                   "Panel B: Density of log(COR) estimates at final (pooled). Blue: conditional on reaching final (not stopping at IA). Red: further conditional on stopping at final. The blue curve may be shifted right (worse) because reaching final selects for trials with less favorable interim noise. The red shifts back left for those succeeding at final.",
-                   br(),
-                   "Panel C: Boxplots summarizing log(COR) across selection stages. 'IA all': unconditional at IA. 'IA stopped': conditional on IA stop. 'Final reached': conditional on reaching final. 'Final stopped': conditional on final stop. This highlights opposing biases: strong winner's curse at IA stop vs pessimistic bias for reached final."
+                 tags$div(style="font-size: 15px; line-height: 1.4;",
+                          tags$b("Interpretation (how stopping rules affect what you ‘see’):"),
+                          tags$br(), tags$br(),
+                          tags$ul(
+                            tags$li("Panel A: Interim estimates. Red shows trials that stopped early. These are selected because they looked unusually good early on, so this subgroup tends to show more favourable estimates (winner’s curse)."),
+                            tags$li("Panel B: Final estimates. Blue shows trials that reached the final analysis (they did not meet the early success rule). Because this is a selected subgroup, it can look less favourable on average — this is a selection/conditioning effect, not a flaw in the final statistical method."),
+                            tags$li("Panel C: Boxplots summarise the same selection effects. The percentages printed next to each box show the proportion of all trials in each category (e.g., stopped early vs reached final)."),
+                            tags$li(tags$b("Clinical takeaway: "),
+                                    "early-stopped results can look overly optimistic because of selection; trials that continue to final are a different (selected) subset. This does not mean the final OR is biased — it reflects the trial pathway and stopping rules.")
+                          )
                  )
         ),
+        
         tabPanel("Tables",
                  h4("Theoretical borderline COR"),
                  tableOutput("tbl_theory"),
@@ -461,8 +450,7 @@ server <- function(input, output, session) {
       return()
     }
     
-    res <- req(results())
-    sim <- req(res$sim_for_plot)
+    sim <- req(results())$sim_for_plot
     
     ok <- is.finite(sim$Z1_all) & is.finite(sim$OR1_all)
     Z1  <- sim$Z1_all[ok]
@@ -474,14 +462,12 @@ server <- function(input, output, session) {
     
     op <- par(mfrow = c(1,2), mar = c(4,4,3,1))
     
-    # Left: Z1 histogram + density
     hist(Z1, breaks = 50, freq = FALSE, col = "gray90", border = "white",
          main = sprintf("Interim Z1 (N1 = %d of %d)", sim$N1_plot, sim$N_eff_plot),
          xlab = "Z1 = (loĝCOR – log M) / SE")
     abline(v = sim$zcrit1, col = "red3", lwd = 2.5, lty = 2)
     if (length(Z1) > 5) lines(density(Z1), lwd = 2)
     
-    # Right: OR1 densities
     if (length(OR1) < 5) {
       plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
       text(0.5, 0.5, "Too few valid OR1 values", cex = 1.3, col = "gray50")
@@ -504,9 +490,7 @@ server <- function(input, output, session) {
            main = "Interim OR1: all vs stop@IA",
            xlab = "OR1", ylab = "Density")
       
-      if (has_cond && !is.null(d_cond)) {
-        lines(d_cond, lwd = 2, col = "#d62728")
-      }
+      if (has_cond && !is.null(d_cond)) lines(d_cond, lwd = 2, col = "#d62728")
       
       legend("topright", inset = 0.02,
              legend = c(sprintf("All (n=%d)", length(OR1)),
@@ -528,8 +512,7 @@ server <- function(input, output, session) {
       return()
     }
     
-    res <- req(results())
-    sim <- req(res$sim_for_plot)
+    sim <- req(results())$sim_for_plot
     
     ok <- is.finite(sim$Z2_all) & is.finite(sim$OR2_all)
     Z2  <- sim$Z2_all[ok]
@@ -544,14 +527,12 @@ server <- function(input, output, session) {
     
     op <- par(mfrow = c(1,2), mar = c(4,4,3,1))
     
-    # Left: Z2 histogram + density
     hist(Z2, breaks = 50, freq = FALSE, col = "gray90", border = "white",
          main = sprintf("Final Z2 (reached: %d/%d; stop: %d)", n_final, sim$nSims, n_stop),
          xlab = "Z2 (pooled)")
     abline(v = sim$zcrit2, col = "red3", lwd = 2.5, lty = 2)
     if (length(Z2) > 5) lines(density(Z2), lwd = 2)
     
-    # Right: OR2 densities
     if (length(OR2) < 5) {
       plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
       text(0.5, 0.5, "Too few valid OR2 values", cex = 1.3, col = "gray50")
@@ -574,9 +555,7 @@ server <- function(input, output, session) {
            main = sprintf("Final OR2 (reached: %d/%d)", n_final, sim$nSims),
            xlab = "OR2", ylab = "Density")
       
-      if (has_cond && !is.null(d_cond)) {
-        lines(d_cond, lwd = 2, col = "#d62728")
-      }
+      if (has_cond && !is.null(d_cond)) lines(d_cond, lwd = 2, col = "#d62728")
       
       legend("topright", inset = 0.02,
              legend = c(sprintf("Reached final (n=%d)", n_final),
@@ -656,18 +635,41 @@ server <- function(input, output, session) {
       abline(v = c(log_true, log_M), lty = c(2,3), col = c("black","gray50"), lwd = 2)
     }
     
-    # C) Boxplot summary
+    # C) Boxplot summary + proportions DRAWN ON THE PLOT (no margin changes)
     groups <- list(
       "IA all"        = L1_all,
       "IA stopped"    = L1_stop,
       "Final reached" = L2_reach,
       "Final stopped" = L2_stop
     )
-    groups <- groups[sapply(groups, length) > 1]
+    groups <- groups[sapply(groups, function(v) length(v) > 1)]
+    
     if (length(groups) > 0) {
       boxplot(groups, horizontal = TRUE, las = 1, col = "gray92",
-              main = "C) Selection effects (log scale)", xlab = "log(COR)")
+              main = "C) Selection effects (log scale)",
+              xlab = "log(COR)")
       abline(v = c(log_true, log_M), lty = c(2,3), col = c("black","gray50"), lwd = 2)
+      
+      # proportions computed from counters (proportion of ALL trials)
+      p_stop1 <- sim$stop1 / sim$nSims
+      p_reach <- (sim$nSims - sim$stop1) / sim$nSims
+      p_stop2 <- sim$stop2 / sim$nSims
+      
+      # Map to displayed groups (in case any were dropped due to too few points)
+      props <- c(
+        "IA all"        = 1,
+        "IA stopped"    = p_stop1,
+        "Final reached" = p_reach,
+        "Final stopped" = p_stop2
+      )[names(groups)]
+      
+      # Place percents near the right edge of panel C, aligned to each box
+      usr <- par("usr")
+      x_text <- usr[2] - 0.03 * (usr[2] - usr[1])
+      y_pos  <- seq_along(groups)
+      
+      text(x = x_text, y = max(y_pos) + 0.6, labels = "% trials", cex = 0.85, adj = 1, col = "gray30")
+      text(x = x_text, y = y_pos, labels = sprintf("%.1f%%", 100 * props), cex = 0.9, adj = 1, col = "black")
     } else {
       plot(1, type = "n", axes = FALSE, main = "C) Selection effects")
       text(0.5, 0.5, "No valid data", cex = 1.2, col = "gray50")
