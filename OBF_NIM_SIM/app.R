@@ -166,11 +166,12 @@ sim_table <- function(sim) {
     Stage = c("Futility stop", "IA success stop", "Final success stop"),
     N     = c(fut["N"], ia["N"], fin["N"]),
     Min   = c(fut["Min"], ia["Min"], fin["Min"]),
-    Max   = c(fut["Max"], ia["Max"], fin["Max"]),
+   
     Mean  = c(fut["Mean"], ia["Mean"], fin["Mean"]),
     Median= c(fut["Median"], ia["Median"], fin["Median"]),
     `2.5%` = c(fut["2.5%"], ia["2.5%"], fin["2.5%"]),
     `97.5%`= c(fut["97.5%"], ia["97.5%"], fin["97.5%"]),
+    Max   = c(fut["Max"], ia["Max"], fin["Max"]),
     check.names = FALSE
   ) |>
     mutate(across(where(is.numeric), ~ round(.x, 3)))
