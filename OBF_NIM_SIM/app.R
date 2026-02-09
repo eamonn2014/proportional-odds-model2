@@ -1,28 +1,16 @@
-# Shiny app: Classic OBF NI (Ordinal PO) — Theory vs Monte-Carlo + Winner’s Curse
-# Endpoint: ordinal 0..K (BEST → WORST), COR < 1 favors treatment
-#
-# NOTES:
-# - Theoretical "borderline_COR" is a DESIGN THRESHOLD (depends on N, alpha, margin, control PMF),
-#   so it will NOT change when COR_true changes. That is expected.
-# - FIX: theoretical borderline calculation is consistent with simulation definition:
-#       logCOR_hat = - polr(trt coefficient).
-# - Boxplot proportions are DRAWN on the plot (Panel C), not in axis labels.
-# - Interpretation text is added under each plot, with clarified language:
-#   the final estimator is not biased; any shifts are due to selection/conditioning.
+# =============================================================================
+#   Shiny App: Ordinal Non-Inferiority Trial Simulator with Winner's Curse
+# =============================================================================
 
+library(shiny)
+library(shinyWidgets)
+library(MASS)     # polr
+library(dplyr)
+library(bslib)    # nicer theme
 
-# You’re right that early-stopped trials tend to show an inflated effect size—that’s called the winner’s curse.
-# But early stopping doesn’t invalidate the conclusion.
-# The stopping boundary is designed specifically to protect against false positives.
-# The effect size may be optimistic, but the evidence of non-inferiority remains statistically sound.”
-suppressPackageStartupMessages({
-  library(shiny)
-  library(MASS)   # polr
-})
-
-# ────────────────────────────────────────
-# Core helpers
-# ────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+#   Helpers (same as before — copied here for standalone app)
+# ─────────────────────────────────────────────────────────────────────────────
 
 ilogit <- function(z) 1 / (1 + exp(-z))
 
@@ -31,91 +19,25 @@ parse_probs <- function(txt) {
 }
 
 validate_probs <- function(p) {
-  if (any(is.na(p)))               return("Probabilities must be numeric (comma-separated).")
-  if (length(p) < 3)               return("Need at least 3 categories.")
-  if (any(p <= 0))                 return("All probabilities must be > 0.")
-  if (abs(sum(p) - 1) > 1e-6)      return(sprintf("Must sum to ~1 (got %.6f).", sum(p)))
+  if (any(is.na(p)))          return("Probabilities must be numeric (comma-separated).")
+  if (length(p) < 3)          return("Need at least 3 categories.")
+  if (any(p <= 0))            return("All probabilities must be > 0.")
+  if (abs(sum(p) - 1) > 1e-6) return(sprintf("Must sum to ~1 (got %.6f).", sum(p)))
   NULL
 }
 
 theta_from_control_pmf <- function(p_control) {
   cum_control <- cumsum(p_control)
-  qlogis(cum_control[seq_len(length(p_control) - 1)])
+  qlogis(cum_control[seq_len(length(p_control)-1)])
 }
 
-pmf_from_beta <- function(theta, beta, x) {
-  # PO model with cumulative logits: logit(P(Y<=k | x)) = theta_k - beta * x
+pmf_from_beta <- function(theta, beta, x = 1) {
   cdf <- ilogit(theta - beta * x)
   cdf <- c(cdf, 1)
   pmf <- diff(c(0, cdf))
   pmf[pmf < 0] <- 0
   pmf / sum(pmf)
 }
-
-build_weighted_data <- function(N_total, theta, beta) {
-  n_c <- floor(N_total / 2)
-  n_t <- N_total - n_c
-  pmf_c <- pmf_from_beta(theta, beta, 0)
-  pmf_t <- pmf_from_beta(theta, beta, 1)
-  y_levels <- seq_along(pmf_c) - 1
-  data.frame(
-    y   = factor(rep(y_levels, 2), ordered = TRUE, levels = y_levels),
-    trt = rep(c(0, 1), each = length(y_levels)),
-    w   = c(n_c * pmf_c, n_t * pmf_t)
-  ) |> transform(w = pmax(w, 1e-6))
-}
-
-se_beta_polr <- function(N_total, theta, beta) {
-  df <- build_weighted_data(N_total, theta, beta)
-  fit <- suppressWarnings(polr(y ~ trt, data = df, weights = w, Hess = TRUE))
-  sqrt(vcov(fit)["trt", "trt"])
-}
-
-# ────────────────────────────────────────
-# Theoretical borderline (one look)
-# ────────────────────────────────────────
-#
-# GOAL (unchanged): Find the effect (COR) such that the asymptotic Z-statistic hits the boundary:
-#   Z = (logCOR - log(M_margin))/SE_logCOR  = z_alpha
-#
-# IMPORTANT: In this app, simulation uses:
-#   logCOR_hat = - (polr coefficient for treatment)
-# so logCOR = -beta_polr
-#
-# FIX: Solve on logCOR scale, but compute SE by passing beta_polr = -logCOR into se_beta_polr().
-
-borderline_beta_one_look <- function(
-    N_total, alpha, M_margin, theta,
-    beta_lower = -6,
-    beta_upper = log(M_margin) - 1e-8
-) {
-  logM <- log(M_margin)
-  z_a  <- qnorm(alpha)
-  
-  logCOR_lower <- beta_lower
-  logCOR_upper <- beta_upper
-  
-  f <- function(logCOR) {
-    beta_polr <- -logCOR
-    se_logCOR <- se_beta_polr(N_total, theta, beta_polr)
-    (logCOR - logM) / se_logCOR - z_a
-  }
-  
-  fL <- f(logCOR_lower)
-  fU <- f(logCOR_upper)
-  
-  if (anyNA(c(fL, fU))) return(NA_real_)
-  if (!is.finite(fL) || !is.finite(fU)) return(NA_real_)
-  
-  if (fL > 0) return(NA_real_)
-  if (fU < 0) return(logCOR_upper)
-  
-  uniroot(f, lower = logCOR_lower, upper = logCOR_upper)$root
-}
-
-# ────────────────────────────────────────
-# Monte-Carlo simulation (Classic OBF)
-# ────────────────────────────────────────
 
 fit_logCOR <- function(df) {
   fit <- try(MASS::polr(y ~ trt, data = df, Hess = TRUE), silent = TRUE)
@@ -125,8 +47,7 @@ fit_logCOR <- function(df) {
   trt_name <- coef_names[grepl("^trt", coef_names)][1]
   if (is.na(trt_name)) return(NULL)
   
-  # Simulation convention: logCOR_hat = - polr(trt coefficient)
-  logCOR_hat <- - as.numeric(fit$coefficients[[trt_name]])
+  logCOR_hat <- as.numeric(fit$coefficients[[trt_name]])
   
   v <- vcov(fit)
   if (!(trt_name %in% rownames(v))) return(NULL)
@@ -138,581 +59,367 @@ fit_logCOR <- function(df) {
 }
 
 simulate_obf_ordinal <- function(
-    COR_true, COR_NI,
-    n1_total, n_total,
-    alpha1, alpha2,
-    p_control, seed = 1, nSims = 2000
+    COR_true, COR_NI, n_total, futility_frac, info_frac,
+    alpha1, alpha2, futility_p, p_control,
+    seed = 1234, nSims = 1000, show_progress = TRUE
 ) {
-  set.seed(seed)
-  eps <- 1e-12
+  msg <- validate_probs(p_control)
+  if (!is.null(msg)) stop(msg)
   
+  set.seed(seed)
   theta <- theta_from_control_pmf(p_control)
   K <- length(p_control) - 1
-  
   beta_true <- log(COR_true)
   beta_NI   <- log(COR_NI)
   
   pi_control <- p_control
-  pi_treat   <- diff(c(0, ilogit(theta - beta_true), 1))
+  pi_treat   <- pmf_from_beta(theta, beta_true)
   
   split_n <- function(N) {
-    nC <- floor(N / 2)
-    list(nC = nC, nT = N - nC)
+    nC <- floor(N/2); list(nC = nC, nT = N - nC)
   }
   
-  Z1_all <- OR1_all <- Z2_all <- OR2_all <- rep(NA_real_, nSims)
-  stop_stage <- rep(0L, nSims)
-  OR_at_stop <- numeric()
-  stop_stage_success <- integer()
+  res <- list(
+    Z_fut_all = rep(NA_real_, nSims), COR_fut_all = rep(NA_real_, nSims),
+    Z1_all    = rep(NA_real_, nSims), COR1_all    = rep(NA_real_, nSims),
+    Z2_all    = rep(NA_real_, nSims), COR2_all    = rep(NA_real_, nSims),
+    stop_fut  = logical(nSims), stop_ia = logical(nSims), stop_final = logical(nSims),
+    nSims = nSims, z_fut = qnorm(futility_p), zcrit1 = qnorm(alpha1), zcrit2 = qnorm(alpha2)
+  )
   
-  stop1 <- stop2 <- 0L
-  zcrit1 <- qnorm(alpha1)
-  zcrit2 <- qnorm(alpha2)
+  n_fut <- round(futility_frac * n_total)
+  n1    <- round(info_frac  * n_total)
+  
+  pb <- if(show_progress) shiny::Progress$new() else NULL
+  if (!is.null(pb)) pb$set(message = "Running simulations...", value = 0)
   
   for (i in seq_len(nSims)) {
-    # ---- Stage 1 ----
-    s1 <- split_n(n1_total)
-    yC1 <- sample(0:K, s1$nC, TRUE, pi_control)
-    yT1 <- sample(0:K, s1$nT, TRUE, pi_treat)
-    
-    df1 <- data.frame(
-      y   = factor(c(yC1, yT1), ordered = TRUE, levels = 0:K),
-      trt = factor(rep(c("C", "T"), c(s1$nC, s1$nT)), levels = c("C", "T"))
+    # Futility
+    s_f <- split_n(n_fut)
+    yCf <- sample(0:K, s_f$nC, TRUE, pi_control)
+    yTf <- sample(0:K, s_f$nT, TRUE, pi_treat)
+    df_f <- data.frame(
+      y = factor(c(yCf,yTf), ordered=TRUE, levels=0:K),
+      trt = factor(rep(c("C","T"), c(s_f$nC,s_f$nT)), levels=c("C","T"))
     )
-    
-    res1 <- fit_logCOR(df1)
-    p1 <- 1
-    
-    if (!is.null(res1)) {
-      Z1_all[i]  <- (res1$logCOR_hat - beta_NI) / res1$se
-      OR1_all[i] <- exp(res1$logCOR_hat)
-      p1 <- pnorm(Z1_all[i])
-      p1 <- min(max(p1, eps), 1 - eps)
-      
-      if (p1 <= alpha1) {
-        stop1 <- stop1 + 1L
-        stop_stage[i] <- 1L
-        if (is.finite(OR1_all[i])) {
-          OR_at_stop <- c(OR_at_stop, OR1_all[i])
-          stop_stage_success <- c(stop_stage_success, 1L)
-        }
-        next
-      }
+    fit_f <- fit_logCOR(df_f)
+    if (!is.null(fit_f)) {
+      res$Z_fut_all[i]   <- (fit_f$logCOR_hat - beta_NI) / fit_f$se
+      res$COR_fut_all[i] <- exp(fit_f$logCOR_hat)
+      if (res$Z_fut_all[i] > res$z_fut) { res$stop_fut[i] <- TRUE; if(!is.null(pb)) pb$inc(1/nSims); next }
     }
     
-    # ---- Stage 2 ----
-    n2_total <- n_total - n1_total
-    s2 <- split_n(n2_total)
-    yC2 <- sample(0:K, s2$nC, TRUE, pi_control)
-    yT2 <- sample(0:K, s2$nT, TRUE, pi_treat)
-    
-    df2 <- data.frame(
-      y   = factor(c(yC2, yT2), ordered = TRUE, levels = 0:K),
-      trt = factor(rep(c("C", "T"), c(s2$nC, s2$nT)), levels = c("C", "T"))
+    # Interim
+    n_add_ia <- n1 - n_fut
+    s_add <- split_n(n_add_ia)
+    yCa <- sample(0:K, s_add$nC, TRUE, pi_control)
+    yTa <- sample(0:K, s_add$nT, TRUE, pi_treat)
+    df_add <- data.frame(
+      y = factor(c(yCa,yTa), ordered=TRUE, levels=0:K),
+      trt = factor(rep(c("C","T"), c(s_add$nC,s_add$nT)), levels=c("C","T"))
     )
+    df1 <- rbind(df_f, df_add)
+    fit1 <- fit_logCOR(df1)
+    if (!is.null(fit1)) {
+      res$Z1_all[i]   <- (fit1$logCOR_hat - beta_NI) / fit1$se
+      res$COR1_all[i] <- exp(fit1$logCOR_hat)
+      if (res$Z1_all[i] <= res$zcrit1) { res$stop_ia[i] <- TRUE; if(!is.null(pb)) pb$inc(1/nSims); next }
+    }
     
-    df12 <- rbind(df1, df2)
-    res12 <- fit_logCOR(df12)
+    # Final
+    n_add_final <- n_total - n1
+    s_final <- split_n(n_add_final)
+    yCf2 <- sample(0:K, s_final$nC, TRUE, pi_control)
+    yTf2 <- sample(0:K, s_final$nT, TRUE, pi_treat)
+    df_final_add <- data.frame(
+      y = factor(c(yCf2,yTf2), ordered=TRUE, levels=0:K),
+      trt = factor(rep(c("C","T"), c(s_final$nC,s_final$nT)), levels=c("C","T"))
+    )
+    df2 <- rbind(df1, df_final_add)
+    fit2 <- fit_logCOR(df2)
+    if (!is.null(fit2)) {
+      res$Z2_all[i]   <- (fit2$logCOR_hat - beta_NI) / fit2$se
+      res$COR2_all[i] <- exp(fit2$logCOR_hat)
+      if (res$Z2_all[i] <= res$zcrit2) res$stop_final[i] <- TRUE
+    }
     
-    if (!is.null(res12)) {
-      z2 <- (res12$logCOR_hat - beta_NI) / res12$se
-      p2 <- pnorm(z2)
-      p2 <- min(max(p2, eps), 1 - eps)
-      OR2 <- exp(res12$logCOR_hat)
+    if (!is.null(pb)) pb$inc(1/nSims)
+  }
+  
+  if (!is.null(pb)) pb$close()
+  res
+}
+
+sim_table <- function(sim) {
+  safe_summ_ext <- function(x) {
+    x <- x[is.finite(x)]
+    if (length(x) == 0) return(c(N=0L, Min=NA, Max=NA, Mean=NA, Median=NA, `2.5%`=NA, `97.5%`=NA))
+    q <- quantile(x, c(0.025,0.5,0.975), names=FALSE)
+    c(N=length(x), Min=min(x), Max=max(x), Mean=mean(x), Median=q[2], `2.5%`=q[1], `97.5%`=q[3])
+  }
+  
+  fut <- safe_summ_ext(sim$COR_fut_all[sim$stop_fut])
+  ia  <- safe_summ_ext(sim$COR1_all[sim$stop_ia])
+  fin <- safe_summ_ext(sim$COR2_all[sim$stop_final])
+  
+  data.frame(
+    Stage = c("Futility stop", "IA success stop", "Final success stop"),
+    N     = c(fut["N"], ia["N"], fin["N"]),
+    Min   = c(fut["Min"], ia["Min"], fin["Min"]),
+    Max   = c(fut["Max"], ia["Max"], fin["Max"]),
+    Mean  = c(fut["Mean"], ia["Mean"], fin["Mean"]),
+    Median= c(fut["Median"], ia["Median"], fin["Median"]),
+    `2.5%` = c(fut["2.5%"], ia["2.5%"], fin["2.5%"]),
+    `97.5%`= c(fut["97.5%"], ia["97.5%"], fin["97.5%"]),
+    check.names = FALSE
+  ) |>
+    mutate(across(where(is.numeric), ~ round(.x, 3)))
+}
+
+# Boxplot function (slightly simplified for Shiny)
+selection_boxplot <- function(
+    sim,
+    COR_true,
+    COR_NI,
+    main = "Winner's curse & selection bias (log COR scale)",
+    point_cex     = 0.6,
+    point_alpha   = 0.25,
+    jitter_height = 0.30,
+    box_width     = 0.28,
+    ylim          = c(-1.5, 2.0)   # adjust as needed for your data range
+) {
+  log_true <- log(COR_true)
+  log_M    <- log(COR_NI)
+  
+  # Prepare groups (same as before)
+  groups <- list(
+    "All @ futility"            = log(sim$COR_fut_all[is.finite(sim$COR_fut_all)]),
+    "Stopped futility"          = log(sim$COR_fut_all[sim$stop_fut & is.finite(sim$COR_fut_all)]),
+    "All @ interim"             = log(sim$COR1_all[is.finite(sim$COR1_all)]),
+    "Stopped IA success"        = log(sim$COR1_all[sim$stop_ia & is.finite(sim$COR1_all)]),
+    "All @ final"               = log(sim$COR2_all[is.finite(sim$COR2_all)]),
+    "Stopped final success"     = log(sim$COR2_all[sim$stop_final & is.finite(sim$COR2_all)])
+  )
+  
+  keep <- sapply(groups, function(g) length(g) > 0 && all(is.finite(g)))
+  groups <- groups[keep]
+  group_names <- names(groups)
+  if (length(groups) == 0) {
+    plot.new()
+    text(0.5, 0.5, "No valid data", cex = 1.4, col = "gray")
+    return(invisible(NULL))
+  }
+  
+  # Plot setup – note x and y swapped visually for horizontal layout
+  op <- par(mar = c(10, 12, 5, 16))
+  on.exit(par(op))
+  
+  plot(0, type = "n",
+       xlim = ylim,   # log(COR) horizontal
+       ylim = c(0.4, length(groups) + 0.9),
+       xlab = "", ylab = "",
+       yaxt = "n", las = 1, main = main)
+  
+  axis(2, at = seq_along(groups), labels = group_names, las = 1, cex.axis = 0.95)
+  
+  # ── Draw points + custom horizontal boxes ────────────────────────────────
+  for (i in seq_along(groups)) {
+    vals <- groups[[i]]
+    n <- length(vals)
+    if (n == 0) next
+    
+    # Jittered points
+    set.seed(2025 + i * 100)
+    jitter_y <- runif(n, -jitter_height, jitter_height)
+    col_pt <- if (grepl("futility", group_names[i])) {
+      rgb(0.9, 0.15, 0.15, point_alpha)
+    } else if (grepl("success", group_names[i])) {
+      rgb(0.1, 0.65, 0.1, point_alpha)
+    } else {
+      rgb(0.3, 0.3, 0.3, point_alpha)
+    }
+    points(vals, i + jitter_y, pch = 19, cex = point_cex, col = col_pt)
+    
+    # ── Custom box (horizontal) ─────────────────────────────────────────────
+    if (n >= 3) {
+      q <- quantile(vals, probs = c(0.25, 0.5, 0.75))
+      iqr <- q[3] - q[1]
       
-      Z2_all[i]  <- z2
-      OR2_all[i] <- OR2
+      lower_whisk <- min(vals[vals >= q[1] - 1.5 * iqr])
+      upper_whisk <- max(vals[vals <= q[3] + 1.5 * iqr])
       
-      if (p2 <= alpha2) {
-        stop2 <- stop2 + 1L
-        stop_stage[i] <- 2L
-        if (is.finite(OR2)) {
-          OR_at_stop <- c(OR_at_stop, OR2)
-          stop_stage_success <- c(stop_stage_success, 2L)
-        }
-      }
+      # Box body
+      rect(q[1], i - box_width/2, q[3], i + box_width/2,
+           col = rgb(0.88, 0.93, 1.0, 0.5), border = "steelblue", lwd = 1.4)
+      
+      # Median line (thick)
+      segments(q[2], i - box_width/2, q[2], i + box_width/2,
+               lwd = 5, col = "royalblue3")
+      
+      # Whiskers (horizontal lines)
+      segments(lower_whisk, i, q[1], i, lwd = 2.4, col = "midnightblue")
+      segments(q[3], i, upper_whisk, i, lwd = 2.4, col = "midnightblue")
+      
+      # Whisker caps (short vertical ticks)
+      cap_len <- box_width * 0.4
+      segments(lower_whisk, i - cap_len, lower_whisk, i + cap_len, lwd = 2.4, col = "midnightblue")
+      segments(upper_whisk, i - cap_len, upper_whisk, i + cap_len, lwd = 2.4, col = "midnightblue")
     }
   }
   
-  list(
-    stop1 = stop1, stop2 = stop2, nSims = nSims,
-    OR_at_stop = OR_at_stop, stop_stage_success = stop_stage_success,
-    Z1_all = Z1_all, OR1_all = OR1_all,
-    Z2_all = Z2_all, OR2_all = OR2_all,
-    zcrit1 = zcrit1, zcrit2 = zcrit2
-  )
-}
-
-summ_or <- function(x) {
-  if (length(x) == 0) return(c(N=0L, mean=NA_real_, median=NA_real_, q025=NA_real_, q975=NA_real_))
-  c(
-    N      = length(x),
-    mean   = mean(x),
-    median = median(x),
-    q025   = unname(quantile(x, 0.025)),
-    q975   = unname(quantile(x, 0.975))
-  )
-}
-
-# ────────────────────────────────────────
-# UI
-# ────────────────────────────────────────
-
-ui <- fluidPage(
-  titlePanel("OBF Non-Inferiority – Ordinal PO: Theory vs Monte-Carlo + Winner’s Curse"),
+  # ── Reference lines ───────────────────────────────────────────────────────
+  abline(v = c(log_true, log_M), lty = c(2, 3), col = c("darkgreen", "red"), lwd = 2.5)
   
-  sidebarLayout(
-    sidebarPanel(
-      numericInput("N_total", "Total N (final)", 600, min = 50, step = 10),
-      numericInput("info_frac", "Info fraction at IA", 0.80, 0.1, 0.95, 0.05),
-      numericInput("alpha1", "α₁ (one-sided IA)", 0.0122, 1e-6, 0.2, 0.001),
-      numericInput("alpha2", "α₂ (one-sided final)", 0.0214, 1e-6, 0.2, 0.001),
-      
-      numericInput("M_margin", "NI margin (COR)", 1.6, 1.01, step = 0.05),
-      numericInput("COR_true", "True COR (simulation)", 1.0, 0.2, step = 0.05),
-      
-      textInput("p_control", "Control probs (best→worst, comma sep)",
-                "0.04, 0.02, 0.45, 0.34, 0.15"),
-      
-      tags$hr(),
-      checkboxInput("run_grid", "Run grid over proportions", FALSE),
-      numericInput("prop_start", "Start prop", 0.30, 0.05, 1, 0.05),
-      numericInput("prop_end",   "End prop",   1.00, 0.05, 1, 0.05),
-      numericInput("prop_step",  "Step",       0.05, 0.01, 0.5, 0.01),
-      
-      tags$hr(),
-      numericInput("nSims", "# Sims per N", 500, 100, step = 500),
-      numericInput("seed", "Seed", 1234, 1),
-      
-      tags$hr(),
-      actionButton("run", "Run Simulation", class = "btn-primary", width = "100%"),
-      tags$br(), tags$br(),
-      helpText("Early stopping selects overly optimistic estimates (winner’s curse). Reaching final selects the opposite selection effect.")
-    ),
+  # ── Percentage labels on right ───────────────────────────────────────────
+  p_fut   <- mean(sim$stop_fut,   na.rm = TRUE)
+  p_ia    <- mean(sim$stop_ia,    na.rm = TRUE)
+  p_final <- mean(sim$stop_final, na.rm = TRUE)
+  
+  props <- c(1, p_fut, 1 - p_fut, p_ia, 1 - p_fut - p_ia, p_final)[keep]
+  
+  usr <- par("usr")
+  x_text <- usr[2] + 0.14 * (usr[2] - usr[1])
+  
+  for (i in seq_along(groups)) {
+    text(x_text, i, sprintf("%.1f%%", 100 * props[i]), adj = 0, cex = 1.05, font = 2,
+         col = if (grepl("futility", group_names[i])) "firebrick" else
+           if (grepl("success",   group_names[i])) "forestgreen" else "gray30",
+         xpd = TRUE)
+  }
+  
+  text(x_text, length(groups) + 0.75, "% of sims", adj = 0, cex = 1.1, font = 2,
+       col = "gray40", xpd = TRUE)
+  
+  # Footer note
+  power <- p_ia + p_final
+  mtext(sprintf("True COR = %.2f  •  Futility @ %.0f%%  •  IA @ %.0f%%  •  Power ≈ %.1f%%",
+                COR_true, 100 * 0.5, 100 * 0.8, 100 * power),
+        side = 1, line = 3.2, cex = 0.9, col = "gray50")
+  
+  mtext("Winner's curse: success groups (green) are systematically too optimistic → shifted left",
+        side = 1, line = 5, cex = 0.9, col = "gray50")
+  
+  invisible(NULL)
+}
+# ─────────────────────────────────────────────────────────────────────────────
+#   Shiny UI
+# ─────────────────────────────────────────────────────────────────────────────
+
+ui <- page_sidebar(
+  title = "Ordinal Non-Inferiority Trial Simulator + Winner's Curse",
+  
+  sidebar = sidebar(
+    h4("Simulation Settings"),
     
-    mainPanel(
-      tabsetPanel(
-        tabPanel("Interim (Z1 & OR1)",
-                 plotOutput("plot_compare", height = "520px"),
-                 tags$hr(),
-                 tags$div(style="font-size: 15px; line-height: 1.4;",
-                          tags$b("Interpretation:"),
-                          tags$br(), tags$br(),
-                          tags$ul(
-                            tags$li("The left panel shows interim (early) results across many simulated trials. Further left means the treatment looks more favourable relative to the non-inferiority margin."),
-                            tags$li("The red dashed line is the pre-set early stopping rule for success. Trials left of this line would stop early and declare non-inferiority at interim."),
-                            tags$li("The right panel shows the estimated treatment effect (OR) at interim. Blue is all trials; red is only those that stopped early."),
-                            tags$li("Because early stopping requires an unusually strong early signal, the trials that stop early tend to look more favourable than average. This is the expected ‘winner’s curse’: the subgroup that stops early often has an over-optimistic estimate compared with the true underlying effect.")
-                          )
-                 )
-        ),
-        
-        tabPanel("Final (Z2 & OR2)",
-                 plotOutput("plot_final", height = "520px"),
-                 tags$hr(),
-                 tags$div(style="font-size: 15px; line-height: 1.4;",
-                          tags$b("Interpretation:"),
-                          tags$br(), tags$br(),
-                          tags$ul(
-                            tags$li("These results are for trials that did not stop early at interim and therefore continued to the planned final analysis."),
-                            tags$li("The red dashed line is the final decision boundary for non-inferiority at the end of the study."),
-                            tags$li("On the right, blue shows the estimated treatment effect among trials that reached final; red shows the subset that succeeded at final."),
-                            tags$li(tags$b("Important clarification: "),
-                                    "the final statistical method is not ‘biased’. Any shift you see is because we are looking at a selected subgroup (only trials that did not stop early). Trials that continue tend to be those without a strong early signal, so their distribution can look less favourable on average — but the final estimator remains valid.")
-                          )
-                 )
-        ),
-        
-        tabPanel("Selection Bias Overview",
-                 plotOutput("plot_overview", height = "560px"),
-                 tags$hr(),
-                 tags$div(style="font-size: 15px; line-height: 1.4;",
-                          tags$b("Interpretation (how stopping rules affect what you ‘see’):"),
-                          tags$br(), tags$br(),
-                          tags$ul(
-                            tags$li("Panel A: Interim estimates. Red shows trials that stopped early. These are selected because they looked unusually good early on, so this subgroup tends to show more favourable estimates (winner’s curse)."),
-                            tags$li("Panel B: Final estimates. Blue shows trials that reached the final analysis (they did not meet the early success rule). Because this is a selected subgroup, it can look less favourable on average — this is a selection/conditioning effect, not a flaw in the final statistical method."),
-                            tags$li("Panel C: Boxplots summarise the same selection effects. The percentages printed next to each box show the proportion of all trials in each category (e.g., stopped early vs reached final)."),
-                            tags$li(tags$b("Clinical takeaway: "),
-                                    "early-stopped results can look overly optimistic because of selection; trials that continue to final are a different (selected) subset. This does not mean the final OR is biased — it reflects the trial pathway and stopping rules.")
-                          )
-                 )
-        ),
-        
-        tabPanel("Tables",
-                 h4("Theoretical borderline COR"),
-                 tableOutput("tbl_theory"),
-                 tags$hr(),
-                 h4("Observed OR at stopping"),
-                 tableOutput("tbl_sim")
-        )
+    numericInput("n_total",       "Total sample size",           value = 600,   min = 200, step = 50),
+    numericInput("n_sims",        "Number of simulations",       value = 1000,  min = 100, max = 10000, step = 100),
+    numericInput("seed",          "Random seed",                 value = 202506, min = 1),
+    
+    numericInput("COR_true",      "True COR (treatment effect)", value = 1.3,   min = 0.5, step = 0.05),
+    numericInput("COR_NI",        "Non-inferiority margin (M)",  value = 1.6,   min = 1.0, step = 0.1),
+    
+    sliderInput("futility_frac",  "Futility look fraction",      min = 0.2, max = 0.7, value = 0.5, step = 0.05),
+    sliderInput("info_frac",      "Interim look fraction",        min = 0.5, max = 0.95, value = 0.80, step = 0.05),
+    
+    numericInput("futility_p",    "Futility p-value threshold",  value = 0.70, min = 0.5, max = 0.95, step = 0.05),
+    numericInput("alpha1",        "Interim alpha (one-sided)",   value = 0.0122, min = 0.001, step = 0.001),
+    numericInput("alpha2",        "Final alpha (one-sided)",     value = 0.0214, min = 0.001, step = 0.001),
+    
+    textInput("p_control_txt",    "Control probabilities (comma sep)",
+              value = "0.04, 0.02, 0.45, 0.34, 0.15"),
+    
+    actionButton("run_btn", "Run Simulation", class = "btn-primary btn-lg", icon = icon("play")),
+    
+    hr(),
+    helpText("Simulation may take 10–90 seconds depending on nSims.")
+  ),
+  
+  card(
+    card_header("Results"),
+    tabsetPanel(
+      tabPanel("Summary Table",
+               verbatimTextOutput("status"),
+               tableOutput("summary_table")
+      ),
+      tabPanel("Winner's Curse Plot",
+               plotOutput("boxplot", height = "700px")
+      ),
+      tabPanel("About Winner's Curse",
+               h4("What is the Winner's Curse / Selection Bias?"),
+               p("When trials stop early for efficacy (or we only look at successful subgroups/arms),",
+                 "the observed treatment effect is systematically **overestimated** compared to the true effect."),
+               p("This happens because only trials/arms that — by chance — show unusually large effects",
+                 "cross the efficacy boundary early. This is a form of **selection bias** or **regression to the mean**."),
+               p("Look at the green groups in the plot — they are consistently shifted to the right of the true value."),
+               p("In practice this can lead to:"),
+               tags$ul(
+                 tags$li("Over-optimistic power assumptions for future trials"),
+                 tags$li("Misleading effect size estimates for meta-analyses"),
+                 tags$li("Overconfidence in dose/arm selection")
+               ),
+               p("Mitigation approaches include: bias-corrected estimators, conservative interim bounds,",
+                 "or reporting confidence intervals that account for the selection process.")
       )
     )
   )
 )
 
-# ────────────────────────────────────────
-# Server
-# ────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+#   Server
+# ─────────────────────────────────────────────────────────────────────────────
 
 server <- function(input, output, session) {
   
-  invalid_probs_msg <- reactive({
-    p <- parse_probs(input$p_control)
-    validate_probs(p)
+  sim_result <- eventReactive(input$run_btn, {
+    req(input$run_btn)
+    
+    output$status <- renderText("Running simulations... please wait.")
+    
+    p_control <- parse_probs(input$p_control_txt)
+    msg <- validate_probs(p_control)
+    if (!is.null(msg)) {
+      showNotification(msg, type = "error", duration = 10)
+      return(NULL)
+    }
+    
+    simulate_obf_ordinal(
+      COR_true      = input$COR_true,
+      COR_NI        = input$COR_NI,
+      n_total       = input$n_total,
+      futility_frac = input$futility_frac,
+      info_frac     = input$info_frac,
+      alpha1        = input$alpha1,
+      alpha2        = input$alpha2,
+      futility_p    = input$futility_p,
+      p_control     = p_control,
+      seed          = input$seed,
+      nSims         = input$n_sims,
+      show_progress = TRUE
+    )
+  }, ignoreNULL = TRUE)
+  
+  output$status <- renderText({
+    if (is.null(sim_result())) {
+      "Click 'Run Simulation' to start."
+    } else {
+      "Simulation complete."
+    }
   })
   
-  results <- eventReactive(input$run, {
-    p <- parse_probs(input$p_control)
-    if (!is.null(validate_probs(p))) return(NULL)
-    
-    props <- if (input$run_grid) seq(input$prop_start, input$prop_end, by = input$prop_step) else 1
-    N_eff <- round(input$N_total * props)
-    N1    <- round(input$info_frac * N_eff)
-    
-    theta <- theta_from_control_pmf(p)
-    
-    theory <- data.frame(
-      prop = props, N_eff = N_eff, N_IA = N1,
-      borderline_COR_IA = NA_real_, borderline_COR_final = NA_real_
-    )
-    
-    sim_out <- data.frame(
-      prop = rep(props, each = 2),
-      N_eff = rep(N_eff, each = 2),
-      stage = rep(c("Stop @ IA", "Stop @ Final"), length(props)),
-      N = NA_real_, mean = NA_real_, median = NA_real_, q025 = NA_real_, q975 = NA_real_,
-      Pr_stop = NA_real_
-    )
-    
-    sim_for_plot <- NULL
-    N_eff_plot <- max(N_eff)
-    N1_plot    <- N1[N_eff == N_eff_plot][1]
-    
-    withProgress(message = "Running simulations...", value = 0, {
-      for (i in seq_along(N_eff)) {
-        incProgress(1 / length(N_eff), detail = paste("N =", N_eff[i]))
-        
-        # Theory: borderline effect hitting boundary (DESIGN threshold)
-        b1 <- borderline_beta_one_look(N1[i],    input$alpha1, input$M_margin, theta)
-        b2 <- borderline_beta_one_look(N_eff[i], input$alpha2, input$M_margin, theta)
-        
-        theory$borderline_COR_IA[i]    <- if (is.na(b1)) NA_real_ else exp(b1)
-        theory$borderline_COR_final[i] <- if (is.na(b2)) NA_real_ else exp(b2)
-        
-        # Simulation
-        sim <- simulate_obf_ordinal(
-          COR_true  = input$COR_true,
-          COR_NI    = input$M_margin,
-          n1_total  = N1[i],
-          n_total   = N_eff[i],
-          alpha1    = input$alpha1,
-          alpha2    = input$alpha2,
-          p_control = p,
-          seed      = input$seed + i,
-          nSims     = input$nSims
-        )
-        
-        if (N_eff[i] == N_eff_plot) {
-          sim_for_plot <- sim
-          sim_for_plot$N_eff_plot <- N_eff_plot
-          sim_for_plot$N1_plot    <- N1_plot
-        }
-        
-        OR <- sim$OR_at_stop
-        st <- sim$stop_stage_success
-        
-        s1 <- summ_or(OR[st == 1])
-        s2 <- summ_or(OR[st == 2])
-        
-        idx1 <- (i-1)*2 + 1
-        idx2 <- (i-1)*2 + 2
-        
-        sim_out[idx1, c("N","mean","median","q025","q975")] <- as.numeric(s1)
-        sim_out[idx2, c("N","mean","median","q025","q975")] <- as.numeric(s2)
-        
-        sim_out$Pr_stop[idx1] <- sim$stop1 / sim$nSims
-        sim_out$Pr_stop[idx2] <- sim$stop2 / sim$nSims
-      }
-    })
-    
-    list(
-      theory = theory,
-      sim = sim_out,
-      sim_for_plot = sim_for_plot,
-      M_margin = input$M_margin,
-      COR_true = input$COR_true
+  output$summary_table <- renderTable({
+    req(sim_result())
+    sim_table(sim_result())
+  }, digits = 3, align = "l")
+  
+  output$boxplot <- renderPlot({
+    req(sim_result())
+    selection_boxplot(
+      sim_result(),
+      COR_true = input$COR_true,
+      COR_NI   = input$COR_NI
     )
   })
-  
-  # ── Plot: Interim ────────────────────────────────────────────────────────
-  
-  output$plot_compare <- renderPlot({
-    msg <- invalid_probs_msg()
-    if (!is.null(msg)) {
-      plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
-      text(0.5, 0.5, msg, cex = 1.4, col = "darkred")
-      return()
-    }
-    
-    sim <- req(results())$sim_for_plot
-    
-    ok <- is.finite(sim$Z1_all) & is.finite(sim$OR1_all)
-    Z1  <- sim$Z1_all[ok]
-    OR1 <- sim$OR1_all[ok]
-    
-    cond <- Z1 <= sim$zcrit1
-    OR1_cond <- OR1[cond]
-    has_cond <- sum(cond) > 10
-    
-    op <- par(mfrow = c(1,2), mar = c(4,4,3,1))
-    
-    hist(Z1, breaks = 50, freq = FALSE, col = "gray90", border = "white",
-         main = sprintf("Interim Z1 (N1 = %d of %d)", sim$N1_plot, sim$N_eff_plot),
-         xlab = "Z1 = (loĝCOR – log M) / SE")
-    abline(v = sim$zcrit1, col = "red3", lwd = 2.5, lty = 2)
-    if (length(Z1) > 5) lines(density(Z1), lwd = 2)
-    
-    if (length(OR1) < 5) {
-      plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
-      text(0.5, 0.5, "Too few valid OR1 values", cex = 1.3, col = "gray50")
-    } else {
-      d_all <- density(OR1, na.rm = TRUE)
-      
-      if (has_cond) {
-        d_cond <- density(OR1_cond, na.rm = TRUE)
-        ymax <- max(d_all$y, d_cond$y, na.rm = TRUE) * 1.1
-      } else {
-        d_cond <- NULL
-        ymax <- max(d_all$y, na.rm = TRUE) * 1.1
-      }
-      
-      xlim <- unname(quantile(OR1, c(0.005, 0.995), na.rm = TRUE))
-      xlim <- c(xlim[1] * 0.95, xlim[2] * 1.05)
-      
-      plot(d_all, lwd = 2, col = "#1f77b4",
-           xlim = xlim, ylim = c(0, ymax),
-           main = "Interim OR1: all vs stop@IA",
-           xlab = "OR1", ylab = "Density")
-      
-      if (has_cond && !is.null(d_cond)) lines(d_cond, lwd = 2, col = "#d62728")
-      
-      legend("topright", inset = 0.02,
-             legend = c(sprintf("All (n=%d)", length(OR1)),
-                        if (has_cond) sprintf("Stopped @ IA (n=%d)", sum(cond))),
-             col = c("#1f77b4", if (has_cond) "#d62728"),
-             lwd = 2, bty = "n")
-    }
-    
-    par(op)
-  })
-  
-  # ── Plot: Final ──────────────────────────────────────────────────────────
-  
-  output$plot_final <- renderPlot({
-    msg <- invalid_probs_msg()
-    if (!is.null(msg)) {
-      plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
-      text(0.5, 0.5, msg, cex = 1.4, col = "darkred")
-      return()
-    }
-    
-    sim <- req(results())$sim_for_plot
-    
-    ok <- is.finite(sim$Z2_all) & is.finite(sim$OR2_all)
-    Z2  <- sim$Z2_all[ok]
-    OR2 <- sim$OR2_all[ok]
-    
-    cond <- Z2 <= sim$zcrit2
-    OR2_cond <- OR2[cond]
-    has_cond <- sum(cond) > 10
-    
-    n_final <- length(Z2)
-    n_stop  <- sum(cond)
-    
-    op <- par(mfrow = c(1,2), mar = c(4,4,3,1))
-    
-    hist(Z2, breaks = 50, freq = FALSE, col = "gray90", border = "white",
-         main = sprintf("Final Z2 (reached: %d/%d; stop: %d)", n_final, sim$nSims, n_stop),
-         xlab = "Z2 (pooled)")
-    abline(v = sim$zcrit2, col = "red3", lwd = 2.5, lty = 2)
-    if (length(Z2) > 5) lines(density(Z2), lwd = 2)
-    
-    if (length(OR2) < 5) {
-      plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
-      text(0.5, 0.5, "Too few valid OR2 values", cex = 1.3, col = "gray50")
-    } else {
-      d_all <- density(OR2, na.rm = TRUE)
-      
-      if (has_cond) {
-        d_cond <- density(OR2_cond, na.rm = TRUE)
-        ymax <- max(d_all$y, d_cond$y, na.rm = TRUE) * 1.1
-      } else {
-        d_cond <- NULL
-        ymax <- max(d_all$y, na.rm = TRUE) * 1.1
-      }
-      
-      xlim <- unname(quantile(OR2, c(0.005, 0.995), na.rm = TRUE))
-      xlim <- c(xlim[1] * 0.95, xlim[2] * 1.05)
-      
-      plot(d_all, lwd = 2, col = "#1f77b4",
-           xlim = xlim, ylim = c(0, ymax),
-           main = sprintf("Final OR2 (reached: %d/%d)", n_final, sim$nSims),
-           xlab = "OR2", ylab = "Density")
-      
-      if (has_cond && !is.null(d_cond)) lines(d_cond, lwd = 2, col = "#d62728")
-      
-      legend("topright", inset = 0.02,
-             legend = c(sprintf("Reached final (n=%d)", n_final),
-                        if (has_cond) sprintf("Stopped @ final (n=%d)", n_stop)),
-             col = c("#1f77b4", if (has_cond) "#d62728"),
-             lwd = 2, bty = "n")
-    }
-    
-    par(op)
-  })
-  
-  # ── Plot: Overview ───────────────────────────────────────────────────────
-  
-  output$plot_overview <- renderPlot({
-    msg <- invalid_probs_msg()
-    if (!is.null(msg)) {
-      plot(1, type = "n", axes = FALSE, xlab = "", ylab = "")
-      text(0.5, 0.5, msg, cex = 1.4, col = "darkred")
-      return()
-    }
-    
-    res <- req(results())
-    sim <- req(res$sim_for_plot)
-    
-    log_true <- log(res$COR_true)
-    log_M    <- log(res$M_margin)
-    
-    ok1 <- is.finite(sim$OR1_all) & is.finite(sim$Z1_all)
-    L1_all  <- log(sim$OR1_all[ok1])
-    L1_stop <- log(sim$OR1_all[ok1 & (sim$Z1_all <= sim$zcrit1)])
-    has_stop1 <- length(L1_stop) > 5
-    
-    ok2 <- is.finite(sim$OR2_all) & is.finite(sim$Z2_all)
-    L2_reach <- log(sim$OR2_all[ok2])
-    L2_stop  <- log(sim$OR2_all[ok2 & (sim$Z2_all <= sim$zcrit2)])
-    has_stop2 <- length(L2_stop) > 5
-    
-    op <- par(mfrow = c(1,3), mar = c(4,4,3,1))
-    
-    # A) Interim log(COR)
-    if (length(L1_all) < 5) {
-      plot(1, type = "n", axes = FALSE, main = "A) Interim log(COR)")
-      text(0.5, 0.5, "Too few points", cex = 1.2, col = "gray50")
-    } else {
-      d_all <- density(L1_all, na.rm = TRUE)
-      if (has_stop1) {
-        d_stop <- density(L1_stop, na.rm = TRUE)
-        ymax <- max(d_all$y, d_stop$y) * 1.1
-      } else {
-        d_stop <- NULL
-        ymax <- max(d_all$y) * 1.1
-      }
-      
-      plot(d_all, lwd = 2, col = "#1f77b4", ylim = c(0, ymax),
-           main = "A) Interim log(COR)", xlab = "log(OR1)", ylab = "Density")
-      if (has_stop1) lines(d_stop, lwd = 2, col = "#d62728")
-      abline(v = c(log_true, log_M), lty = c(2,3), col = c("black","gray50"), lwd = 2)
-    }
-    
-    # B) Final log(COR)
-    if (length(L2_reach) < 5) {
-      plot(1, type = "n", axes = FALSE, main = "B) Final log(COR)")
-      text(0.5, 0.5, "Too few points", cex = 1.2, col = "gray50")
-    } else {
-      d_all <- density(L2_reach, na.rm = TRUE)
-      if (has_stop2) {
-        d_stop <- density(L2_stop, na.rm = TRUE)
-        ymax <- max(d_all$y, d_stop$y) * 1.1
-      } else {
-        d_stop <- NULL
-        ymax <- max(d_all$y) * 1.1
-      }
-      
-      plot(d_all, lwd = 2, col = "#1f77b4", ylim = c(0, ymax),
-           main = "B) Final log(COR)", xlab = "log(OR2)", ylab = "Density")
-      if (has_stop2) lines(d_stop, lwd = 2, col = "#d62728")
-      abline(v = c(log_true, log_M), lty = c(2,3), col = c("black","gray50"), lwd = 2)
-    }
-    
-    # C) Boxplot summary + proportions DRAWN ON THE PLOT (no margin changes)
-    groups <- list(
-      "IA all"        = L1_all,
-      "IA stopped"    = L1_stop,
-      "Final reached" = L2_reach,
-      "Final stopped" = L2_stop
-    )
-    groups <- groups[sapply(groups, function(v) length(v) > 1)]
-    
-    if (length(groups) > 0) {
-      boxplot(groups, horizontal = TRUE, las = 1, col = "gray92",
-              main = "C) Selection effects (log scale)",
-              xlab = "log(COR)")
-      abline(v = c(log_true, log_M), lty = c(2,3), col = c("black","gray50"), lwd = 2)
-      
-      # proportions computed from counters (proportion of ALL trials)
-      p_stop1 <- sim$stop1 / sim$nSims
-      p_reach <- (sim$nSims - sim$stop1) / sim$nSims
-      p_stop2 <- sim$stop2 / sim$nSims
-      
-      # Map to displayed groups (in case any were dropped due to too few points)
-      props <- c(
-        "IA all"        = 1,
-        "IA stopped"    = p_stop1,
-        "Final reached" = p_reach,
-        "Final stopped" = p_stop2
-      )[names(groups)]
-      
-      # Place percents near the right edge of panel C, aligned to each box
-      usr <- par("usr")
-      x_text <- usr[2] - 0.03 * (usr[2] - usr[1])
-      y_pos  <- seq_along(groups)
-      
-      text(x = x_text, y = max(y_pos) + 0.6, labels = "% trials", cex = 0.85, adj = 1, col = "gray30")
-      text(x = x_text, y = y_pos, labels = sprintf("%.1f%%", 100 * props), cex = 0.9, adj = 1, col = "black")
-    } else {
-      plot(1, type = "n", axes = FALSE, main = "C) Selection effects")
-      text(0.5, 0.5, "No valid data", cex = 1.2, col = "gray50")
-    }
-    
-    par(op)
-  })
-  
-  # ── Tables ───────────────────────────────────────────────────────────────
-  
-  output$tbl_theory <- renderTable({
-    msg <- invalid_probs_msg()
-    if (!is.null(msg)) {
-      data.frame(Note = msg)
-    } else {
-      req(results())$theory |>
-        transform(
-          borderline_COR_IA    = round(borderline_COR_IA, 3),
-          borderline_COR_final = round(borderline_COR_final, 3)
-        )
-    }
-  }, digits = 3)
-  
-  output$tbl_sim <- renderTable({
-    msg <- invalid_probs_msg()
-    if (!is.null(msg)) {
-      data.frame(Note = msg)
-    } else {
-      req(results())$sim |>
-        transform(
-          mean    = round(mean,   3),
-          median  = round(median, 3),
-          q025    = round(q025,   3),
-          q975    = round(q975,   3),
-          Pr_stop = round(Pr_stop, 3)
-        )
-    }
-  }, digits = 3)
 }
 
+# Run the app
 shinyApp(ui, server)

@@ -1,4 +1,7 @@
-
+# Panel A: Interim estimates. Red shows trials that stopped early. These are selected because they looked unusually good early on, so this subgroup tends to show more favourable estimates (winner’s curse).
+# Panel B: Final estimates. Blue shows trials that reached the final analysis (they did not meet the early success rule). Because this is a selected subgroup, it can look less favourable on average — this is a selection/conditioning effect, not a flaw in the final statistical method.
+# Panel C: Boxplots summarise the same selection effects. The percentages printed next to each box show the proportion of all trials in each category (e.g., stopped early vs reached final).
+# Clinical takeaway: early-stopped results can look overly optimistic because of selection; trials that continue to final are a different (selected) subset. This does not mean the final OR is biased — it reflects the trial pathway and stopping rules.
 rm(list=ls())
 
 suppressPackageStartupMessages({
@@ -212,24 +215,7 @@ simulate_obf_ordinal <- function(
 # 4) Outputs
 # ============================================================
 
-# sim_table <- function(sim) {
-#   fut <- safe_summ_cor(sim$COR_fut_all[sim$stop_fut])
-#   ia  <- safe_summ_cor(sim$COR1_all[sim$stop_ia])
-#   fin <- safe_summ_cor(sim$COR2_all[sim$stop_final])
-#   
-#   out <- data.frame(
-#     Stage  = c("Futility stop", "IA success stop", "Final success stop"),
-#     N      = c(fut["N"], ia["N"], fin["N"]),
-#     Mean   = c(fut["Mean"], ia["Mean"], fin["Mean"]),
-#     Median = c(fut["Median"], ia["Median"], fin["Median"]),
-#     `2.5%` = c(fut["2.5%"], ia["2.5%"], fin["2.5%"]),
-#     `97.5%`= c(fut["97.5%"], ia["97.5%"], fin["97.5%"]),
-#     check.names = FALSE
-#   )
-#   
-#   out |> mutate(across(c(Mean, Median, `2.5%`, `97.5%`), ~ round(.x, 3)))
-# }
-
+ 
 
 sim_table <- function(sim) {
   
@@ -280,21 +266,7 @@ sim_table <- function(sim) {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+ 
 
 
 # Your current selection_boxplot function (unchanged)
@@ -467,7 +439,7 @@ run_all <- function(
   list(sim = sim, sim_summary = tbl_sim)
 }
 
-x <-1.
+x <-1.3
 res <- run_all( nSims = 1000, COR_true = x, M_margin = 1.6)
 
 res$sim_summary
