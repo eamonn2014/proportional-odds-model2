@@ -10,6 +10,11 @@
 # - Interpretation text is added under each plot, with clarified language:
 #   the final estimator is not biased; any shifts are due to selection/conditioning.
 
+
+# You’re right that early-stopped trials tend to show an inflated effect size—that’s called the winner’s curse.
+# But early stopping doesn’t invalidate the conclusion.
+# The stopping boundary is designed specifically to protect against false positives.
+# The effect size may be optimistic, but the evidence of non-inferiority remains statistically sound.”
 suppressPackageStartupMessages({
   library(shiny)
   library(MASS)   # polr
