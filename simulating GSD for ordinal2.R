@@ -212,23 +212,90 @@ simulate_obf_ordinal <- function(
 # 4) Outputs
 # ============================================================
 
+# sim_table <- function(sim) {
+#   fut <- safe_summ_cor(sim$COR_fut_all[sim$stop_fut])
+#   ia  <- safe_summ_cor(sim$COR1_all[sim$stop_ia])
+#   fin <- safe_summ_cor(sim$COR2_all[sim$stop_final])
+#   
+#   out <- data.frame(
+#     Stage  = c("Futility stop", "IA success stop", "Final success stop"),
+#     N      = c(fut["N"], ia["N"], fin["N"]),
+#     Mean   = c(fut["Mean"], ia["Mean"], fin["Mean"]),
+#     Median = c(fut["Median"], ia["Median"], fin["Median"]),
+#     `2.5%` = c(fut["2.5%"], ia["2.5%"], fin["2.5%"]),
+#     `97.5%`= c(fut["97.5%"], ia["97.5%"], fin["97.5%"]),
+#     check.names = FALSE
+#   )
+#   
+#   out |> mutate(across(c(Mean, Median, `2.5%`, `97.5%`), ~ round(.x, 3)))
+# }
+
+
 sim_table <- function(sim) {
-  fut <- safe_summ_cor(sim$COR_fut_all[sim$stop_fut])
-  ia  <- safe_summ_cor(sim$COR1_all[sim$stop_ia])
-  fin <- safe_summ_cor(sim$COR2_all[sim$stop_final])
+  
+  # Helper to compute all the usual stats + min & max
+  safe_summ_cor_ext <- function(x) {
+    x <- x[is.finite(x)]
+    n <- length(x)
+    if (n == 0) {
+      return(c(
+        N = 0L, 
+        Min = NA_real_, Max = NA_real_,
+        Mean = NA_real_, Median = NA_real_, 
+        `2.5%` = NA_real_, `97.5%` = NA_real_
+      ))
+    }
+    
+    q <- quantile(x, probs = c(0.025, 0.5, 0.975), names = FALSE)
+    c(
+      N     = n,
+      Min   = min(x),
+      Max   = max(x),
+      Mean  = mean(x),
+      Median = q[2],           # or median(x)
+      `2.5%` = q[1],
+      `97.5%`= q[3]
+    )
+  }
+  
+  fut <- safe_summ_cor_ext(sim$COR_fut_all[sim$stop_fut])
+  ia  <- safe_summ_cor_ext(sim$COR1_all[sim$stop_ia])
+  fin <- safe_summ_cor_ext(sim$COR2_all[sim$stop_final])
   
   out <- data.frame(
     Stage  = c("Futility stop", "IA success stop", "Final success stop"),
     N      = c(fut["N"], ia["N"], fin["N"]),
+    Min    = c(fut["Min"], ia["Min"], fin["Min"]),
+  #  Max    = c(fut["Max"], ia["Max"], fin["Max"]),
     Mean   = c(fut["Mean"], ia["Mean"], fin["Mean"]),
     Median = c(fut["Median"], ia["Median"], fin["Median"]),
     `2.5%` = c(fut["2.5%"], ia["2.5%"], fin["2.5%"]),
     `97.5%`= c(fut["97.5%"], ia["97.5%"], fin["97.5%"]),
+  Max    = c(fut["Max"], ia["Max"], fin["Max"]),
     check.names = FALSE
   )
   
-  out |> mutate(across(c(Mean, Median, `2.5%`, `97.5%`), ~ round(.x, 3)))
+  # Round numeric columns nicely
+  out |> mutate(across(c(Min, Max, Mean, Median, `2.5%`, `97.5%`), ~ round(.x, 3)))
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Your current selection_boxplot function (unchanged)
 
@@ -274,7 +341,7 @@ selection_boxplot <- function(sim, COR_true, COR_NI,
   
   plot(0, type = "n", 
        xlim = ylim, ylim = c(0.4, length(groups) + 0.8),
-       xlab = "log(COR)", ylab = "", yaxt = "n",
+       xlab = "", ylab = "", yaxt = "n",
        main = main, las = 1)
   
   axis(2, at = seq_along(groups), labels = group_names, las = 1, cex.axis = 0.95)
@@ -400,8 +467,8 @@ run_all <- function(
   list(sim = sim, sim_summary = tbl_sim)
 }
 
-x <-1.1
-res <- run_all( nSims = 100, COR_true = x, M_margin = 1.6)
+x <-1.
+res <- run_all( nSims = 1000, COR_true = x, M_margin = 1.6)
 
 res$sim_summary
 
