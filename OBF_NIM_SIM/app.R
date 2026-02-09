@@ -344,21 +344,51 @@ ui <- page_sidebar(
       tabPanel("Winner's Curse Plot",
                plotOutput("boxplot", height = "700px")
       ),
-      tabPanel("About Winner's Curse",
-               h4("What is the Winner's Curse / Selection Bias?"),
-               p("When trials stop early for efficacy (or we only look at successful subgroups/arms),",
-                 "the observed treatment effect is systematically **overestimated** compared to the true effect."),
-               p("This happens because only trials/arms that — by chance — show unusually large effects",
-                 "cross the efficacy boundary early. This is a form of **selection bias** or **regression to the mean**."),
-               p("Look at the green groups in the plot — they are consistently shifted to the right of the true value."),
-               p("In practice this can lead to:"),
+      tabPanel("About / Winner's Curse",
+               h4("What does this app do?"),
+               p("This simulator lets you explore operating characteristics of an ordinal outcome non-inferiority trial with group-sequential interim analyses (futility at ~50% and efficacy at ~80% information by default)."),
+               p("It shows how often the trial stops early for futility or overwhelming efficacy, what the observed cumulative odds ratios look like at each stage, and — most importantly — how selection at interim looks creates the classical ", strong("winner's curse / conditional selection bias"), "."),
+               
+               h4("Winner's Curse & Selection Bias in Group-Sequential Trials"),
+               p("When a trial can stop early for overwhelming efficacy, the observed treatment effect among trials/arms that ", em("stop early for success"), " is systematically ", strong("overestimated"), " (looks too optimistic / too good to be true)."),
+               p("This happens because only paths where — by chance — the interim estimate is unusually large cross the early efficacy boundary. This is a form of ", em("conditional selection bias"), " or ", strong("winner's curse"), ". The green groups in the boxplot are typically shifted toward more positive values (in log-COR scale — i.e. leftward in your current horizontal layout)."),
+               
+               p("Conversely, trials that continue all the way to the final analysis are a ", em("selected"), " subset — they avoided both futility stopping ", em("and"), " early efficacy stopping. Their observed effects tend to be closer to (or even slightly underestimate) the truth on average."),
+               
+               p(strong("Important clarification:"), " The final estimate from a trial that reaches the last analysis ", em("is not biased"), " in the classical sense — it correctly reflects the treatment effect ", em("conditional on having followed the pre-specified trial pathway and stopping rules"), ". The apparent optimism is concentrated in the early-stopped successes."),
+               
+               h5("Note on O'Brien-Fleming boundaries (commonly used here)"),
+               p("The efficacy stopping rules in designs like this often follow (or approximate) ", strong("O'Brien-Fleming"), " boundaries. These do ", em("not"), " apply explicit weighting to test statistics or p-values at different stages. Instead, they simply use very conservative (very low) nominal p-value thresholds early on (e.g., p << 0.001 at the first look), becoming progressively less stringent until the final look is close to the usual p ≈ 0.025 (one-sided)."),
+               p("This approach spends almost no Type I error early (preserving most for the final analysis) and requires an extremely strong signal to stop early — which helps limit over-optimism in early-stopped results while still allowing stopping when evidence is overwhelming. No per-stage re-weighting of p-values is involved; the adjustment is purely through changing the critical value (or nominal significance level) at each pre-specified look."),
+               
+               p("In practice this phenomenon can potentially lead to:"),
                tags$ul(
-                 tags$li("Over-optimistic power assumptions for future trials"),
-                 tags$li("Misleading effect size estimates for meta-analyses"),
-                 tags$li("Overconfidence in dose/arm selection")
+                 tags$li("Overly optimistic power calculations for future trials"),
+                 tags$li("Inflated effect size estimates in meta-analyses if early-stopped trials dominate"),
+                 tags$li("Overconfidence when selecting promising doses / arms / populations")
                ),
-               p("Mitigation approaches include: bias-corrected estimators, conservative interim bounds,",
-                 "or reporting confidence intervals that account for the selection process.")
+               p(style = "font-style: italic; color: #666;",
+                 "Note: While estimates are generally trustworthy unconditionally (i.e., averaging across all trials, with typically small overall bias under conservative designs like O'Brien-Fleming), the conditional overestimation in early successes can still impact these downstream applications if unadjusted estimates are used naively."),
+               
+               p("Mitigation options include:"),
+               tags$ul(
+                 tags$li("Very conservative (spend little alpha early) efficacy boundaries — like O'Brien-Fleming"),
+                 tags$li("Bias-adjusted point estimates / confidence intervals"),
+                 tags$li("Bayesian shrinkage methods"),
+                 tags$li("Simply reporting the design and cautioning about interpretation of early successes")
+               ),
+               
+               h5("Selected references"),
+               tags$ul(
+                 tags$li("O'Brien & Fleming (1979). A multiple testing procedure for clinical trials. Biometrics."),
+                 tags$li("Bassler et al. (2010). Systematic reviewers neglect bias that results from trials stopped early for benefit. J Clin Epidemiol."),
+                 tags$li("Pocock & Hughes (1990). Estimation issues in clinical trials with sequential monitoring. Stat Med."),
+                 tags$li("Whitehead (1986). On the bias of maximum likelihood estimation following group sequential tests. Biometrika."),
+                 tags$li("Good reviews: Proschan, Lan & Wittes (2006). Group sequential methods with applications to clinical trials.")
+               ),
+               
+               p(style = "color: #555; font-size: 0.95em; margin-top: 2em;",
+                 "The boxplot deliberately shows both unconditional (all simulations at a look) and conditional (stopped) distributions so you can see the selection effect visually.")
       )
     )
   )
