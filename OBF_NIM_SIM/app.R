@@ -1,7 +1,9 @@
 # =============================================================================
 #   Shiny App: Ordinal Non-Inferiority Trial Simulator with Winner's Curse
-#   v1.6 — efficacy boundaries from rpact (one-sided alpha = 0.025) using IA slider
-#          removed manual alpha inputs; prints rpact design info under summary table
+#   v1.8 — efficacy boundaries from rpact (one-sided alpha = 0.025) using IA slider
+#          removed manual alpha inputs; prints rpact info under summary table
+#          + TAB: Expected Sample Size Breakdown (stage probs × N contributions)
+#          + Plot: add "N per sim" column (planned N at that stage) left of "% of sims"
 # =============================================================================
 
 library(shiny)
@@ -9,7 +11,7 @@ library(shinyWidgets)
 library(MASS)
 library(dplyr)
 library(bslib)
-library(rpact)   # rpact::getDesignGroupSequential() supplies criticalValues, alphaSpent, etc.
+library(rpact)
 
 # ─────────────────────────────────────────────────────────────────────────────
 #   Helpers
@@ -61,6 +63,27 @@ fit_logCOR <- function(df) {
   list(logCOR_hat = logCOR_hat, se = se)
 }
 
+# Expected sample size breakdown table
+expected_n_breakdown <- function(sim) {
+  p_fut   <- mean(sim$stop_fut, na.rm = TRUE)
+  p_ia    <- mean(sim$stop_ia,  na.rm = TRUE)
+  p_final <- mean(!(sim$stop_fut | sim$stop_ia), na.rm = TRUE)
+  
+  df <- data.frame(
+    Stage       = c("Futility stop", "IA success stop", "Final analysis"),
+    Probability = c(p_fut, p_ia, p_final),
+    N_at_stage  = c(sim$n_at_fut, sim$n_at_ia, sim$n_total),
+    check.names = FALSE
+  )
+  df$Contribution <- df$Probability * df$N_at_stage
+  
+  df |>
+    mutate(
+      Probability  = round(Probability, 3),
+      Contribution = round(Contribution, 1)
+    )
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 #   Simulation (efficacy boundaries provided as Z, derived from rpact in server)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -99,7 +122,7 @@ simulate_obf_ordinal <- function(
     n_at_ia   = round(info_frac  * n_total),
     n_total   = n_total,
     nSims = nSims,
-    z_fut = qnorm(futility_p),
+    z_fut  = qnorm(futility_p),
     zcrit1 = zcrit1,
     zcrit2 = zcrit2
   )
@@ -126,7 +149,7 @@ simulate_obf_ordinal <- function(
       res$COR_fut_all[i] <- exp(fit_f$logCOR_hat)
       res$logCOR_paths[i, "fut"] <- fit_f$logCOR_hat
       
-      # futility stop rule (as in your original): stop if Z > z_fut
+      # futility stop rule: stop if Z > z_fut
       if (res$Z_fut_all[i] > res$z_fut) {
         res$stop_fut[i] <- TRUE
         if(!is.null(pb)) pb$inc(1/nSims)
@@ -246,11 +269,16 @@ selection_boxplot <- function(
     scale_note   <- "Scale: log(Odds Ratio)"
   }
   
-  # ── Avg sample size ───────────────────────────────────────────────────────
+  # ── Avg sample size (expected N) ──────────────────────────────────────────
   p_fut   <- mean(sim$stop_fut, na.rm = TRUE)
-  p_ia    <- mean(sim$stop_ia, na.rm = TRUE)
-  p_reach_final <- 1 - p_fut - p_ia
-  avg_n <- round(p_fut * sim$n_at_fut + p_ia * sim$n_at_ia + p_reach_final * sim$n_total)
+  p_ia    <- mean(sim$stop_ia,  na.rm = TRUE)
+  p_reach_final <- mean(!(sim$stop_fut | sim$stop_ia), na.rm = TRUE)
+  
+  avg_n <- round(
+    p_fut * sim$n_at_fut +
+      p_ia * sim$n_at_ia +
+      p_reach_final * sim$n_total
+  )
   
   # ── Groups ────────────────────────────────────────────────────────────────
   groups <- list(
@@ -274,7 +302,8 @@ selection_boxplot <- function(
     return(invisible(NULL))
   }
   
-  op <- par(mar = c(13, 12, 6, 16))
+  # Increased right margin for two text columns (N + %)
+  op <- par(mar = c(13, 12, 6, 22))
   on.exit(par(op))
   
   plot(0, type = "n",
@@ -373,30 +402,70 @@ selection_boxplot <- function(
     }
   }
   
-  # ── Percentages ───────────────────────────────────────────────────────────
-  p_fut   <- mean(sim$stop_fut, na.rm = TRUE)
-  p_ia    <- mean(sim$stop_ia, na.rm = TRUE)
+  # ── Two right-side columns: N per sim (planned N at that stage) + % of sims ─
+  p_fut   <- mean(sim$stop_fut,   na.rm = TRUE)
+  p_ia    <- mean(sim$stop_ia,    na.rm = TRUE)
   p_final <- mean(sim$stop_final, na.rm = TRUE)
   
-  props <- c(1, p_fut, 1 - p_fut, p_ia, 1 - p_fut - p_ia, p_final)[keep]
+  # Probabilities aligned with the original 6 groups (then filtered by keep):
+  # 1 All@futility         -> 1
+  # 2 Stopped futility     -> p_fut
+  # 3 All@interim          -> 1 - p_fut
+  # 4 Stopped IA success   -> p_ia
+  # 5 All@final            -> 1 - p_fut - p_ia
+  # 6 Stopped final success-> p_final
+  props_all <- c(
+    1,
+    p_fut,
+    1 - p_fut,
+    p_ia,
+    1 - p_fut - p_ia,
+    p_final
+  )
+  props <- props_all[keep]
+  
+  # Planned N used in each simulation for each of the 6 groups (then filtered by keep)
+  n_all <- c(
+    sim$n_at_fut,  # All @ futility
+    sim$n_at_fut,  # Stopped futility
+    sim$n_at_ia,   # All @ interim
+    sim$n_at_ia,   # Stopped IA success
+    sim$n_total,   # All @ final
+    sim$n_total    # Stopped final success
+  )
+  n_col <- n_all[keep]
   
   usr <- par("usr")
-  x_text <- usr[2] + 0.14 * (usr[2] - usr[1])
+  x_range <- usr[2] - usr[1]
+  
+  # right column (%)
+  x_text_pct <- usr[2] + 0.14 * x_range
+  # left column (N)
+  x_text_n   <- usr[2] + 0.05 * x_range
   
   for (i in seq_along(groups)) {
+    
     col_text <- if (group_names[i] == "All @ futility") "black" else
       if (grepl("futility", group_names[i])) "firebrick" else
         if (grepl("success", group_names[i])) "forestgreen" else "gray30"
     
-    text(x_text, i, sprintf("%.1f%%", 100 * props[i]), adj = 0, cex = 1.05, font = 2,
-         col = col_text, xpd = TRUE)
+    # N column (planned N at this stage)
+    text(x_text_n, i, sprintf("%d", as.integer(round(n_col[i]))),
+         adj = 0, cex = 1.05, font = 2, col = "gray30", xpd = TRUE)
+    
+    # % column
+    text(x_text_pct, i, sprintf("%.1f%%", 100 * props[i]),
+         adj = 0, cex = 1.05, font = 2, col = col_text, xpd = TRUE)
   }
   
-  text(x_text, length(groups) + 0.75, "% of sims", adj = 0, cex = 1.1, font = 2,
+  # Column headers
+  text(x_text_n,   length(groups) + 0.75, "N per sim", adj = 0, cex = 1.05, font = 2,
+       col = "gray40", xpd = TRUE)
+  text(x_text_pct, length(groups) + 0.75, "% of sims", adj = 0, cex = 1.05, font = 2,
        col = "gray40", xpd = TRUE)
   
   # ── Footnotes ─────────────────────────────────────────────────────────────
-  power <- 100 * (p_ia + p_final)
+  power <- 100 * (mean(sim$stop_ia, na.rm = TRUE) + mean(sim$stop_final, na.rm = TRUE))
   mtext(sprintf("True COR = %.2f • Futility @ %.0f%% • IA @ %.0f%% • Power ≈ %.1f%% • %s",
                 COR_true, 100*futility_frac, 100*info_frac, power, scale_note),
         side = 1, line = 2.5, cex = 0.85, col = "gray50")
@@ -412,7 +481,7 @@ selection_boxplot <- function(
 # ─────────────────────────────────────────────────────────────────────────────
 
 ui <- page_sidebar(
-  title = "Ordinal Non-Inferiority Trial Simulator + Winner's Curse v1.6 (rpact α-spending)",
+  title = "Ordinal Non-Inferiority Trial Simulator + Winner's Curse v1.8 (rpact α-spending)",
   
   sidebar = sidebar(
     h4("Simulation Settings"),
@@ -466,12 +535,22 @@ ui <- page_sidebar(
         tags$hr(),
         verbatimTextOutput("rpact_info")
       ),
+      
+      tabPanel(
+        "Expected Sample Size Breakdown",
+        p("Decomposition of the expected (average) sample size by stopping stage."),
+        tableOutput("ess_breakdown"),
+        tags$hr(),
+        verbatimTextOutput("ess_total_note")
+      ),
+      
       tabPanel("Winner's Curse Plot", plotOutput("boxplot", height = "750px")),
+      
       tabPanel("About",
                h4("About"),
                p("Ordinal NI trial simulator with group-sequential stopping."),
                p("Efficacy boundaries are computed via rpact O'Brien–Fleming type alpha-spending at the selected interim fraction."),
-               p("Shows winner's curse / selection bias when stopping early for efficacy."))
+               p("Winner's curse / selection bias may occur when stopping early for efficacy."))
     )
   )
 )
@@ -522,7 +601,6 @@ server <- function(input, output, session) {
       show_progress = TRUE
     )
     
-    # attach rpact design for printing under table
     sim$rpact_design <- design
     sim
   }, ignoreNULL = TRUE)
@@ -562,6 +640,22 @@ server <- function(input, output, session) {
       cat(sprintf("Cumulative alpha spent (rpact alphaSpent): %s\n",
                   paste0(signif(d$alphaSpent, 4), collapse = ", ")))
     }
+  })
+  
+  output$ess_breakdown <- renderTable({
+    req(sim_result())
+    expected_n_breakdown(sim_result())
+  }, align = "l")
+  
+  output$ess_total_note <- renderPrint({
+    req(sim_result())
+    df <- expected_n_breakdown(sim_result())
+    
+    cat(sprintf("Expected (average) sample size = %.1f\n\n", sum(df$Contribution)))
+    cat("Note:\n")
+    cat("- Probabilities are unconditional.\n")
+    cat("- Contribution = Probability × Sample size at that stage.\n")
+    cat("- The sum of contributions equals the expected sample size.\n")
   })
   
   output$boxplot <- renderPlot({
