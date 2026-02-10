@@ -1,6 +1,7 @@
 # =============================================================================
 #   Shiny App: Ordinal Non-Inferiority Trial Simulator with Winner's Curse
-#   v1.5 — trajectories now fully optional via checkboxes + x-label left-aligned
+#   v1.6 — efficacy boundaries from rpact (one-sided alpha = 0.025) using IA slider
+#          removed manual alpha inputs; prints rpact design info under summary table
 # =============================================================================
 
 library(shiny)
@@ -8,9 +9,10 @@ library(shinyWidgets)
 library(MASS)
 library(dplyr)
 library(bslib)
+library(rpact)   # rpact::getDesignGroupSequential() supplies criticalValues, alphaSpent, etc.
 
 # ─────────────────────────────────────────────────────────────────────────────
-#   Helpers (unchanged)
+#   Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
 ilogit <- function(z) 1 / (1 + exp(-z))
@@ -59,9 +61,13 @@ fit_logCOR <- function(df) {
   list(logCOR_hat = logCOR_hat, se = se)
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+#   Simulation (efficacy boundaries provided as Z, derived from rpact in server)
+# ─────────────────────────────────────────────────────────────────────────────
+
 simulate_obf_ordinal <- function(
     COR_true, COR_NI, n_total, futility_frac, info_frac,
-    alpha1, alpha2, futility_p, p_control,
+    zcrit1, zcrit2, futility_p, p_control,
     seed = 1234, nSims = 1000, show_progress = TRUE
 ) {
   msg <- validate_probs(p_control)
@@ -92,10 +98,10 @@ simulate_obf_ordinal <- function(
     n_at_fut  = round(futility_frac * n_total),
     n_at_ia   = round(info_frac  * n_total),
     n_total   = n_total,
-    nSims = nSims, 
-    z_fut = qnorm(futility_p), 
-    zcrit1 = qnorm(alpha1), 
-    zcrit2 = qnorm(alpha2)
+    nSims = nSims,
+    z_fut = qnorm(futility_p),
+    zcrit1 = zcrit1,
+    zcrit2 = zcrit2
   )
   
   n_fut <- res$n_at_fut
@@ -105,11 +111,13 @@ simulate_obf_ordinal <- function(
   if (!is.null(pb)) pb$set(message = "Running simulations...", value = 0)
   
   for (i in seq_len(nSims)) {
-    s_f <- split_n(n_fut)
-    yCf <- sample(0:K, s_f$nC, TRUE, pi_control)
-    yTf <- sample(0:K, s_f$nT, TRUE, pi_treat)
+    
+    # ---- Futility look ----
+    s_f  <- split_n(n_fut)
+    yCf  <- sample(0:K, s_f$nC, TRUE, pi_control)
+    yTf  <- sample(0:K, s_f$nT, TRUE, pi_treat)
     df_f <- data.frame(
-      y = factor(c(yCf,yTf), ordered = TRUE, levels = 0:K),
+      y   = factor(c(yCf,yTf), ordered = TRUE, levels = 0:K),
       trt = factor(rep(c("C","T"), c(s_f$nC,s_f$nT)), levels = c("C","T"))
     )
     fit_f <- fit_logCOR(df_f)
@@ -117,46 +125,56 @@ simulate_obf_ordinal <- function(
       res$Z_fut_all[i]   <- (fit_f$logCOR_hat - beta_NI) / fit_f$se
       res$COR_fut_all[i] <- exp(fit_f$logCOR_hat)
       res$logCOR_paths[i, "fut"] <- fit_f$logCOR_hat
-      if (res$Z_fut_all[i] > res$z_fut) { 
+      
+      # futility stop rule (as in your original): stop if Z > z_fut
+      if (res$Z_fut_all[i] > res$z_fut) {
         res$stop_fut[i] <- TRUE
-        if(!is.null(pb)) pb$inc(1/nSims); next 
+        if(!is.null(pb)) pb$inc(1/nSims)
+        next
       }
     }
     
+    # ---- Interim efficacy look ----
     n_add_ia <- n1 - n_fut
-    s_add <- split_n(n_add_ia)
-    yCa <- sample(0:K, s_add$nC, TRUE, pi_control)
-    yTa <- sample(0:K, s_add$nT, TRUE, pi_treat)
-    df_add <- data.frame(
-      y = factor(c(yCa,yTa), ordered = TRUE, levels = 0:K),
+    s_add    <- split_n(n_add_ia)
+    yCa      <- sample(0:K, s_add$nC, TRUE, pi_control)
+    yTa      <- sample(0:K, s_add$nT, TRUE, pi_treat)
+    df_add   <- data.frame(
+      y   = factor(c(yCa,yTa), ordered = TRUE, levels = 0:K),
       trt = factor(rep(c("C","T"), c(s_add$nC,s_add$nT)), levels = c("C","T"))
     )
-    df1 <- rbind(df_f, df_add)
+    df1  <- rbind(df_f, df_add)
     fit1 <- fit_logCOR(df1)
     if (!is.null(fit1)) {
       res$Z1_all[i]   <- (fit1$logCOR_hat - beta_NI) / fit1$se
       res$COR1_all[i] <- exp(fit1$logCOR_hat)
       res$logCOR_paths[i, "ia"] <- fit1$logCOR_hat
-      if (res$Z1_all[i] <= res$zcrit1) { 
+      
+      # success at IA if Z <= zcrit1 (lower-tail bound)
+      if (res$Z1_all[i] <= res$zcrit1) {
         res$stop_ia[i] <- TRUE
-        if(!is.null(pb)) pb$inc(1/nSims); next 
+        if(!is.null(pb)) pb$inc(1/nSims)
+        next
       }
     }
     
+    # ---- Final look ----
     n_add_final <- n_total - n1
-    s_final <- split_n(n_add_final)
-    yCf2 <- sample(0:K, s_final$nC, TRUE, pi_control)
-    yTf2 <- sample(0:K, s_final$nT, TRUE, pi_treat)
+    s_final     <- split_n(n_add_final)
+    yCf2        <- sample(0:K, s_final$nC, TRUE, pi_control)
+    yTf2        <- sample(0:K, s_final$nT, TRUE, pi_treat)
     df_final_add <- data.frame(
-      y = factor(c(yCf2,yTf2), ordered = TRUE, levels = 0:K),
+      y   = factor(c(yCf2,yTf2), ordered = TRUE, levels = 0:K),
       trt = factor(rep(c("C","T"), c(s_final$nC,s_final$nT)), levels = c("C","T"))
     )
-    df2 <- rbind(df1, df_final_add)
+    df2  <- rbind(df1, df_final_add)
     fit2 <- fit_logCOR(df2)
     if (!is.null(fit2)) {
       res$Z2_all[i]   <- (fit2$logCOR_hat - beta_NI) / fit2$se
       res$COR2_all[i] <- exp(fit2$logCOR_hat)
       res$logCOR_paths[i, "final"] <- fit2$logCOR_hat
+      
+      # success at final if Z <= zcrit2
       if (res$Z2_all[i] <= res$zcrit2) res$stop_final[i] <- TRUE
     }
     
@@ -180,14 +198,14 @@ sim_table <- function(sim) {
   fin <- safe_summ_ext(sim$COR2_all[sim$stop_final])
   
   data.frame(
-    Stage = c("Futility stop", "IA success stop", "Final success stop"),
-    N     = c(fut["N"], ia["N"], fin["N"]),
-    Min   = c(fut["Min"], ia["Min"], fin["Min"]),
-    Mean  = c(fut["Mean"], ia["Mean"], fin["Mean"]),
-    Median= c(fut["Median"], ia["Median"], fin["Median"]),
+    Stage  = c("Futility stop", "IA success stop", "Final success stop"),
+    N      = c(fut["N"], ia["N"], fin["N"]),
+    Min    = c(fut["Min"], ia["Min"], fin["Min"]),
+    Mean   = c(fut["Mean"], ia["Mean"], fin["Mean"]),
+    Median = c(fut["Median"], ia["Median"], fin["Median"]),
     `2.5%` = c(fut["2.5%"], ia["2.5%"], fin["2.5%"]),
     `97.5%`= c(fut["97.5%"], ia["97.5%"], fin["97.5%"]),
-    Max   = c(fut["Max"], ia["Max"], fin["Max"]),
+    Max    = c(fut["Max"], ia["Max"], fin["Max"]),
     check.names = FALSE
   ) |>
     mutate(across(where(is.numeric), ~ round(.x, 3)))
@@ -280,7 +298,7 @@ selection_boxplot <- function(
   text(x_transform(log(COR_NI)),   length(groups) + 0.25, ref_text[2],
        col = "red", cex = 0.9, pos = 4, xpd = TRUE)
   
-  # ── Trajectories — now fully optional via checkboxes ──────────────────────
+  # ── Trajectories — optional via checkboxes ────────────────────────────────
   if (show_traj_success || show_traj_fail) {
     
     idx_have_fut <- which(is.finite(sim$logCOR_paths[,"fut"]))
@@ -297,7 +315,7 @@ selection_boxplot <- function(
           col_rgb <- rgb(0.1, 0.65, 0.1, 0.18)  # green
         } else {
           if (!show_traj_fail) next
-          col_rgb <- rgb(0.9, 0.2, 0.2, 0.18)    # red
+          col_rgb <- rgb(0.9, 0.2, 0.2, 0.18)   # red
         }
         
         has_fut   <- is.finite(sim$logCOR_paths[i,"fut"])
@@ -394,43 +412,43 @@ selection_boxplot <- function(
 # ─────────────────────────────────────────────────────────────────────────────
 
 ui <- page_sidebar(
-  title = "Ordinal Non-Inferiority Trial Simulator + Winner's Curse v1.5",
+  title = "Ordinal Non-Inferiority Trial Simulator + Winner's Curse v1.6 (rpact α-spending)",
   
   sidebar = sidebar(
     h4("Simulation Settings"),
     
     numericInput("n_total", "Total sample size", value = 600, min = 200, step = 50),
-    numericInput("n_sims", "Number of simulations", value = 1000, min = 100, max = 10000, step = 100),
-    numericInput("seed", "Random seed", value = 202506, min = 1),
+    numericInput("n_sims",  "Number of simulations", value = 1000, min = 100, max = 10000, step = 100),
+    numericInput("seed",    "Random seed", value = 202506, min = 1),
     
     numericInput("COR_true", "True COR (treatment effect)", value = 1.3, min = 0.5, step = 0.05),
-    numericInput("COR_NI", "Non-inferiority margin (M)", value = 1.6, min = 1.0, step = 0.1),
+    numericInput("COR_NI",   "Non-inferiority margin (M)", value = 1.6, min = 1.0, step = 0.1),
     
     sliderInput("futility_frac", "Futility look fraction", min = 0.2, max = 0.7, value = 0.5, step = 0.05),
-    sliderInput("info_frac", "Interim look fraction", min = 0.5, max = 0.95, value = 0.80, step = 0.05),
+    sliderInput("info_frac",     "Interim look fraction",  min = 0.5, max = 0.95, value = 0.80, step = 0.05),
     
     numericInput("futility_p", "Futility p-value threshold", value = 0.70, min = 0.5, max = 0.95, step = 0.05),
-    numericInput("alpha1", "Interim alpha (one-sided)", value = 0.0122, min = 0.001, step = 0.001),
-    numericInput("alpha2", "Final alpha (one-sided)", value = 0.0214, min = 0.001, step = 0.001),
+    
+    helpText("Efficacy boundaries are derived from rpact using one-sided α = 0.025 and the IA fraction above."),
     
     textInput("p_control_txt", "Control probabilities (comma sep)",
               value = "0.04, 0.02, 0.45, 0.34, 0.15"),
     
-    checkboxInput("show_traj_success", 
-                  "Show trajectories – successful trials (green dashed)", 
+    checkboxInput("show_traj_success",
+                  "Show trajectories – successful trials (green dashed)",
                   value = FALSE),
     
-    checkboxInput("show_traj_fail", 
-                  "Show trajectories – failed/continued trials (red dashed)", 
+    checkboxInput("show_traj_fail",
+                  "Show trajectories – failed/continued trials (red dashed)",
                   value = FALSE),
     
     hr(),
     h5("Plot options"),
-    checkboxInput("use_cor_scale", 
-                  "Display on odds ratio (COR) scale instead of log", 
+    checkboxInput("use_cor_scale",
+                  "Display on odds ratio (COR) scale instead of log",
                   value = FALSE),
-    sliderInput("xlim_log_low",  "X lower limit (log scale)",  min = -6, max = 0,  value = -3, step = 0.25),
-    sliderInput("xlim_log_high", "X upper limit (log scale)",  min = 0,  max = 7,  value = 4, step = 0.25),
+    sliderInput("xlim_log_low",  "X lower limit (log scale)",  min = -6, max = 0, value = -3, step = 0.25),
+    sliderInput("xlim_log_high", "X upper limit (log scale)",  min = 0,  max = 7, value = 4,  step = 0.25),
     
     actionButton("run_btn", "Run Simulation", class = "btn-primary btn-lg", icon = icon("play")),
     
@@ -441,11 +459,18 @@ ui <- page_sidebar(
   card(
     card_header("Results"),
     tabsetPanel(
-      tabPanel("Summary Table", verbatimTextOutput("status"), tableOutput("summary_table")),
+      tabPanel(
+        "Summary Table",
+        verbatimTextOutput("status"),
+        tableOutput("summary_table"),
+        tags$hr(),
+        verbatimTextOutput("rpact_info")
+      ),
       tabPanel("Winner's Curse Plot", plotOutput("boxplot", height = "750px")),
-      tabPanel("About", 
+      tabPanel("About",
                h4("About"),
                p("Ordinal NI trial simulator with group-sequential stopping."),
+               p("Efficacy boundaries are computed via rpact O'Brien–Fleming type alpha-spending at the selected interim fraction."),
                p("Shows winner's curse / selection bias when stopping early for efficacy."))
     )
   )
@@ -468,20 +493,38 @@ server <- function(input, output, session) {
       return(NULL)
     }
     
-    simulate_obf_ordinal(
+    # --- rpact efficacy boundaries (one-sided alpha=0.025) ---
+    # Analyses at informationRates = c(info_frac, 1)
+    # typeOfDesign = "asOF" gives an O'Brien–Fleming type alpha-spending approximation
+    design <- rpact::getDesignGroupSequential(
+      sided = 1,
+      alpha = 0.025,
+      informationRates = c(input$info_frac, 1),
+      typeOfDesign = "asOF"
+    )
+    
+    # rpact criticalValues are upper-tail; your NI success uses lower-tail (Z <= bound)
+    zcrit1 <- -design$criticalValues[1]
+    zcrit2 <- -design$criticalValues[2]
+    
+    sim <- simulate_obf_ordinal(
       COR_true      = input$COR_true,
       COR_NI        = input$COR_NI,
       n_total       = input$n_total,
       futility_frac = input$futility_frac,
       info_frac     = input$info_frac,
-      alpha1        = input$alpha1,
-      alpha2        = input$alpha2,
+      zcrit1        = zcrit1,
+      zcrit2        = zcrit2,
       futility_p    = input$futility_p,
       p_control     = p_control,
       seed          = input$seed,
       nSims         = input$n_sims,
       show_progress = TRUE
     )
+    
+    # attach rpact design for printing under table
+    sim$rpact_design <- design
+    sim
   }, ignoreNULL = TRUE)
   
   output$status <- renderText({
@@ -492,6 +535,34 @@ server <- function(input, output, session) {
     req(sim_result())
     sim_table(sim_result())
   }, digits = 3, align = "l")
+  
+  output$rpact_info <- renderPrint({
+    req(sim_result())
+    d <- sim_result()$rpact_design
+    
+    cat("rpact group-sequential design (efficacy)\n")
+    cat("--------------------------------------\n")
+    cat(sprintf("Type: %s | sided: %d | overall one-sided alpha: %.3f\n",
+                d$typeOfDesign, d$sided, d$alpha))
+    cat(sprintf("Information rates: %s\n",
+                paste0(round(d$informationRates, 3), collapse = ", ")))
+    
+    cat(sprintf("rpact critical values (upper-tail Z): %s\n",
+                paste0(round(d$criticalValues, 4), collapse = ", ")))
+    
+    lower_bounds <- -d$criticalValues
+    cat(sprintf("=> NI success boundaries used here (lower-tail Z): %s\n",
+                paste0(round(lower_bounds, 4), collapse = ", ")))
+    
+    stage_alpha_lower <- pnorm(lower_bounds)
+    cat(sprintf("Stage-wise alpha (lower-tail): %s\n",
+                paste0(signif(stage_alpha_lower, 4), collapse = ", ")))
+    
+    if (!is.null(d$alphaSpent)) {
+      cat(sprintf("Cumulative alpha spent (rpact alphaSpent): %s\n",
+                  paste0(signif(d$alphaSpent, 4), collapse = ", ")))
+    }
+  })
   
   output$boxplot <- renderPlot({
     req(sim_result())
