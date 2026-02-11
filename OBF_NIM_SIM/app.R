@@ -494,8 +494,48 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
   
   # Right panel stats
   # --- RIGHT PANEL: STATS TABLE ---
+  # par(mar = c(15, 1, 6, 1), xpd = FALSE)
+  # plot.new(); plot.window(xlim = c(0, 1), ylim = c(0.4, length(groups) + 0.9))
+  # header_cex <- 1.15
+  # text(0.02, length(groups) + 0.75, "Trials (N)", adj = 0, font = 2, cex = header_cex)
+  # text(0.45, length(groups) + 0.75, "N/Trial", adj = 0, font = 2, cex = header_cex)
+  # text(0.78, length(groups) + 0.75, "% Sims", adj = 0, font = 2, cex = header_cex)
+  # 
+  # data_cex <- 1.10
+  # 
+  # # Correct N values per group type
+  # n_per_group <- rep(NA, length(groups))
+  # for (k in seq_along(groups)) {
+  #   nm <- names(groups)[k]
+  #   if (grepl("futility", nm)) {
+  #     n_per_group[k] <- sim$n_at_fut
+  #   } else if (grepl("interim|IA", nm)) {
+  #     n_per_group[k] <- sim$n_at_ia
+  #   } else {
+  #     n_per_group[k] <- sim$n_total
+  #   }
+  # }
+  # 
+  # props_all <- c(1, p_fut, 1-p_fut, p_ia_success, 1-p_fut-p_ia_success, p_low_cp, 
+  #                1-p_fut-p_ia_success-p_low_cp, p_final_suc)
+  # props <- props_all[keep]
+  # 
+  # for (ii in seq_along(groups)) {
+  #   col_t <- if (grepl("All @ futility", group_names[ii])) "black" else 
+  #     if (grepl("futility", group_names[ii])) "firebrick" else 
+  #       if (grepl("success", group_names[ii])) "forestgreen" else 
+  #         if (grepl("low CP", group_names[ii])) "firebrick" else "gray30"
+  #   
+  #   text(0.02, ii, format(counts_actual[ii], big.mark=","), adj = 0, col = col_t, cex = data_cex)
+  #   text(0.45, ii, sprintf("%d", n_per_group[ii]), adj = 0, col = "gray30", cex = data_cex)
+  #   text(0.78, ii, sprintf("%.1f%%", 100 * props[ii]), adj = 0, font = 2, col = col_t, cex = data_cex)
+  # }
+  
+  
+  # --- RIGHT PANEL: STATS TABLE ---
   par(mar = c(15, 1, 6, 1), xpd = FALSE)
   plot.new(); plot.window(xlim = c(0, 1), ylim = c(0.4, length(groups) + 0.9))
+  
   header_cex <- 1.15
   text(0.02, length(groups) + 0.75, "Trials (N)", adj = 0, font = 2, cex = header_cex)
   text(0.45, length(groups) + 0.75, "N/Trial", adj = 0, font = 2, cex = header_cex)
@@ -516,20 +556,42 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
     }
   }
   
-  props_all <- c(1, p_fut, 1-p_fut, p_ia_success, 1-p_fut-p_ia_success, p_low_cp, 
-                 1-p_fut-p_ia_success-p_low_cp, p_final_suc)
-  props <- props_all[keep]
+  # ---- FIXED % Sims computation (robust & correct) ----
+  props <- numeric(length(groups))
+  
+  for (k in seq_along(groups)) {
+    nm <- names(groups)[k]
+    
+    if (grepl("^1 All @ futility", nm)) {
+      props[k] <- 1
+    } else if (grepl("^1 Stopped futility", nm)) {
+      props[k] <- mean(sim$stop_fut, na.rm = TRUE)
+    } else if (grepl("^2 All @ interim", nm)) {
+      props[k] <- mean(!sim$stop_fut, na.rm = TRUE)
+    } else if (grepl("^2 Stopped IA success", nm)) {
+      props[k] <- mean(sim$stop_ia, na.rm = TRUE)
+    } else if (grepl("^2 Stopped low CP at IA2", nm)) {
+      props[k] <- mean(sim$stop_fut_low_cp, na.rm = TRUE)
+    } else if (grepl("^3 All @ final", nm)) {
+      props[k] <- mean(!(sim$stop_fut | sim$stop_ia | sim$stop_fut_low_cp), na.rm = TRUE)
+    } else if (grepl("^3 Stopped final success", nm)) {
+      props[k] <- mean(sim$stop_final, na.rm = TRUE)
+    } else {
+      props[k] <- NA
+    }
+  }
   
   for (ii in seq_along(groups)) {
-    col_t <- if (grepl("All @ futility", group_names[ii])) "black" else 
-      if (grepl("futility", group_names[ii])) "firebrick" else 
-        if (grepl("success", group_names[ii])) "forestgreen" else 
-          if (grepl("low CP", group_names[ii])) "firebrick" else "gray30"
+    col_t <- if (grepl("All @ futility", names(groups)[ii])) "black" else 
+      if (grepl("futility", names(groups)[ii])) "firebrick" else 
+        if (grepl("success", names(groups)[ii])) "forestgreen" else 
+          if (grepl("low CP", names(groups)[ii])) "firebrick" else "gray30"
     
     text(0.02, ii, format(counts_actual[ii], big.mark=","), adj = 0, col = col_t, cex = data_cex)
     text(0.45, ii, sprintf("%d", n_per_group[ii]), adj = 0, col = "gray30", cex = data_cex)
     text(0.78, ii, sprintf("%.1f%%", 100 * props[ii]), adj = 0, font = 2, col = col_t, cex = data_cex)
   }
+  
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -722,7 +784,7 @@ server <- function(input, output, session) {
   
   output$status <- renderText({ if (is.null(sim_store())) "Click 'Run' to start." else "Complete." })
   output$summary_table <- renderTable({ req(sim_store()); sim_table(sim_store()) }, digits = 3)
-  output$ess_breakdown <- renderTable({ req(sim_store()); expected_n_breakdown(sim_store()) })
+  output$ess_breakdown <- renderTable({ req(sim_store()); expected_n_breakdown(sim_store()) }, digits = 4)
   output$ess_total_note <- renderPrint({
     req(sim_store())
     df <- expected_n_breakdown(sim_store())
