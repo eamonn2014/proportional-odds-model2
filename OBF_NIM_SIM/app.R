@@ -429,7 +429,7 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
 
 ui <- page_sidebar(
   
-  title = "Ordinal, Non-Inferiority, Group Sequential Design Trial Simulator v2.0",
+  title = "Ordinal, Non-Inferiority, Group Sequential Design Trial Simulator v2.0Power CI is Monte Carlo 95% Wilson interval",
   
   sidebar = sidebar(
     width = 350,
@@ -596,7 +596,7 @@ ui <- page_sidebar(
                
                # Footer
                p(style = "margin-top: 3.5em; font-style: italic; color: #555; text-align: center;",
-                 "App version 1.14 • February 2026 • Built with Shiny, rpact & polr")
+                 "App version 2.0 • February 2026 • Built with Shiny, rpact & polr")
       )
     )
   )
