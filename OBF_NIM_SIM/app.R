@@ -1,6 +1,6 @@
 # =============================================================================
 #   Shiny App: Ordinal Non-Inferiority Trial Simulator with Winner's Curse
-#   v3.1 — FULL RESTORATION + LARGE STATS + HIGH-RES DOWNLOADER
+#   v3.2 — Added conditional power + CP-based futility at IA2
 # =============================================================================
 
 library(shiny)
@@ -54,14 +54,23 @@ fit_logCOR <- function(df) {
   list(logCOR_hat = logCOR_hat, se = se)
 }
 
+# Conditional power helper (one-sided NI, lower Z better)
+conditional_power_ni <- function(z_obs, info_current, info_next, theta_assumed, zcrit_next, beta_NI) {
+  delta <- (theta_assumed - beta_NI) * sqrt(info_next)
+  mean_final_z <- delta + sqrt(info_current / info_next) * z_obs
+  pnorm(zcrit_next, mean = mean_final_z, sd = 1)
+}
+
 expected_n_breakdown <- function(sim) {
-  p_fut   <- mean(sim$stop_fut, na.rm = TRUE)
-  p_ia    <- mean(sim$stop_ia,  na.rm = TRUE)
-  p_final <- mean(!(sim$stop_fut | sim$stop_ia), na.rm = TRUE)
+  p_fut        <- mean(sim$stop_fut, na.rm = TRUE)
+  p_ia_success <- mean(sim$stop_ia,  na.rm = TRUE)
+  p_low_cp     <- mean(sim$stop_fut_low_cp, na.rm = TRUE)
+  p_final      <- mean(!(sim$stop_fut | sim$stop_ia | sim$stop_fut_low_cp), na.rm = TRUE)
+  
   df <- data.frame(
-    Stage       = c("Futility stop", "IA success stop", "Final analysis"),
-    Probability = c(p_fut, p_ia, p_final),
-    N_at_stage  = c(sim$n_at_fut, sim$n_at_ia, sim$n_total),
+    Stage       = c("Futility stop", "IA success stop", "IA low-CP futility stop", "Final analysis"),
+    Probability = c(p_fut, p_ia_success, p_low_cp, p_final),
+    N_at_stage  = c(sim$n_at_fut, sim$n_at_ia, sim$n_at_ia, sim$n_total),
     check.names = FALSE
   )
   df$Contribution <- df$Probability * df$N_at_stage
@@ -88,31 +97,62 @@ simulate_obf_ordinal <- function(COR_true, COR_NI, n_total, futility_frac, info_
   one_sim <- function(i) {
     out <- list(Z_fut = NA_real_, COR_fut = NA_real_, Z1 = NA_real_, COR1 = NA_real_,
                 Z2 = NA_real_, COR2 = NA_real_, stop_fut = FALSE, stop_ia = FALSE, 
-                stop_final = FALSE, logCOR_fut = NA_real_, logCOR_ia = NA_real_, logCOR_final = NA_real_)
+                stop_final = FALSE, stop_fut_low_cp = FALSE,
+                logCOR_fut = NA_real_, logCOR_ia = NA_real_, logCOR_final = NA_real_,
+                CP_after_fut_to_ia_obs = NA_real_,
+                CP_after_ia_to_final_obs = NA_real_)
+    
     s_f <- split_n(n_fut)
     yCf <- sample.int(K + 1, s_f$nC, TRUE, pi_control) - 1
     yTf <- sample.int(K + 1, s_f$nT, TRUE, pi_treat) - 1
-    df_f <- data.frame(y=factor(c(yCf, yTf), ordered=TRUE, levels=0:K), trt=factor(rep(c("C","T"), c(s_f$nC, s_f$nT)), levels=c("C","T")))
+    df_f <- data.frame(y=factor(c(yCf, yTf), ordered=TRUE, levels=0:K), 
+                       trt=factor(rep(c("C","T"), c(s_f$nC, s_f$nT)), levels=c("C","T")))
     fit_f <- fit_logCOR(df_f)
     if (!is.null(fit_f)) {
       out$Z_fut <- (fit_f$logCOR_hat - beta_NI) / fit_f$se
       out$COR_fut <- exp(fit_f$logCOR_hat); out$logCOR_fut <- fit_f$logCOR_hat
       if (out$Z_fut > z_fut) { out$stop_fut <- TRUE; return(out) }
     }
+    
     n_add_ia <- n1 - n_fut; s_add <- split_n(n_add_ia)
     yCa <- sample.int(K + 1, s_add$nC, TRUE, pi_control) - 1
     yTa <- sample.int(K + 1, s_add$nT, TRUE, pi_treat) - 1
-    df_add <- data.frame(y=factor(c(yCa, yTa), ordered=TRUE, levels=0:K), trt=factor(rep(c("C","T"), c(s_add$nC, s_add$nT)), levels=c("C","T")))
+    df_add <- data.frame(y=factor(c(yCa, yTa), ordered=TRUE, levels=0:K), 
+                         trt=factor(rep(c("C","T"), c(s_add$nC, s_add$nT)), levels=c("C","T")))
     df1 <- rbind(df_f, df_add); fit1 <- fit_logCOR(df1)
     if (!is.null(fit1)) {
       out$Z1 <- (fit1$logCOR_hat - beta_NI) / fit1$se
       out$COR1 <- exp(fit1$logCOR_hat); out$logCOR_ia <- fit1$logCOR_hat
+      
+      info_fut <- n_fut / n_total
+      info_ia  <- n1 / n_total
+      
+      out$CP_after_fut_to_ia_obs <- conditional_power_ni(
+        z_obs = out$Z_fut, info_current = info_fut, info_next = info_ia,
+        theta_assumed = out$logCOR_fut, zcrit_next = zcrit1, beta_NI = beta_NI
+      )
+      
       if (out$Z1 <= zcrit1) { out$stop_ia <- TRUE; return(out) }
+      
+      info_final <- 1.0
+      
+      out$CP_after_ia_to_final_obs <- conditional_power_ni(
+        z_obs = out$Z1, info_current = info_ia, info_next = info_final,
+        theta_assumed = out$logCOR_ia, zcrit_next = zcrit2, beta_NI = beta_NI
+      )
+      
+      # Futility override: stop at IA2 if CP < 0.2 (even if passed efficacy boundary)
+      if (out$CP_after_ia_to_final_obs < 0.2) {
+        out$stop_fut_low_cp <- TRUE
+        return(out)
+      }
     }
+    
     n_add_final <- n_total - n1; s_final <- split_n(n_add_final)
     yCf2 <- sample.int(K + 1, s_final$nC, TRUE, pi_control) - 1
     yTf2 <- sample.int(K + 1, s_final$nT, TRUE, pi_treat) - 1
-    df_final_add <- data.frame(y=factor(c(yCf2, yTf2), ordered=TRUE, levels=0:K), trt=factor(rep(c("C","T"), c(s_final$nC, s_final$nT)), levels=c("C","T")))
+    df_final_add <- data.frame(y=factor(c(yCf2, yTf2), ordered=TRUE, levels=0:K), 
+                               trt=factor(rep(c("C","T"), c(s_final$nC, s_final$nT)), levels=c("C","T")))
     df2 <- rbind(df1, df_final_add); fit2 <- fit_logCOR(df2)
     if (!is.null(fit2)) {
       out$Z2 <- (fit2$logCOR_hat - beta_NI) / fit2$se
@@ -143,8 +183,13 @@ simulate_obf_ordinal <- function(COR_true, COR_NI, n_total, futility_frac, info_
        Z1_all=vapply(sims, `[[`, numeric(1), "Z1"), COR1_all=vapply(sims, `[[`, numeric(1), "COR1"),
        Z2_all=vapply(sims, `[[`, numeric(1), "Z2"), COR2_all=vapply(sims, `[[`, numeric(1), "COR2"),
        stop_fut=vapply(sims, `[[`, logical(1), "stop_fut"), stop_ia=vapply(sims, `[[`, logical(1), "stop_ia"),
-       stop_final=vapply(sims, `[[`, logical(1), "stop_final"), logCOR_paths = logCOR_paths,
-       n_at_fut = n_fut, n_at_ia = n1, n_total = n_total, nSims = nSims, z_fut = z_fut, zcrit1 = zcrit1, zcrit2 = zcrit2)
+       stop_final=vapply(sims, `[[`, logical(1), "stop_final"), stop_fut_low_cp=vapply(sims, `[[`, logical(1), "stop_fut_low_cp"),
+       logCOR_paths = logCOR_paths,
+       CP_after_fut_to_ia_obs = vapply(sims, `[[`, numeric(1), "CP_after_fut_to_ia_obs"),
+       CP_after_ia_to_final_obs = vapply(sims, `[[`, numeric(1), "CP_after_ia_to_final_obs"),
+       n_at_fut = n_fut, n_at_ia = n1, n_total = n_total, nSims = nSims, 
+       z_fut = z_fut, zcrit1 = zcrit1, zcrit2 = zcrit2,
+       rpact_design = NULL)  # filled later if needed
 }
 
 sim_table <- function(sim) {
@@ -155,13 +200,18 @@ sim_table <- function(sim) {
     c(N=length(x), Min=min(x), Max=max(x), Mean=mean(x), Median=q[2], `2.5%`=q[1], `97.5%`=q[3])
   }
   fut <- safe_summ_ext(sim$COR_fut_all[sim$stop_fut])
-  ia <- safe_summ_ext(sim$COR1_all[sim$stop_ia])
+  ia_suc <- safe_summ_ext(sim$COR1_all[sim$stop_ia])
+  ia_lowcp <- safe_summ_ext(sim$COR1_all[sim$stop_fut_low_cp])  # or COR2 if preferred
   fin <- safe_summ_ext(sim$COR2_all[sim$stop_final])
-  data.frame(Stage = c("Futility stop", "IA success stop", "Final success stop"),
-             N = c(fut["N"], ia["N"], fin["N"]), Min = c(fut["Min"], ia["Min"], fin["Min"]),
-             Mean = c(fut["Mean"], ia["Mean"], fin["Mean"]), Median = c(fut["Median"], ia["Median"], fin["Median"]),
-             `2.5%` = c(fut["2.5%"], ia["2.5%"], fin["2.5%"]), `97.5%`= c(fut["97.5%"], ia["97.5%"], fin["97.5%"]),
-             Max = c(fut["Max"], ia["Max"], fin["Max"]), check.names = FALSE) |> mutate(across(where(is.numeric), ~ round(.x, 3)))
+  data.frame(Stage = c("Futility stop", "IA success stop", "IA low-CP futility", "Final success stop"),
+             N = c(fut["N"], ia_suc["N"], ia_lowcp["N"], fin["N"]), 
+             Min = c(fut["Min"], ia_suc["Min"], ia_lowcp["Min"], fin["Min"]),
+             Mean = c(fut["Mean"], ia_suc["Mean"], ia_lowcp["Mean"], fin["Mean"]), 
+             Median = c(fut["Median"], ia_suc["Median"], ia_lowcp["Median"], fin["Median"]),
+             `2.5%` = c(fut["2.5%"], ia_suc["2.5%"], ia_lowcp["2.5%"], fin["2.5%"]), 
+             `97.5%`= c(fut["97.5%"], ia_suc["97.5%"], ia_lowcp["97.5%"], fin["97.5%"]),
+             Max = c(fut["Max"], ia_suc["Max"], ia_lowcp["Max"], fin["Max"]), check.names = FALSE) |> 
+    mutate(across(where(is.numeric), ~ round(.x, 3)))
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -187,12 +237,13 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
     x_label_expr <- expression(log(Cumulative~Odds~Ratio))
   }
   
-  p_fut <- mean(sim$stop_fut, na.rm = TRUE)
-  p_ia <- mean(sim$stop_ia, na.rm = TRUE)
-  p_final_suc <- mean(sim$stop_final, na.rm = TRUE)
-  empirical_power <- p_ia + p_final_suc
-  p_reach_final <- mean(!(sim$stop_fut | sim$stop_ia), na.rm = TRUE)
-  avg_n <- round(p_fut * sim$n_at_fut + p_ia * sim$n_at_ia + p_reach_final * sim$n_total)
+  p_fut        <- mean(sim$stop_fut, na.rm = TRUE)
+  p_ia_success <- mean(sim$stop_ia,  na.rm = TRUE)
+  p_low_cp     <- mean(sim$stop_fut_low_cp, na.rm = TRUE)
+  p_final_suc  <- mean(sim$stop_final, na.rm = TRUE)
+  empirical_power <- p_ia_success + p_final_suc
+  p_reach_final <- mean(!(sim$stop_fut | sim$stop_ia | sim$stop_fut_low_cp), na.rm = TRUE)
+  avg_n <- round(p_fut * sim$n_at_fut + p_ia_success * sim$n_at_ia + p_low_cp * sim$n_at_ia + p_reach_final * sim$n_total)
   
   n_sims_used <- sim$nSims
   k_success <- round(empirical_power * n_sims_used)
@@ -203,12 +254,15 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
   power_text <- sprintf("- Empirical Power: %.1f%% (%.1f%%–%.1f%%) (IA success + Final success) across %d simulations",
                         empirical_power * 100, ci_lower * 100, ci_upper * 100, n_sims_used)
   
-  groups <- list("All @ futility" = sim$logCOR_paths[, "fut"][is.finite(sim$logCOR_paths[, "fut"])],
-                 "Stopped futility" = sim$logCOR_paths[, "fut"][sim$stop_fut & is.finite(sim$logCOR_paths[, "fut"])],
-                 "All @ interim" = sim$logCOR_paths[, "ia"][is.finite(sim$logCOR_paths[, "ia"])],
-                 "Stopped IA success" = sim$logCOR_paths[, "ia"][sim$stop_ia & is.finite(sim$logCOR_paths[, "ia"])],
-                 "All @ final" = sim$logCOR_paths[, "final"][is.finite(sim$logCOR_paths[, "final"])],
-                 "Stopped final success" = sim$logCOR_paths[, "final"][sim$stop_final & is.finite(sim$logCOR_paths[, "final"])])
+  groups <- list(
+    "All @ futility"        = sim$logCOR_paths[, "fut"][is.finite(sim$logCOR_paths[, "fut"])],
+    "Stopped futility"      = sim$logCOR_paths[, "fut"][sim$stop_fut & is.finite(sim$logCOR_paths[, "fut"])],
+    "All @ interim"         = sim$logCOR_paths[, "ia"][is.finite(sim$logCOR_paths[, "ia"])],
+    "Stopped IA success"    = sim$logCOR_paths[, "ia"][sim$stop_ia & is.finite(sim$logCOR_paths[, "ia"])],
+    "Stopped low CP at IA2" = sim$logCOR_paths[, "ia"][sim$stop_fut_low_cp & is.finite(sim$logCOR_paths[, "ia"])],
+    "All @ final"           = sim$logCOR_paths[, "final"][is.finite(sim$logCOR_paths[, "final"])],
+    "Stopped final success" = sim$logCOR_paths[, "final"][sim$stop_final & is.finite(sim$logCOR_paths[, "final"])]
+  )
   
   counts_actual <- sapply(groups, length)
   if (use_cor_scale) groups <- lapply(groups, exp)
@@ -227,7 +281,7 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
   
   footnote_cex <- 1.05
   mtext(x_label_expr, side = 1, line = 3.5, adj = 0.5, font = 2, cex = 1.2)
-  mtext(sprintf("- Futility Look: N = %d (%d%% info) | IA Success Look: N = %d (%d%% info) | Final Analysis: N = %d",
+  mtext(sprintf("- Futility Look: N = %d (%d%% info) | IA Success Look: N = %d (%d%% info) | Final: N = %d",
                 sim$n_at_fut, round(futility_frac * 100), sim$n_at_ia, round(info_frac * 100), sim$n_total),
         side = 1, line = 7, adj = 0, cex = footnote_cex)
   mtext(sprintf("- Vertical Lines: Green dashed = True Effect (%.2f) | Red dotted = NI Margin (%.2f)",
@@ -255,14 +309,17 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
         if (g %in% names(group_y_map)) { path_x <- c(path_x, sim$logCOR_paths[i, "fut"]); path_y <- c(path_y, group_y_map[[g]] + j) }
       }
       if (is.finite(sim$logCOR_paths[i, "ia"])) {
-        g <- if(sim$stop_ia[i]) "Stopped IA success" else "All @ interim"
+        g <- if(sim$stop_ia[i]) "Stopped IA success" else if(sim$stop_fut_low_cp[i]) "Stopped low CP at IA2" else "All @ interim"
         if (g %in% names(group_y_map)) { path_x <- c(path_x, sim$logCOR_paths[i, "ia"]); path_y <- c(path_y, group_y_map[[g]] + j) }
       }
       if (is.finite(sim$logCOR_paths[i, "final"])) {
         g <- if(sim$stop_final[i]) "Stopped final success" else "All @ final"
         if (g %in% names(group_y_map)) { path_x <- c(path_x, sim$logCOR_paths[i, "final"]); path_y <- c(path_y, group_y_map[[g]] + j) }
       }
-      if (length(path_x) >= 2) lines(x_transform(path_x), path_y, col = if (is_success) rgb(0.1, 0.65, 0.1, 0.18) else rgb(0.9, 0.2, 0.2, 0.18), lwd = 0.8, lty = 2)
+      if (length(path_x) >= 2) {
+        col_line <- if (is_success) rgb(0.1, 0.65, 0.1, 0.18) else if (grepl("low CP", g)) rgb(0.6, 0.0, 0.8, 0.3) else rgb(0.9, 0.2, 0.2, 0.18)
+        lines(x_transform(path_x), path_y, col = col_line, lwd = 0.8, lty = 2)
+      }
     }
   }
   
@@ -272,12 +329,16 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
     else if (grepl("Stopped futility", nm)) idx <- which(sim$stop_fut & is.finite(sim$logCOR_paths[, "fut"]))
     else if (grepl("All @ interim", nm)) idx <- which(is.finite(sim$logCOR_paths[, "ia"]))
     else if (grepl("Stopped IA success", nm)) idx <- which(sim$stop_ia & is.finite(sim$logCOR_paths[, "ia"]))
+    else if (grepl("Stopped low CP at IA2", nm)) idx <- which(sim$stop_fut_low_cp & is.finite(sim$logCOR_paths[, "ia"]))
     else if (grepl("All @ final", nm)) idx <- which(is.finite(sim$logCOR_paths[, "final"]))
     else if (grepl("Stopped final success", nm)) idx <- which(sim$stop_final & is.finite(sim$logCOR_paths[, "final"]))
     else next
     
     vals <- groups[[ii]]; jitter_y <- jitter_master[idx]
-    col_p <- if (grepl("All @ futility", nm)) rgb(0.1,0.4,0.9,0.25) else if (grepl("futility", nm)) rgb(0.9,0.15,0.15,0.25) else if (grepl("success", nm)) rgb(0.1,0.65,0.1,0.25) else rgb(0.3,0.3,0.3,0.25)
+    col_p <- if (grepl("All @ futility", nm)) rgb(0.1,0.4,0.9,0.25) else 
+      if (grepl("futility", nm)) rgb(0.9,0.15,0.15,0.25) else 
+        if (grepl("success", nm)) rgb(0.1,0.65,0.1,0.25) else 
+          if (grepl("low CP", nm)) rgb(0.6, 0.0, 0.8, 0.35) else rgb(0.3,0.3,0.3,0.25)
     points(vals, ii + jitter_y, pch = 19, cex = 0.6, col = col_p)
     
     if (length(vals) >= 3) {
@@ -300,11 +361,14 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
   text(0.78, length(groups) + 0.75, "% Sims", adj = 0, font = 2, cex = header_cex)
   
   data_cex <- 1.10
-  props_all <- c(1, p_fut, 1-p_fut, p_ia, 1-p_fut-p_ia, p_final_suc)
-  n_all <- c(sim$n_at_fut, sim$n_at_fut, sim$n_at_ia, sim$n_at_ia, sim$n_total, sim$n_total)
+  props_all <- c(1, p_fut, 1-p_fut, p_ia_success, 1-p_fut-p_ia_success, p_low_cp, 1-p_fut-p_ia_success-p_low_cp, p_final_suc)
+  n_all <- c(sim$n_at_fut, sim$n_at_fut, sim$n_at_ia, sim$n_at_ia, sim$n_at_ia, sim$n_at_ia, sim$n_total, sim$n_total)
   props <- props_all[keep]; n_col <- n_all[keep]
   for (ii in seq_along(groups)) {
-    col_t <- if (grepl("All @ futility", group_names[ii])) "black" else if (grepl("futility", group_names[ii])) "firebrick" else if (grepl("success", group_names[ii])) "forestgreen" else "gray30"
+    col_t <- if (grepl("All @ futility", group_names[ii])) "black" else 
+      if (grepl("futility", group_names[ii])) "firebrick" else 
+        if (grepl("success", group_names[ii])) "forestgreen" else 
+          if (grepl("low CP", group_names[ii])) "purple" else "gray30"
     text(0.02, ii, format(counts_actual[ii], big.mark=","), adj = 0, col = col_t, cex = data_cex)
     text(0.45, ii, sprintf("%d", n_col[ii]), adj = 0, col = "gray30", cex = data_cex)
     text(0.78, ii, sprintf("%.1f%%", 100 * props[ii]), adj = 0, font = 2, col = col_t, cex = data_cex)
@@ -316,7 +380,7 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
 # ─────────────────────────────────────────────────────────────────────────────
 
 ui <- page_sidebar(
-  title = "Ordinal Endpoint, Non-Inferiority, Group Sequential Design, Trial Simulator v3.1",
+  title = "Ordinal Endpoint, Non-Inferiority, Group Sequential Design, Trial Simulator v3.2",
   sidebar = sidebar(
     width = 350,
     actionButton("run_btn", "Run Simulation", class = "btn-primary btn-lg", icon = icon("play-circle"), width = "100%"),
@@ -397,7 +461,11 @@ server <- function(input, output, session) {
   output$status <- renderText({ if (is.null(sim_store())) "Click 'Run' to start." else "Complete." })
   output$summary_table <- renderTable({ req(sim_store()); sim_table(sim_store()) }, digits = 3)
   output$ess_breakdown <- renderTable({ req(sim_store()); expected_n_breakdown(sim_store()) })
-  output$ess_total_note <- renderPrint({ req(sim_store()); df <- expected_n_breakdown(sim_store()); cat(sprintf("ESS (Average Sample Size) = %.1f\n", sum(df$Contribution))) })
+  output$ess_total_note <- renderPrint({
+    req(sim_store())
+    df <- expected_n_breakdown(sim_store())
+    cat(sprintf("ESS (Average Sample Size) = %.1f\n", sum(df$Contribution)))
+  })
   output$rpact_info <- renderPrint({
     req(sim_store()); d <- sim_store()$rpact_design
     cat(sprintf("Total One-sided Alpha: %.4f\nAlpha Spent Stage 1 (IA): %.4f\nAlpha Spent Stage 2 (Final): %.4f\n", d$alpha, d$alphaSpent[1], d$alphaSpent[2]))
