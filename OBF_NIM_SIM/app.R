@@ -143,9 +143,7 @@ expected_n_breakdown <- function(sim) {
   df$Contribution <- df$Probability * df$N_at_stage
   
   # [R] Base pipe `|>` (R >= 4.1) used here; mutate rounds for presentation only.
- # df |> mutate(Probability = round(Probability, 3), Contribution = round(Contribution, 1))
-  
-  
+ 
   df |>
     mutate(
       N_at_stage  = as.integer(round(N_at_stage)),  # <- KEY FIX
