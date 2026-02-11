@@ -285,12 +285,12 @@ simulate_obf_ordinal <- function(COR_true, COR_NI, n_total, futility_frac, info_
       # [STAT] "Observed CP" from futility look to interim look:
       #        Uses theta_assumed = observed logCOR at futility (winner's-curse prone).
       out$CP_after_fut_to_ia_obs <- conditional_power_ni(
-        z_obs        = out$Z_fut,
-        info_current = info_fut,
-        info_next    = info_ia,
+        z_obs         = out$Z_fut,
+        info_current  = info_fut,
+        info_next     = info_ia,
         theta_assumed = out$logCOR_fut,
-        zcrit_next   = zcrit1,
-        beta_NI      = beta_NI
+        zcrit_next    = zcrit1,
+        beta_NI       = beta_NI
       )
       
       # [STAT] Interim efficacy stopping rule:
@@ -395,7 +395,6 @@ simulate_obf_ordinal <- function(COR_true, COR_NI, n_total, futility_frac, info_
     ia    = vapply(sims, `[[`, numeric(1), "logCOR_ia"),
     final = vapply(sims, `[[`, numeric(1), "logCOR_final")
   )
-  # [R] NOTE: The closing parenthesis above was missing in the pasted snippet; required for valid syntax.
   
   # [R] Return a list-of-vectors structure that is easy for downstream plotting and summarizing.
   list(
@@ -406,10 +405,10 @@ simulate_obf_ordinal <- function(COR_true, COR_NI, n_total, futility_frac, info_
     Z2_all      = vapply(sims, `[[`, numeric(1),  "Z2"),
     COR2_all    = vapply(sims, `[[`, numeric(1),  "COR2"),
     
-    stop_fut       = vapply(sims, `[[`, logical(1), "stop_fut"),
-    stop_ia        = vapply(sims, `[[`, logical(1), "stop_ia"),
-    stop_final     = vapply(sims, `[[`, logical(1), "stop_final"),
-    stop_fut_low_cp= vapply(sims, `[[`, logical(1), "stop_fut_low_cp"),
+    stop_fut        = vapply(sims, `[[`, logical(1), "stop_fut"),
+    stop_ia         = vapply(sims, `[[`, logical(1), "stop_ia"),
+    stop_final      = vapply(sims, `[[`, logical(1), "stop_final"),
+    stop_fut_low_cp = vapply(sims, `[[`, logical(1), "stop_fut_low_cp"),
     
     logCOR_paths = logCOR_paths,
     
@@ -460,9 +459,8 @@ sim_table <- function(sim) {
       N = as.integer(round(N)),
       across(-c(Stage, N), ~ round(as.numeric(.x), 3))
     )
-
-
 }
+
 # ─────────────────────────────────────────────────────────────────────────────
 #   Plotting Function (unchanged from previous version)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -539,6 +537,7 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
     "2 Stopped IA success"    = sim$logCOR_paths[, "ia"][sim$stop_ia & is.finite(sim$logCOR_paths[, "ia"])],
     "2 Stopped low CP at IA2" = sim$logCOR_paths[, "ia"][sim$stop_fut_low_cp & is.finite(sim$logCOR_paths[, "ia"])],
     "3 All @ final"           = sim$logCOR_paths[, "final"][is.finite(sim$logCOR_paths[, "final"])],
+    "3 final failed"          = sim$logCOR_paths[, "final"][!sim$stop_final & is.finite(sim$logCOR_paths[, "final"])],
     "3 Stopped final success" = sim$logCOR_paths[, "final"][sim$stop_final & is.finite(sim$logCOR_paths[, "final"])]
   )
   
@@ -682,11 +681,23 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
       }
       
       # --- Final ---
-      if (is.finite(sim$logCOR_paths[i, "final"]) &&
-          "3 All @ final" %in% names(group_y_map)) {
+      if (is.finite(sim$logCOR_paths[i, "final"])) {
         
-        path_x <- c(path_x, sim$logCOR_paths[i, "final"])
-        path_y <- c(path_y, group_y_map["3 All @ final"] + j)
+        # [R] Decide which final group row the point belongs to for this trial.
+        if (sim$stop_final[i] && "3 Stopped final success" %in% names(group_y_map)) {
+          g_final <- "3 Stopped final success"
+        } else if (!sim$stop_final[i] && "3 final failed" %in% names(group_y_map)) {
+          g_final <- "3 final failed"
+        } else if ("3 All @ final" %in% names(group_y_map)) {
+          g_final <- "3 All @ final"
+        } else {
+          g_final <- NULL
+        }
+        
+        if (!is.null(g_final)) {
+          path_x <- c(path_x, sim$logCOR_paths[i, "final"])
+          path_y <- c(path_y, group_y_map[g_final] + j)
+        }
       }
       
       # --- Draw line ---
@@ -714,6 +725,7 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
     else if (grepl("2 Stopped IA success", nm))    idx <- which(sim$stop_ia & is.finite(sim$logCOR_paths[, "ia"]))
     else if (grepl("2 Stopped low CP at IA2", nm)) idx <- which(sim$stop_fut_low_cp & is.finite(sim$logCOR_paths[, "ia"]))
     else if (grepl("3 All @ final", nm))           idx <- which(is.finite(sim$logCOR_paths[, "final"]))
+    else if (grepl("3 final failed", nm))          idx <- which(!sim$stop_final & is.finite(sim$logCOR_paths[, "final"]))
     else if (grepl("3 Stopped final success", nm)) idx <- which(sim$stop_final & is.finite(sim$logCOR_paths[, "final"]))
     else next
     
@@ -723,9 +735,10 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
     # [R] Point colors by group type.
     col_p <- if (grepl("All @ futility", nm)) rgb(0.1, 0.4, 0.9, 0.25) else
       if (grepl("futility", nm))              rgb(0.9, 0.15,0.15,0.25) else
-        if (grepl("success", nm))             rgb(0.1, 0.65,0.1, 0.25) else
-          if (grepl("low CP", nm))            rgb(0.6, 0.0, 0.8, 0.35) else
-            rgb(0.3, 0.3, 0.3, 0.25)
+        if (grepl("failed", nm))              rgb(0.9, 0.15,0.15,0.25) else
+          if (grepl("success", nm))           rgb(0.1, 0.65,0.1, 0.25) else
+            if (grepl("low CP", nm))          rgb(0.6, 0.0, 0.8, 0.35) else
+              rgb(0.3, 0.3, 0.3, 0.25)
     
     points(vals, ii + jitter_y, pch = 19, cex = 0.6, col = col_p)
     
@@ -785,6 +798,7 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
     else if (grepl("^2 Stopped IA success", nm))     props[k] <- mean(sim$stop_ia, na.rm = TRUE)
     else if (grepl("^2 Stopped low CP at IA2", nm))  props[k] <- mean(sim$stop_fut_low_cp, na.rm = TRUE)
     else if (grepl("^3 All @ final", nm))            props[k] <- mean(!(sim$stop_fut | sim$stop_ia | sim$stop_fut_low_cp), na.rm = TRUE)
+    else if (grepl("^3 final failed", nm))           props[k] <- mean(!(sim$stop_fut | sim$stop_ia | sim$stop_fut_low_cp) & !sim$stop_final, na.rm = TRUE)
     else if (grepl("^3 Stopped final success", nm))  props[k] <- mean(sim$stop_final, na.rm = TRUE)
     else props[k] <- NA
   }
@@ -794,9 +808,10 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
     # [R] Color of text mirrors point colors for interpretability.
     col_t <- if (grepl("All @ futility", names(groups)[ii])) "black" else
       if (grepl("futility", names(groups)[ii])) "firebrick" else
-        if (grepl("success", names(groups)[ii])) "forestgreen" else
-          if (grepl("low CP", names(groups)[ii])) "firebrick" else
-            "gray30"
+        if (grepl("failed", names(groups)[ii])) "firebrick" else
+          if (grepl("success", names(groups)[ii])) "forestgreen" else
+            if (grepl("low CP", names(groups)[ii])) "firebrick" else
+              "gray30"
     
     text(0.02, ii, format(counts_actual[ii], big.mark=","), adj = 0, col = col_t,  cex = data_cex)
     text(0.45, ii, sprintf("%d", n_per_group[ii]),           adj = 0, col = "gray30", cex = data_cex)
