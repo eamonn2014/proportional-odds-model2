@@ -429,7 +429,7 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
 
 ui <- page_sidebar(
   
-  title = "Ordinal, Non-Inferiority, Group Sequential Design Trial Simulator v2.0Power CI is Monte Carlo 95% Wilson interval",
+  title = "Ordinal Endpoint, Non-Inferiority, Group Sequential Design, Trial Simulator v2.0",
   
   sidebar = sidebar(
     width = 350,
