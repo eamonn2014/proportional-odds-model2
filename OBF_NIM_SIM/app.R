@@ -150,7 +150,7 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
                               show_traj_success = FALSE, show_traj_fail = FALSE, 
                               use_cor_scale = FALSE, 
                               xlim_log_low = -3, xlim_log_high = 4, 
-                              main = "Winner's curse & selection bias") {
+                              main = "Bias and Treatment Effect Estimates by Trial Stopping Stage") {
   
   point_cex <- 0.6
   point_alpha <- 0.25
@@ -190,7 +190,7 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
   ci_lower <- max(0, center - margin)
   ci_upper <- min(1, center + margin)
   
-  power_text <- sprintf("Empirical Power: %.1f%% (%.1f%%–%.1f%%) (IA success + Final success) across %d simulations",
+  power_text <- sprintf("- Empirical Power: %.1f%% (%.1f%%–%.1f%%) (IA success + Final success) across %d simulations",
                         empirical_power * 100,
                         ci_lower * 100,
                         ci_upper * 100,
@@ -240,26 +240,26 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
        xlim = xlim_use, 
        ylim = c(0.4, length(groups) + 0.9), 
        xlab = "", ylab = "", yaxt = "n", las = 1,
-       main = sprintf("%s\n(avg sample size = %d)", main, avg_n))
+       main = sprintf("%s\n(Expected Sample Size = %d)", main, avg_n))
   
   # Footnotes
   mtext(x_label_expr, side = 1, line = 3, adj = 0.5, font = 2, cex = 1.1)
   
-  mtext(sprintf("Futility Look: N = %d (%d%% info) | IA Success Look: N = %d (%d%% info) | Final Analysis: N = %d", 
+  mtext(sprintf("- Futility Look: N = %d (%d%% info) | IA Success Look: N = %d (%d%% info) | Final Analysis: N = %d", 
                 sim$n_at_fut, round(futility_frac*100), 
                 sim$n_at_ia, round(info_frac*100), sim$n_total), 
-        side = 1, line = 6, adj = 0, cex = 0.9, col = "black")
+        side = 1, line = 6, adj = 0, cex = 1.0, col = "black")
   
-  mtext(sprintf("Vertical Lines: Green dashed = True Effect (%.2f) | Red dotted = NI Margin (%.2f)", 
+  mtext(sprintf("- Vertical Lines: Green dashed = True Effect (%.2f) | Red dotted = NI Margin (%.2f)", 
                 if(use_cor_scale) COR_true else log(COR_true), 
                 if(use_cor_scale) COR_NI else log(COR_NI)), 
-        side = 1, line = 7.5, adj = 0, cex = 0.9, col = "darkblue")
+        side = 1, line = 7.5, adj = 0, cex = 1.0 , col = "black")
   
   mtext(power_text, 
-        side = 1, line = 9, adj = 0, cex = 1.0, font = 2, col = "forestgreen")
+        side = 1, line = 9, adj = 0, cex = 1.0, font = 1, col = "black")
   
-  mtext("Note: ESS (Expected Sample Size) is the average N across all sims, accounting for early stopping. Power CI is Monte Carlo 95% Wilson interval.",
-        side = 1, line = 10.5, adj = 0, cex = 0.85, col = "gray30")
+  mtext("- Expected Sample Size (ESS) is the average N across all sims, accounting for early stopping. Power CI is Monte Carlo 95% Wilson interval.",
+        side = 1, line = 10.5, adj = 0, cex = 1.0, col = "black")
   
   # ────────────────────────────────────────────────────────────────
   # Trajectories: connect through jittered positions (as in your last request)
@@ -416,7 +416,7 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
     text(x_text_pct,    i, sprintf("%.1f%%", 100 * props[i]), adj = 0, cex = 1.05, font = 2, col = col_text, xpd = TRUE)
   }
   
-  text(x_text_actual, length(groups) + 0.75, "No. of trials", adj = 0, cex = 1.0, font = 2, xpd = TRUE)
+  text(x_text_actual, length(groups) + 0.75, "# of trials", adj = 0, cex = 1.0, font = 2, xpd = TRUE)
   text(x_text_n,      length(groups) + 0.75, "N per trial",  adj = 0, cex = 1.0, font = 2, xpd = TRUE)
   text(x_text_pct,    length(groups) + 0.75, "% of sims",    adj = 0, cex = 1.0, font = 2, xpd = TRUE)
   
@@ -426,180 +426,6 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
 # ─────────────────────────────────────────────────────────────────────────────
 #   UI & Server (Logic remains as provided)
 # ─────────────────────────────────────────────────────────────────────────────
-
-# ui <- page_sidebar(
-#   title = "Ordinal NI Trial Simulator + Winner's Curse v1.14",
-#   sidebar = sidebar(
-#     h4("Simulation Settings"),
-#     numericInput("n_total", "Total sample size", value = 600),
-#     numericInput("n_sims", "Number of simulations", value = 1000),
-#     numericInput("seed", "Random seed", value = 202506),
-#     numericInput("COR_true", "True COR", value = 1.3, step = 0.05),
-#     numericInput("COR_NI", "NI margin (M)", value = 1.6, step = 0.1),
-#     sliderInput("futility_frac", "Futility look fraction", min = 0.2, max = 0.7, value = 0.5),
-#     sliderInput("info_frac", "Interim look fraction", min = 0.5, max = 0.95, value = 0.80),
-#     numericInput("futility_p", "Futility p-threshold", value = 0.70),
-#     textInput("p_control_txt", "Control probabilities", value = "0.04, 0.02, 0.45, 0.34, 0.15"),
-#     checkboxInput("show_traj_success", "Show successful trajectories", value = FALSE),
-#     checkboxInput("show_traj_fail", "Show failed trajectories", value = FALSE),
-#     hr(), checkboxInput("use_cor_scale", "Display on COR scale", value = FALSE),
-#     sliderInput("xlim_log_low", "X lower (log)", min = -6, max = 0, value = -1, step = 0.5),
-#     sliderInput("xlim_log_high", "X upper (log)", min = 0, max = 7, value = 2, step = 0.5),
-#     actionButton("run_btn", "Run Simulation", class = "btn-primary", icon = icon("play"))
-#   ),
-#   card(tabsetPanel(
-#     tabPanel("Summary Table", verbatimTextOutput("status"), tableOutput("summary_table"), hr(), h5("rpact Design & Nominal P-values"), verbatimTextOutput("rpact_info")),
-#     tabPanel("Expected Sample Size", tableOutput("ess_breakdown"), hr(), verbatimTextOutput("ess_total_note")),
-#     tabPanel("Winner's Curse Plot", plotOutput("boxplot", height = "750px"))
-#   ))
-# )
-
-
-# ui <- page_sidebar(
-#   title = "Ordinal NI Trial Simulator + Winner's Curse v1.14",
-#   
-#   sidebar = sidebar(
-#     # ────────────────────────────────────────────────────────────────
-#     # Run button at the very top
-#     # ────────────────────────────────────────────────────────────────
-#     actionButton("run_btn", "Run Simulation", 
-#                  class = "btn-primary btn-lg", 
-#                  icon = icon("play"), 
-#                  width = "100%"),
-#     
-#     hr(),
-#     
-#     h4("Simulation Settings"),
-#     numericInput("n_total", "Total sample size", value = 600),
-#     numericInput("n_sims", "Number of simulations", value = 1000),
-#     numericInput("seed", "Random seed", value = 202506),
-#     numericInput("COR_true", "True COR", value = 1.3, step = 0.05),
-#     numericInput("COR_NI", "NI margin (M)", value = 1.6, step = 0.1),
-#     sliderInput("futility_frac", "Futility look fraction", min = 0.2, max = 0.7, value = 0.5),
-#     sliderInput("info_frac", "Interim look fraction", min = 0.5, max = 0.95, value = 0.80),
-#     numericInput("futility_p", "Futility p-threshold", value = 0.70),
-#     textInput("p_control_txt", "Control probabilities", value = "0.04, 0.02, 0.45, 0.34, 0.15"),
-#     
-#     hr(),
-#     
-#     # Other display options in the middle
-#     checkboxInput("use_cor_scale", "Display on COR scale", value = FALSE),
-#     sliderInput("xlim_log_low", "X lower (log)", min = -6, max = 0, value = -1, step = 0.5),
-#     sliderInput("xlim_log_high", "X upper (log)", min = 0, max = 7, value = 2, step = 0.5),
-#     
-#     # ────────────────────────────────────────────────────────────────
-#     # Trajectory checkboxes moved to the bottom
-#     # ────────────────────────────────────────────────────────────────
-#     hr(),
-#     h5("Show trajectories"),
-#     checkboxInput("show_traj_success", "Show successful trajectories", value = FALSE),
-#     checkboxInput("show_traj_fail", "Show failed trajectories", value = FALSE)
-#   ),
-#   
-#   card(tabsetPanel(
-#     tabPanel("Summary Table", 
-#              verbatimTextOutput("status"), 
-#              tableOutput("summary_table"), 
-#              hr(), 
-#              h5("rpact Design & Nominal P-values"), 
-#              verbatimTextOutput("rpact_info")),
-#     
-#     tabPanel("Expected Sample Size", 
-#              tableOutput("ess_breakdown"), 
-#              hr(), 
-#              verbatimTextOutput("ess_total_note")),
-#     
-#     tabPanel("Winner's Curse Plot", 
-#              plotOutput("boxplot", height = "750px"))
-#   ))
-# )
-# ui <- page_sidebar(
-#   
-#   title = "Ordinal NI Trial Simulator + Winner's Curse v1.14",
-#   
-#   sidebar = sidebar(
-#     width = 350,   # optional: make sidebar a bit wider for comfort
-#     
-#     # ────────────────────────────────────────────────────────────────
-#     # Primary action — prominent at the top
-#     # ────────────────────────────────────────────────────────────────
-#     actionButton(
-#       "run_btn", 
-#       "Run Simulation", 
-#       class = "btn-primary btn-lg", 
-#       icon = icon("play-circle"), 
-#       width = "100%"
-#     ),
-#     
-#     hr(style = "margin: 1.2em 0;"),
-#     
-#     # ────────────────────────────────────────────────────────────────
-#     # Core simulation parameters
-#     # ────────────────────────────────────────────────────────────────
-#     tags$div(
-#       style = "padding: 0 8px;",
-#       h5("Trial & Simulation Settings", style = "margin-bottom: 1em; color: #444;"),
-#       
-#       numericInput("n_total",     "Total sample size",          value = 600,      width = "100%"),
-#       numericInput("n_sims",      "Number of simulations",      value = 1000,     width = "100%"),
-#       numericInput("seed",        "Random seed",                value = 202506,   width = "100%"),
-#       
-#       hr(style = "margin: 1em 0; border-top: 1px dashed #ccc;"),
-#       
-#       numericInput("COR_true",    "True COR",                   value = 1.3,      step = 0.05, width = "100%"),
-#       numericInput("COR_NI",      "NI margin (M)",              value = 1.6,      step = 0.1,  width = "100%"),
-#       
-#       sliderInput("futility_frac", "Futility look fraction",   min = 0.2, max = 0.7, value = 0.5, width = "100%"),
-#       sliderInput("info_frac",     "Interim look fraction",     min = 0.5, max = 0.95, value = 0.80, width = "100%"),
-#       numericInput("futility_p",   "Futility p-threshold",      value = 0.70,     width = "100%"),
-#       
-#       textInput("p_control_txt",   "Control probabilities",     value = "0.04, 0.02, 0.45, 0.34, 0.15", width = "100%")
-#     ),
-#     
-#     hr(style = "margin: 1.5em 0;"),
-#     
-#     # ────────────────────────────────────────────────────────────────
-#     # Display & visualization options — lower priority
-#     # ────────────────────────────────────────────────────────────────
-#     tags$div(
-#       style = "padding: 0 8px;",
-#       h5("Plot Options", style = "margin-bottom: 1em; color: #444;"),
-#       
-#       checkboxInput("use_cor_scale", "Display on COR scale (instead of log)", value = FALSE),
-#       
-#       sliderInput("xlim_log_low",  "X-axis lower limit (log scale)",  min = -6, max = 0, value = -1, step = 0.5),
-#       sliderInput("xlim_log_high", "X-axis upper limit (log scale)",  min = 0,  max = 7, value = 2,  step = 0.5),
-#       
-#       hr(style = "margin: 1.2em 0; border-top: 1px dashed #ccc;"),
-#       
-#       tags$strong("Show trajectories"),
-#       checkboxInput("show_traj_success", "Successful trajectories", value = FALSE),
-#       checkboxInput("show_traj_fail",    "Failed / futility trajectories", value = FALSE)
-#     )
-#   ),
-#   
-#   # ────────────────────────────────────────────────────────────────
-#   # Main content remains unchanged
-#   # ────────────────────────────────────────────────────────────────
-#   card(
-#     tabsetPanel(
-#       tabPanel("Summary Table", 
-#                verbatimTextOutput("status"), 
-#                tableOutput("summary_table"), 
-#                hr(), 
-#                h5("rpact Design & Nominal P-values"), 
-#                verbatimTextOutput("rpact_info")),
-#       
-#       tabPanel("Expected Sample Size", 
-#                tableOutput("ess_breakdown"), 
-#                hr(), 
-#                verbatimTextOutput("ess_total_note")),
-#       
-#       tabPanel("Winner's Curse Plot", 
-#                plotOutput("boxplot", height = "750px"))
-#     )
-#   )
-# )
 
 ui <- page_sidebar(
   
@@ -624,20 +450,22 @@ ui <- page_sidebar(
       style = "padding: 0 8px;",
       h5("Trial & Simulation Settings", style = "margin-bottom: 1em; color: #444;"),
       
-      numericInput("n_total",     "Total sample size",          value = 600,      width = "100%"),
       numericInput("n_sims",      "Number of simulations",      value = 1000,     width = "100%"),
-      numericInput("seed",        "Random seed",                value = 202506,   width = "100%"),
+      numericInput("n_total",     "Total sample size (1:1 rand.)",          value = 600,      width = "100%"),
+    
+      # numericInput("seed",        "Random seed",                value = 202506,   width = "100%"),
       
-      hr(style = "margin: 1em 0; border-top: 1px dashed #ccc;"),
-      
-      numericInput("COR_true",    "True COR",                   value = 1.3,      step = 0.05, width = "100%"),
-      numericInput("COR_NI",      "NI margin (M)",              value = 1.6,      step = 0.1,  width = "100%"),
-      
+    #  hr(style = "margin: 1em 0; border-top: 1px dashed #ccc;"),
+      textInput("p_control_txt",   "Control probabilities",     value = "0.04, 0.02, 0.45, 0.34, 0.15", width = "100%"),
+      numericInput("COR_true",    "True cumulative odds ratio (COR)",                   value = 1.3,      step = 0.05, width = "100%"),
+      numericInput("COR_NI",      "Non inferiority margin COR",              value = 1.6,      step = 0.1,  width = "100%"),
+      numericInput("futility_p",   "Futility p-threshold",      value = 0.70,     width = "100%"),
       sliderInput("futility_frac", "Futility look fraction",   min = 0.2, max = 0.7, value = 0.5, width = "100%"),
       sliderInput("info_frac",     "Interim look fraction",     min = 0.5, max = 0.95, value = 0.80, width = "100%"),
-      numericInput("futility_p",   "Futility p-threshold",      value = 0.70,     width = "100%"),
+   
       
-      textInput("p_control_txt",   "Control probabilities",     value = "0.04, 0.02, 0.45, 0.34, 0.15", width = "100%")
+      # textInput("p_control_txt",   "Control probabilities",     value = "0.04, 0.02, 0.45, 0.34, 0.15", width = "100%"),
+      numericInput("seed",        "Random seed",                value = 202506,   width = "100%")
     ),
     
     hr(style = "margin: 1.5em 0;"),
@@ -665,6 +493,11 @@ ui <- page_sidebar(
   # ────────────────────────────────────────────────────────────────
   card(
     tabsetPanel(
+      
+      
+      tabPanel("Operating Characteristics Plot", 
+               plotOutput("boxplot", height = "750px")),
+      
       tabPanel("Summary Table", 
                verbatimTextOutput("status"), 
                tableOutput("summary_table"), 
@@ -677,45 +510,93 @@ ui <- page_sidebar(
                hr(), 
                verbatimTextOutput("ess_total_note")),
       
-      tabPanel("Winner's Curse Plot", 
-               plotOutput("boxplot", height = "750px")),
+  
       
       # New tab — last position
       tabPanel("About & References",
-               h4("What this app does", style = "margin-top: 1.2em;"),
-               p("This Shiny application simulates a **group-sequential non-inferiority trial** with an ordinal primary endpoint using the cumulative odds ratio (COR) as the effect measure."),
-               p("It implements a simple **two-look design** with one interim analysis (for early success) and a futility look (for early stopping for futility)."),
-               p("The simulation illustrates **selection bias / winner's curse** by comparing the distribution of estimated CORs at different stages across many simulated trials:"),
-               tags$ul(
-                 tags$li("All trials at futility look vs. those stopped for futility"),
-                 tags$li("All trials at interim vs. those stopped for early success"),
-                 tags$li("All trials at final analysis vs. those that succeeded at the final look")
-               ),
-               p("The plot helps visualize how early stopping rules inflate effect estimates in the subsets that cross the boundary."),
                
-               h4("What is the winner's curse?", style = "margin-top: 2em;"),
-               p("The **winner's curse** (also called selection bias or regression to the mean after selection) occurs when you only look at trials / estimates that passed a statistical threshold (e.g. crossed efficacy boundary, avoided futility)."),
-               p("Because of random variation, trials that just barely meet the stopping criterion tend to overestimate the true treatment effect — especially when the true effect is close to the boundary."),
-               p("In adaptive / group-sequential designs this phenomenon is particularly relevant:"),
+               # What this app does
+               h3("What this app does", style = "margin-top: 1.5em; color: #2c3e50; font-weight: 600;"),
+               p("This Shiny app simulates a group-sequential non-inferiority trial with an ordinal primary endpoint using the cumulative odds ratio (COR) as the treatment effect measure."),
+               
+               p("It uses a simple two-look adaptive design that includes:"),
                tags$ul(
-                 tags$li("Early efficacy stopping → inflated effect estimates in the 'success' subgroup"),
-                 tags$li("Futility stopping → the remaining trials at later looks tend to look better than they really are"),
-                 tags$li("The plot shows this visually by comparing 'all trials' vs 'selected trials' at each look.")
+                 tags$li("A futility look (early stopping if the treatment looks unlikely to succeed)"),
+                 tags$li("An interim analysis for early success (efficacy stopping)"),
+                 tags$li("A final analysis if neither stopping rule is met")
                ),
                
-               h4("References & further reading", style = "margin-top: 2em;"),
+               p("The main purpose is to illustrate selection bias (also called winner's curse) by comparing the distribution of estimated CORs across many simulated trials at each stage:"),
                tags$ul(
-                 tags$li("Proschan MA, Lan KKG, Wittes JT (2006). ", em("Statistical Monitoring of Clinical Trials: A Unified Approach.")),
-                 tags$li("Bauer P, Bretz F, Dragalin V, König F, Wassmer G (2016). Twenty-five years of confirmatory adaptive designs: opportunities and pitfalls. ", em("Statistics in Medicine"), " 35(3):325–347."),
-                 tags$li("Whitehead J (1986). The evaluation of a sequential trial when a positive treatment effect is anticipated. ", em("Applied Statistics"), " 35:155–163."),
+                 tags$li(HTML("<strong>All trials</strong> at futility look vs. only those <em>stopped for futility</em>")),
+                 tags$li(HTML("<strong>All trials</strong> at interim vs. only those <em>stopped for early success</em>")),
+                 tags$li(HTML("<strong>All trials</strong> at final analysis vs. only those <em>that succeeded at the final look</em>"))
+               ),
+               
+               p("The plot visually demonstrates how early stopping rules can inflate (or deflate) effect estimates in the selected subgroups."),
+               
+               # How to read the plot (new section)
+               # h3("How to read the Winner's Curse Plot", style = "margin-top: 2.5em; color: #2c3e50; font-weight: 600;"),
+               # 
+               # p("The main output is a boxplot + jittered points + optional trajectory lines showing estimated Cumulative Odds Ratios (COR) at different stages."),
+               # 
+               # p("Each pair of boxes compares:"),
+               # tags$ul(
+               #   tags$li(HTML("<strong>Left box</strong> — <em>All trials</em> that reached that look (regardless of stopping decision)")),
+               #   tags$li(HTML("<strong>Right box</strong> — only the subset that <em>stopped early</em> for futility or <em>succeeded early / at final</em>"))
+               # ),
+               
+               # p(strong("Quick interpretation guide:")),
+               # tags$ul(
+               #   tags$li("If the right box is shifted to the right (higher COR values) compared to the left box → winner's curse in action: selected 'successful' trials overestimate the true benefit."),
+               #   tags$li("If the right box for futility stop is shifted to the left (lower COR values) → futility rule is correctly identifying weaker/harmful effects."),
+               #   tags$li("When you enable trajectories (checkboxes), the dashed lines trace how the COR estimate evolved for individual simulated trials — you can see regression toward the mean after selection.")
+               # ),
+               # 
+               # h5("What does the COR value actually mean?", style = "margin-top: 1.8em; font-weight: 500;"),
+               # p("The Cumulative Odds Ratio (COR) comes from a proportional odds model and compares the odds of being in a higher (better) category between treatment and control."),
+               # tags$ul(
+               #   tags$li(HTML("<strong>COR > 1</strong> → treatment is beneficial: patients on treatment tend to have <strong>better ordinal outcomes</strong> (shift toward higher / more favorable categories).")),
+               #   tags$li(HTML("<strong>COR = 1</strong> → no difference between arms.")),
+               #   tags$li(HTML("<strong>COR < 1</strong> → treatment is worsening / harmful: patients on treatment tend to have <strong>worse ordinal outcomes</strong> (shift toward lower / less favorable categories)."))
+               # ),
+               # 
+               # p(strong("Example:")),
+               # tags$ul(
+               #   tags$li("COR = 1.5 → odds of better outcome are 50% higher with treatment → clear benefit."),
+               #   tags$li("COR = 0.7 → odds of better outcome are 30% lower with treatment → shift toward worse categories.")
+               # ),
+               # 
+               # p("The green dashed line = true simulated COR (most 'All trials' boxes should center around it)."),
+               # p("The red dotted line = non-inferiority margin (M) — the trial aims to rule out COR values worse than this."),
+               # 
+               # # What is the winner's curse?
+               # h3("What is the winner's curse?", style = "margin-top: 2.8em; color: #2c3e50; font-weight: 600;"),
+               # p("The winner's curse (also called post-selection bias or regression-to-the-mean after selection) occurs when you focus only on results that crossed a statistical threshold (e.g. efficacy boundary or avoided futility)."),
+               # 
+               # p("Due to random variation, trials or estimates that just barely meet the stopping criterion tend to overestimate the true treatment effect — especially when the true effect is close to the decision boundary."),
+               # 
+               # p("This bias is particularly relevant in adaptive and group-sequential designs:"),
+               # tags$ul(
+               #   tags$li("Early efficacy stopping → inflated effect estimates in the 'success' subgroup"),
+               #   tags$li("Early futility stopping → the trials that continue tend to look better than average"),
+               #   tags$li("The plot shows this clearly by comparing 'all trials' vs. 'selected trials' at each look")
+               # ),
+               
+               # References
+               h3("References & further reading", style = "margin-top: 2.8em; color: #2c3e50; font-weight: 600;"),
+               tags$ul(
+              #   tags$li("Proschan MA, Lan KKG, Wittes JT (2006). ", em("Statistical Monitoring of Clinical Trials: A Unified Approach.")),
+               #  tags$li("Bauer P, Bretz F, Dragalin V, König F, Wassmer G (2016). Twenty-five years of confirmatory adaptive designs: opportunities and pitfalls. ", em("Statistics in Medicine"), " 35(3):325–347. ", a("[DOI]", href = "https://doi.org/10.1002/sim.6754", target = "_blank")),
+                # tags$li("Whitehead J (1986). The evaluation of a sequential trial when a positive treatment effect is anticipated. ", em("Applied Statistics"), " 35:155–163."),
                  tags$li("rpact package documentation: ", a("https://www.rpact.org", href = "https://www.rpact.org", target = "_blank")),
-                 tags$li("The statistical properties of RCTs and a proposal for shrinkage: ", a("https://doi.org/10.1002/sim.9173", href = "https://doi.org/10.1002/sim.9173", target = "_blank")),
-                 tags$li("The performance of that shrinkage estimator to address the winner's curse: ", a("https://doi.org/10.1002/sim.9992", href = "https://doi.org/10.1002/sim.9992", target = "_blank"))
-                 
+                 tags$li("van Zwet EW, Tian L (2021). The statistical properties of RCTs and a proposal for shrinkage. ", em("Statistics in Medicine"), " 40(27):6112–6132. ", a("[DOI]", href = "https://doi.org/10.1002/sim.9173", target = "_blank")),
+                 tags$li("van Zwet EW et al. (2023). Evaluating a shrinkage estimator for the treatment effect in clinical trials. ", em("Statistics in Medicine"), " 42(30):5665–5683. ", a("[DOI]", href = "https://doi.org/10.1002/sim.9992", target = "_blank"))
                ),
                
-               p(style = "margin-top: 2em; font-style: italic; color: #555;",
-                 "App version 1.14 – February 2026 • Built with Shiny, rpact & polr")
+               # Footer
+               p(style = "margin-top: 3.5em; font-style: italic; color: #555; text-align: center;",
+                 "App version 1.14 • February 2026 • Built with Shiny, rpact & polr")
       )
     )
   )
