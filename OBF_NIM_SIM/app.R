@@ -258,7 +258,7 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
   mtext(power_text, 
         side = 1, line = 9, adj = 0, cex = 1.0, font = 1, col = "black")
   
-  mtext("- Expected Sample Size (ESS) is the average N across all sims, accounting for early stopping. Power CI is Monte Carlo 95% Wilson interval.",
+  mtext("- Expected Sample Size (ESS) is the average N across all sims, accounting for early stopping.",
         side = 1, line = 10.5, adj = 0, cex = 1.0, col = "black")
   
   # ────────────────────────────────────────────────────────────────
@@ -429,7 +429,7 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
 
 ui <- page_sidebar(
   
-  title = "Ordinal NI Trial Simulator + Winner's Curse v1.14",
+  title = "Ordinal, Non-Inferiority, Group Sequential Design Trial Simulator v2.0",
   
   sidebar = sidebar(
     width = 350,
