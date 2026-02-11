@@ -570,7 +570,110 @@ ui <- page_sidebar(
     tabsetPanel(
       tabPanel("Operating Characteristics Plot", plotOutput("boxplot", height = "750px")),
       tabPanel("Summary Table", verbatimTextOutput("status"), tableOutput("summary_table"), hr(), h5("rpact Design & Nominal P-values"), verbatimTextOutput("rpact_info")),
-      tabPanel("Expected Sample Size", tableOutput("ess_breakdown"), hr(), verbatimTextOutput("ess_total_note"))
+      tabPanel("Expected Sample Size", tableOutput("ess_breakdown"), hr(), verbatimTextOutput("ess_total_note")),
+      
+      tabPanel(
+        "Wiki",
+        div(style = "padding: 25px; max-width: 1000px;",
+            
+            h2("Ordinal Non-Inferiority Group Sequential Trial Simulator"),
+            hr(),
+            
+            h3("1) What This App Does"),
+            p("This application simulates a three-stage group sequential non-inferiority trial with an ordinal endpoint analyzed using a proportional odds model."),
+            
+            tags$ul(
+              tags$li("Stage 1: Futility look (based on a user-defined p-value threshold)."),
+              tags$li("Stage 2: Interim efficacy look (O’Brien-Fleming alpha spending)."),
+              tags$li("Stage 3: Final analysis (if trial continues).")
+            ),
+            
+            br(),
+            h4("Interpretation of the Cumulative Odds Ratio (COR)"),
+            
+            tags$ul(
+              tags$li(strong("COR = 1"), " → No difference between treatment and control."),
+              tags$li(strong("COR > 1"), " → Treatment is worse than comparator."),
+              tags$li(strong("COR < 1"), " → Treatment is better than comparator.")
+            ),
+            
+            p("Because this is a non-inferiority design, the red vertical line represents the NI margin. If the estimated log(COR) is sufficiently below that margin, non-inferiority is declared."),
+            
+            br(),
+            h4("Futility at IA1 (P-value approach)"),
+            
+            p("At the first look, the trial may stop for futility if the observed one-sided p-value is too large (i.e., insufficient evidence that treatment is non-inferior)."),
+            
+            p("This approach evaluates the observed test statistic directly against a user-defined futility threshold."),
+            
+            br(),
+            h4("Conditional Power (CP) Futility at IA2"),
+            
+            p("At the second look, the trial may stop for futility based on Conditional Power."),
+            
+            p("Conditional Power estimates the probability of ultimately achieving success at the final analysis, given:"),
+            
+            tags$ul(
+              tags$li("The data observed so far, and"),
+              tags$li("An assumed true treatment effect.")
+            ),
+            
+            p("In this simulator, the assumed future treatment effect is the observed interim COR."),
+            
+            p(strong("Important:"), " This means the observed interim estimate is used to model future behavior of the trial. If the resulting conditional power falls below the user-defined threshold (e.g., 20%), the trial stops early for futility."),
+            
+            hr(),
+            
+            h3("2) Winner's Curse in Group Sequential Trials"),
+            
+            p("Group sequential designs are vulnerable to selection bias, often referred to as the "),
+            strong("Winner's Curse."),
+            
+            br(), br(),
+            
+            p("When a trial stops early for success, it typically does so because the observed treatment effect is more extreme than average."),
+            
+            p("As a result, the observed COR at the time of stopping tends to overestimate the true underlying treatment effect."),
+            
+            br(),
+            
+            h4("Why This Happens"),
+            tags$ul(
+              tags$li("Stopping rules select for extreme results."),
+              tags$li("Random variability inflates early large effects."),
+              tags$li("Trials that continue tend to regress toward the true effect.")
+            ),
+            
+            p("Therefore, early-stopped trials frequently report treatment effects that are larger than the truth."),
+            
+            br(),
+            
+            h4("Implications"),
+            tags$ul(
+              tags$li("Overestimation of treatment benefit."),
+              tags$li("Replication studies often show smaller effects."),
+              tags$li("Regulatory and HTA interpretation should consider potential inflation.") 
+            ),
+            
+            br(),
+            
+            h4("Selected References"),
+            
+            tags$ul(
+              tags$li("Proschan MA, Lan KKG, Wittes JT. Statistical Monitoring of Clinical Trials."),
+              tags$li("Pocock SJ. Group Sequential Methods in the Design and Analysis of Clinical Trials."),
+              tags$li("Jennison C, Turnbull BW. Group Sequential Methods with Applications to Clinical Trials."),
+              tags$li("Schönbrodt FD, Wagenmakers EJ (2018). Sequential hypothesis testing can inflate effect sizes.")
+            ),
+            
+            br(),
+            hr(),
+            
+            p(style = "font-style: italic; color: gray;",
+              "This simulator is for educational and design exploration purposes only. It demonstrates how stopping rules influence power, bias, and expected sample size.")
+        )
+      )
+      
     )
   )
 )
