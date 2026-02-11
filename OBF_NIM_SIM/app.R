@@ -1,6 +1,6 @@
 # =============================================================================
 #   Shiny App: Ordinal Non-Inferiority Trial Simulator with Winner's Curse
-#   v3.2 — Added conditional power + CP-based futility at IA2
+#   v3.3 — Added user-adjustable CP futility threshold at IA2
 # =============================================================================
 
 library(shiny)
@@ -82,7 +82,7 @@ expected_n_breakdown <- function(sim) {
 # ─────────────────────────────────────────────────────────────────────────────
 
 simulate_obf_ordinal <- function(COR_true, COR_NI, n_total, futility_frac, info_frac,
-                                 zcrit1, zcrit2, futility_p, p_control,
+                                 zcrit1, zcrit2, futility_p, p_control, cp_threshold = 0.2,
                                  seed = 1234, nSims = 1000, workers = NULL) {
   msg <- validate_probs(p_control)
   if (!is.null(msg)) stop(msg)
@@ -141,8 +141,8 @@ simulate_obf_ordinal <- function(COR_true, COR_NI, n_total, futility_frac, info_
         theta_assumed = out$logCOR_ia, zcrit_next = zcrit2, beta_NI = beta_NI
       )
       
-      # Futility override: stop at IA2 if CP < 0.2 (even if passed efficacy boundary)
-      if (out$CP_after_ia_to_final_obs < 0.2) {
+      # Futility override: stop at IA2 if CP < user-defined threshold
+      if (out$CP_after_ia_to_final_obs < cp_threshold) {
         out$stop_fut_low_cp <- TRUE
         return(out)
       }
@@ -201,7 +201,7 @@ sim_table <- function(sim) {
   }
   fut <- safe_summ_ext(sim$COR_fut_all[sim$stop_fut])
   ia_suc <- safe_summ_ext(sim$COR1_all[sim$stop_ia])
-  ia_lowcp <- safe_summ_ext(sim$COR1_all[sim$stop_fut_low_cp])  # or COR2 if preferred
+  ia_lowcp <- safe_summ_ext(sim$COR1_all[sim$stop_fut_low_cp])
   fin <- safe_summ_ext(sim$COR2_all[sim$stop_final])
   data.frame(Stage = c("Futility stop", "IA success stop", "IA low-CP futility", "Final success stop"),
              N = c(fut["N"], ia_suc["N"], ia_lowcp["N"], fin["N"]), 
@@ -215,7 +215,7 @@ sim_table <- function(sim) {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-#   Plotting Function
+#   Plotting Function (unchanged from previous version)
 # ─────────────────────────────────────────────────────────────────────────────
 
 selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
@@ -253,16 +253,21 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
   
   power_text <- sprintf("- Empirical Power: %.1f%% (%.1f%%–%.1f%%) (IA success + Final success) across %d simulations",
                         empirical_power * 100, ci_lower * 100, ci_upper * 100, n_sims_used)
+ 
   
   groups <- list(
-    "All @ futility"        = sim$logCOR_paths[, "fut"][is.finite(sim$logCOR_paths[, "fut"])],
-    "Stopped futility"      = sim$logCOR_paths[, "fut"][sim$stop_fut & is.finite(sim$logCOR_paths[, "fut"])],
-    "All @ interim"         = sim$logCOR_paths[, "ia"][is.finite(sim$logCOR_paths[, "ia"])],
-    "Stopped IA success"    = sim$logCOR_paths[, "ia"][sim$stop_ia & is.finite(sim$logCOR_paths[, "ia"])],
-    "Stopped low CP at IA2" = sim$logCOR_paths[, "ia"][sim$stop_fut_low_cp & is.finite(sim$logCOR_paths[, "ia"])],
-    "All @ final"           = sim$logCOR_paths[, "final"][is.finite(sim$logCOR_paths[, "final"])],
-    "Stopped final success" = sim$logCOR_paths[, "final"][sim$stop_final & is.finite(sim$logCOR_paths[, "final"])]
+    "1 All @ futility"        = sim$logCOR_paths[, "fut"][is.finite(sim$logCOR_paths[, "fut"])],
+    "1 Stopped futility"      = sim$logCOR_paths[, "fut"][sim$stop_fut & is.finite(sim$logCOR_paths[, "fut"])],
+    "2 All @ interim"         = sim$logCOR_paths[, "ia"][is.finite(sim$logCOR_paths[, "ia"])],
+    "2 Stopped IA success"    = sim$logCOR_paths[, "ia"][sim$stop_ia & is.finite(sim$logCOR_paths[, "ia"])],
+    "2 Stopped low CP at IA2" = sim$logCOR_paths[, "ia"][sim$stop_fut_low_cp & is.finite(sim$logCOR_paths[, "ia"])],
+    "3 All @ final"           = sim$logCOR_paths[, "final"][is.finite(sim$logCOR_paths[, "final"])],
+    "3 Stopped final success" = sim$logCOR_paths[, "final"][sim$stop_final & is.finite(sim$logCOR_paths[, "final"])]
   )
+  
+  
+  
+  
   
   counts_actual <- sapply(groups, length)
   if (use_cor_scale) groups <- lapply(groups, exp)
@@ -274,7 +279,6 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
   op <- par(no.readonly = TRUE); on.exit({ par(op); layout(1) }, add = TRUE)
   layout(matrix(c(1, 2), nrow = 1), widths = c(5.2, 2.2))
   
-  # --- LEFT PANEL: PLOT ---
   par(mar = c(15, 12, 6, 2), xpd = FALSE)
   plot(0, type = "n", xlim = xlim_use, ylim = c(0.4, length(groups) + 0.9),
        xlab = "", ylab = "", yaxt = "n", las = 1, main = sprintf("%s\n(Expected Sample Size = %d)", main, avg_n))
@@ -296,43 +300,177 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
   abline(v = x_transform(log(COR_NI)),   lty = 3, col = "red",       lwd = 2.5)
   abline(h = seq_along(groups), col = "gray92", lwd = 0.8)
   
-  # Trajectories
+  
+  # --------------------
+  # Trajectories – FIXED (correct group names)
+  # --------------------
+  # --------------------
+  # Trajectories – centered + fainter
+  # --------------------
   if (show_traj_success || show_traj_fail) {
-    group_y_map <- setNames(seq_along(groups), group_names)
+    
+    group_y_map <- setNames(seq_along(groups), names(groups))
+    
     for (i in seq_len(nrow(sim$logCOR_paths))) {
+      
       is_success <- isTRUE(sim$stop_ia[i]) || isTRUE(sim$stop_final[i])
-      if (is_success && !show_traj_success) next
-      if (!is_success && !show_traj_fail) next
-      path_x <- numeric(0); path_y <- numeric(0); j <- jitter_master[i]
-      if (is.finite(sim$logCOR_paths[i, "fut"])) {
-        g <- if(sim$stop_fut[i]) "Stopped futility" else "All @ futility"
-        if (g %in% names(group_y_map)) { path_x <- c(path_x, sim$logCOR_paths[i, "fut"]); path_y <- c(path_y, group_y_map[[g]] + j) }
+      is_low_cp  <- isTRUE(sim$stop_fut_low_cp[i])
+      
+      if ((is_success && !show_traj_success) ||
+          (!is_success && !show_traj_fail)) next
+      
+      path_x <- numeric(0)
+      path_y <- numeric(0)
+      
+      # 🔑 use EXACT same jitter as points
+      j <- jitter_master[i]
+      
+      # --- Futility ---
+      if (is.finite(sim$logCOR_paths[i, "fut"]) &&
+          "1 All @ futility" %in% names(group_y_map)) {
+        
+        path_x <- c(path_x, sim$logCOR_paths[i, "fut"])
+        path_y <- c(path_y, group_y_map["1 All @ futility"] + j)
       }
+      
+      # --- Interim ---
       if (is.finite(sim$logCOR_paths[i, "ia"])) {
-        g <- if(sim$stop_ia[i]) "Stopped IA success" else if(sim$stop_fut_low_cp[i]) "Stopped low CP at IA2" else "All @ interim"
-        if (g %in% names(group_y_map)) { path_x <- c(path_x, sim$logCOR_paths[i, "ia"]); path_y <- c(path_y, group_y_map[[g]] + j) }
+        
+        if (is_low_cp && "2 Stopped low CP at IA2" %in% names(group_y_map)) {
+          g <- "2 Stopped low CP at IA2"
+        } else if (sim$stop_ia[i] && "2 Stopped IA success" %in% names(group_y_map)) {
+          g <- "2 Stopped IA success"
+        } else if ("2 All @ interim" %in% names(group_y_map)) {
+          g <- "2 All @ interim"
+        } else {
+          g <- NULL
+        }
+        
+        if (!is.null(g)) {
+          path_x <- c(path_x, sim$logCOR_paths[i, "ia"])
+          path_y <- c(path_y, group_y_map[g] + j)
+        }
       }
-      if (is.finite(sim$logCOR_paths[i, "final"])) {
-        g <- if(sim$stop_final[i]) "Stopped final success" else "All @ final"
-        if (g %in% names(group_y_map)) { path_x <- c(path_x, sim$logCOR_paths[i, "final"]); path_y <- c(path_y, group_y_map[[g]] + j) }
+      
+      # --- Final ---
+      if (is.finite(sim$logCOR_paths[i, "final"]) &&
+          "3 All @ final" %in% names(group_y_map)) {
+        
+        path_x <- c(path_x, sim$logCOR_paths[i, "final"])
+        path_y <- c(path_y, group_y_map["3 All @ final"] + j)
       }
+      
+      # --- Draw line ---
       if (length(path_x) >= 2) {
-        col_line <- if (is_success) rgb(0.1, 0.65, 0.1, 0.18) else if (grepl("low CP", g)) rgb(0.6, 0.0, 0.8, 0.3) else rgb(0.9, 0.2, 0.2, 0.18)
-        lines(x_transform(path_x), path_y, col = col_line, lwd = 0.8, lty = 2)
+        
+        col_line <- if (is_success) rgb(0, 0.7, 0, 0.18)      # faint green
+        else if (is_low_cp) rgb(0.6, 0, 0.8, 0.22)            # faint purple
+        else rgb(0.9, 0.1, 0.1, 0.18)                         # faint red
+        
+        lines(x_transform(path_x), path_y,
+              col = col_line, lwd = 1)
       }
     }
   }
   
+  
+  #}
+  # Trajectories
+  # if (show_traj_success || show_traj_fail) {
+  #   group_y_map <- setNames(seq_along(groups), group_names)
+  #   for (i in seq_len(nrow(sim$logCOR_paths))) {
+  #     path_x <- numeric(0); path_y <- numeric(0); j <- jitter_master[i]
+  #     
+  #     # Futility point
+  #     if (is.finite(sim$logCOR_paths[i, "fut"])) {
+  #       g_fut <- if(sim$stop_fut[i]) "Stopped futility" else "All @ futility"
+  #       if (g_fut %in% names(group_y_map)) {
+  #         path_x <- c(path_x, sim$logCOR_paths[i, "fut"])
+  #         path_y <- c(path_y, group_y_map[[g_fut]] + j)
+  #       }
+  #     }
+  #     
+  #     # Interim point (IA1/IA2)
+  #     if (is.finite(sim$logCOR_paths[i, "ia"])) {
+  #       if (sim$stop_ia[i]) {
+  #         g_ia <- "Stopped IA success"
+  #       } else if (sim$stop_fut_low_cp[i]) {
+  #         g_ia <- "Stopped low CP at IA2"
+  #       } else {
+  #         g_ia <- "All @ interim"
+  #       }
+  #       if (g_ia %in% names(group_y_map)) {
+  #         path_x <- c(path_x, sim$logCOR_paths[i, "ia"])
+  #         path_y <- c(path_y, group_y_map[[g_ia]] + j)
+  #       }
+  #     }
+  #     
+  #     # Final point
+  #     if (is.finite(sim$logCOR_paths[i, "final"])) {
+  #       g_final <- if(sim$stop_final[i]) "Stopped final success" else "All @ final"
+  #       if (g_final %in% names(group_y_map)) {
+  #         path_x <- c(path_x, sim$logCOR_paths[i, "final"])
+  #         path_y <- c(path_y, group_y_map[[g_final]] + j)
+  #       }
+  #     }
+  #     
+  #     # Draw line if at least two points
+  #     if (length(path_x) >= 2) {
+  #       is_success_path <- isTRUE(sim$stop_ia[i]) || isTRUE(sim$stop_final[i])
+  #       if ((is_success_path && show_traj_success) || (!is_success_path && show_traj_fail)) {
+  #         col_line <- if (is_success_path) rgb(0.1, 0.65, 0.1, 0.18) 
+  #         else if (sim$stop_fut_low_cp[i]) rgb(0.6, 0.0, 0.8, 0.3) 
+  #         else rgb(0.9, 0.2, 0.2, 0.18)
+  #         lines(x_transform(path_x), path_y, col = col_line, lwd = 0.8, lty = 2)
+  #       }
+  #     }
+  #   }
+  # }
+  
+  # if (show_traj_success || show_traj_fail) {
+  #   group_y_map <- setNames(seq_along(groups), group_names)
+  #   for (i in seq_len(nrow(sim$logCOR_paths))) {
+  #     is_success <- isTRUE(sim$stop_ia[i]) || isTRUE(sim$stop_final[i])
+  #     if (is_success && !show_traj_success) next
+  #     if (!is_success && !show_traj_fail) next
+  #     path_x <- numeric(0); path_y <- numeric(0); j <- jitter_master[i]
+  #     if (is.finite(sim$logCOR_paths[i, "fut"])) {
+  #       g <- if(sim$stop_fut[i]) "Stopped futility" else "All @ futility"
+  #       if (g %in% names(group_y_map)) { path_x <- c(path_x, sim$logCOR_paths[i, "fut"]); path_y <- c(path_y, group_y_map[[g]] + j) }
+  #     }
+  #     if (is.finite(sim$logCOR_paths[i, "ia"])) {
+  #       g <- if(sim$stop_ia[i]) "Stopped IA success" else if(sim$stop_fut_low_cp[i]) "Stopped low CP at IA2" else "All @ interim"
+  #       if (g %in% names(group_y_map)) { path_x <- c(path_x, sim$logCOR_paths[i, "ia"]); path_y <- c(path_y, group_y_map[[g]] + j) }
+  #     }
+  #     if (is.finite(sim$logCOR_paths[i, "final"])) {
+  #       g <- if(sim$stop_final[i]) "Stopped final success" else "All @ final"
+  #       if (g %in% names(group_y_map)) { path_x <- c(path_x, sim$logCOR_paths[i, "final"]); path_y <- c(path_y, group_y_map[[g]] + j) }
+  #     }
+  #     if (length(path_x) >= 2) {
+  #       col_line <- if (is_success) rgb(0.1, 0.65, 0.1, 0.18) else if (grepl("low CP", g)) rgb(0.6, 0.0, 0.8, 0.3) else rgb(0.9, 0.2, 0.2, 0.18)
+  #       lines(x_transform(path_x), path_y, col = col_line, lwd = 0.8, lty = 2)
+  #     }
+  #   }
+  # }
+  
   for (ii in seq_along(groups)) {
     nm <- group_names[ii]
-    if (grepl("All @ futility", nm)) idx <- which(is.finite(sim$logCOR_paths[, "fut"]))
-    else if (grepl("Stopped futility", nm)) idx <- which(sim$stop_fut & is.finite(sim$logCOR_paths[, "fut"]))
-    else if (grepl("All @ interim", nm)) idx <- which(is.finite(sim$logCOR_paths[, "ia"]))
-    else if (grepl("Stopped IA success", nm)) idx <- which(sim$stop_ia & is.finite(sim$logCOR_paths[, "ia"]))
-    else if (grepl("Stopped low CP at IA2", nm)) idx <- which(sim$stop_fut_low_cp & is.finite(sim$logCOR_paths[, "ia"]))
-    else if (grepl("All @ final", nm)) idx <- which(is.finite(sim$logCOR_paths[, "final"]))
-    else if (grepl("Stopped final success", nm)) idx <- which(sim$stop_final & is.finite(sim$logCOR_paths[, "final"]))
+    if (grepl("1 All @ futility", nm)) idx <- which(is.finite(sim$logCOR_paths[, "fut"]))
+    else if (grepl("1 Stopped futility", nm)) idx <- which(sim$stop_fut & is.finite(sim$logCOR_paths[, "fut"]))
+    else if (grepl("2 All @ interim", nm)) idx <- which(is.finite(sim$logCOR_paths[, "ia"]))
+    else if (grepl("2 Stopped IA success", nm)) idx <- which(sim$stop_ia & is.finite(sim$logCOR_paths[, "ia"]))
+    else if (grepl("2 Stopped low CP at IA2", nm)) idx <- which(sim$stop_fut_low_cp & is.finite(sim$logCOR_paths[, "ia"]))
+    else if (grepl("3 All @ final", nm)) idx <- which(is.finite(sim$logCOR_paths[, "final"]))
+    else if (grepl("3 Stopped final success", nm)) idx <- which(sim$stop_final & is.finite(sim$logCOR_paths[, "final"]))
     else next
+    
+    
+ 
+    
+    
+    
+    
+    
     
     vals <- groups[[ii]]; jitter_y <- jitter_master[idx]
     col_p <- if (grepl("All @ futility", nm)) rgb(0.1,0.4,0.9,0.25) else 
@@ -345,13 +483,16 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
       q <- quantile(vals, c(0.25, 0.5, 0.75))
       iqr <- q[3] - q[1]
       w_upper <- max(vals[vals <= q[3] + 1.5 * iqr]); w_lower <- min(vals[vals >= q[1] - 1.5 * iqr])
-      segments(w_lower, ii, q[1], ii, col = "steelblue", lwd = 1.2); segments(q[3], ii, w_upper, ii, col = "steelblue", lwd = 1.2)
-      segments(w_lower, ii - 0.05, w_lower, ii + 0.05, col = "steelblue", lwd = 1.2); segments(w_upper, ii - 0.05, w_upper, ii + 0.05, col = "steelblue", lwd = 1.2)
+      segments(w_lower, ii, q[1], ii, col = "steelblue", lwd = 1.2)
+      segments(q[3], ii, w_upper, ii, col = "steelblue", lwd = 1.2)
+      segments(w_lower, ii - 0.05, w_lower, ii + 0.05, col = "steelblue", lwd = 1.2)
+      segments(w_upper, ii - 0.05, w_upper, ii + 0.05, col = "steelblue", lwd = 1.2)
       rect(q[1], ii - 0.14, q[3], ii + 0.14, col = rgb(0.88,0.93,1,0.5), border = "steelblue", lwd = 1.4)
       segments(q[2], ii - 0.14, q[2], ii + 0.14, lwd = 5, col = "royalblue3")
     }
   }
   
+  # Right panel stats
   # --- RIGHT PANEL: STATS TABLE ---
   par(mar = c(15, 1, 6, 1), xpd = FALSE)
   plot.new(); plot.window(xlim = c(0, 1), ylim = c(0.4, length(groups) + 0.9))
@@ -361,16 +502,32 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
   text(0.78, length(groups) + 0.75, "% Sims", adj = 0, font = 2, cex = header_cex)
   
   data_cex <- 1.10
-  props_all <- c(1, p_fut, 1-p_fut, p_ia_success, 1-p_fut-p_ia_success, p_low_cp, 1-p_fut-p_ia_success-p_low_cp, p_final_suc)
-  n_all <- c(sim$n_at_fut, sim$n_at_fut, sim$n_at_ia, sim$n_at_ia, sim$n_at_ia, sim$n_at_ia, sim$n_total, sim$n_total)
-  props <- props_all[keep]; n_col <- n_all[keep]
+  
+  # Correct N values per group type
+  n_per_group <- rep(NA, length(groups))
+  for (k in seq_along(groups)) {
+    nm <- names(groups)[k]
+    if (grepl("futility", nm)) {
+      n_per_group[k] <- sim$n_at_fut
+    } else if (grepl("interim|IA", nm)) {
+      n_per_group[k] <- sim$n_at_ia
+    } else {
+      n_per_group[k] <- sim$n_total
+    }
+  }
+  
+  props_all <- c(1, p_fut, 1-p_fut, p_ia_success, 1-p_fut-p_ia_success, p_low_cp, 
+                 1-p_fut-p_ia_success-p_low_cp, p_final_suc)
+  props <- props_all[keep]
+  
   for (ii in seq_along(groups)) {
     col_t <- if (grepl("All @ futility", group_names[ii])) "black" else 
       if (grepl("futility", group_names[ii])) "firebrick" else 
         if (grepl("success", group_names[ii])) "forestgreen" else 
-          if (grepl("low CP", group_names[ii])) "purple" else "gray30"
+          if (grepl("low CP", group_names[ii])) "firebrick" else "gray30"
+    
     text(0.02, ii, format(counts_actual[ii], big.mark=","), adj = 0, col = col_t, cex = data_cex)
-    text(0.45, ii, sprintf("%d", n_col[ii]), adj = 0, col = "gray30", cex = data_cex)
+    text(0.45, ii, sprintf("%d", n_per_group[ii]), adj = 0, col = "gray30", cex = data_cex)
     text(0.78, ii, sprintf("%.1f%%", 100 * props[ii]), adj = 0, font = 2, col = col_t, cex = data_cex)
   }
 }
@@ -380,7 +537,7 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
 # ─────────────────────────────────────────────────────────────────────────────
 
 ui <- page_sidebar(
-  title = "Ordinal Endpoint, Non-Inferiority, Group Sequential Design, Trial Simulator v3.2",
+  title = "Ordinal Endpoint, Non-Inferiority, Group Sequential Design, Trial Simulator v3.3",
   sidebar = sidebar(
     width = 350,
     actionButton("run_btn", "Run Simulation", class = "btn-primary btn-lg", icon = icon("play-circle"), width = "100%"),
@@ -391,7 +548,8 @@ ui <- page_sidebar(
              textInput("p_control_txt", "Control probabilities", value = "0.04, 0.02, 0.45, 0.34, 0.15"),
              numericInput("COR_true", "True cumulative odds ratio (COR)", value = 1.0, step = 0.05),
              numericInput("COR_NI", "Non inferiority margin COR", value = 1.6, step = 0.1),
-             numericInput("futility_p", "Futility p-threshold", value = 0.70),
+             numericInput("futility_p", "Futility p-value threshold IA1", value = 0.70),
+             numericInput("cp_threshold", "CP futility threshold at IA2", value = 0.2, min = 0, max = 1, step = 0.05),
              sliderInput("futility_frac", "Futility look fraction", min = 0.2, max = 0.7, value = 0.5),
              sliderInput("info_frac", "Interim look fraction", min = 0.5, max = 0.95, value = 0.80),
              numericInput("seed", "Random seed", value = 202506)),
@@ -430,6 +588,7 @@ server <- function(input, output, session) {
                                 futility_frac = input$futility_frac, info_frac = input$info_frac,
                                 zcrit1 = -design$criticalValues[1], zcrit2 = -design$criticalValues[2],
                                 futility_p = input$futility_p, p_control = parse_probs(input$p_control_txt),
+                                cp_threshold = input$cp_threshold,
                                 seed = input$seed, nSims = input$n_sims)
     sim$rpact_design <- design
     sim_store(sim)
