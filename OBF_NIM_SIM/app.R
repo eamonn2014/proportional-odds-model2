@@ -1,6 +1,6 @@
 # =============================================================================
 #   Shiny App: Ordinal Non-Inferiority Trial Simulator with Winner's Curse
-#   v1.13 — Full Restoration with Detailed Multi-line Plot Footnotes
+#   v1.14 — Integrated Empirical Power & Look Timings Footnotes
 # =============================================================================
 
 library(shiny)
@@ -11,7 +11,7 @@ library(bslib)
 library(rpact)
 
 # ─────────────────────────────────────────────────────────────────────────────
-#   Helpers
+#   Helpers (Logic remains as provided)
 # ─────────────────────────────────────────────────────────────────────────────
 
 ilogit <- function(z) 1 / (1 + exp(-z))
@@ -100,7 +100,6 @@ simulate_obf_ordinal <- function(
   pb <- if(show_progress) shiny::Progress$new() else NULL
   if (!is.null(pb)) pb$set(message = "Running simulations...", value = 0)
   for (i in seq_len(nSims)) {
-    # Futility
     s_f <- split_n(n_fut); yCf <- sample(0:K, s_f$nC, TRUE, pi_control); yTf <- sample(0:K, s_f$nT, TRUE, pi_treat)
     df_f <- data.frame(y = factor(c(yCf,yTf), ordered = TRUE, levels = 0:K), trt = factor(rep(c("C","T"), c(s_f$nC,s_f$nT)), levels = c("C","T")))
     fit_f <- fit_logCOR(df_f)
@@ -109,7 +108,6 @@ simulate_obf_ordinal <- function(
       res$COR_fut_all[i] <- exp(fit_f$logCOR_hat); res$logCOR_paths[i, "fut"] <- fit_f$logCOR_hat
       if (res$Z_fut_all[i] > res$z_fut) { res$stop_fut[i] <- TRUE; if(!is.null(pb)) pb$inc(1/nSims); next }
     }
-    # IA Success
     n_add_ia <- n1 - n_fut; s_add <- split_n(n_add_ia)
     yCa <- sample(0:K, s_add$nC, TRUE, pi_control); yTa <- sample(0:K, s_add$nT, TRUE, pi_treat)
     df_add <- data.frame(y = factor(c(yCa,yTa), ordered = TRUE, levels = 0:K), trt = factor(rep(c("C","T"), c(s_add$nC,s_add$nT)), levels = c("C","T")))
@@ -119,7 +117,6 @@ simulate_obf_ordinal <- function(
       res$COR1_all[i] <- exp(fit1$logCOR_hat); res$logCOR_paths[i, "ia"] <- fit1$logCOR_hat
       if (res$Z1_all[i] <= res$zcrit1) { res$stop_ia[i] <- TRUE; if(!is.null(pb)) pb$inc(1/nSims); next }
     }
-    # Final Look
     n_add_final <- n_total - n1; s_final <- split_n(n_add_final)
     yCf2 <- sample(0:K, s_final$nC, TRUE, pi_control); yTf2 <- sample(0:K, s_final$nT, TRUE, pi_treat)
     df_final_add <- data.frame(y = factor(c(yCf2,yTf2), ordered = TRUE, levels = 0:K), trt = factor(rep(c("C","T"), c(s_final$nC,s_final$nT)), levels = c("C","T")))
@@ -146,7 +143,7 @@ sim_table <- function(sim) {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-#   Plotting Function (Restored & Enhanced)
+#   Plotting Function (Updated with Power Footnote)
 # ─────────────────────────────────────────────────────────────────────────────
 
 selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac, show_traj_success = FALSE, show_traj_fail = FALSE, use_cor_scale = FALSE, xlim_log_low = -3, xlim_log_high = 4, main = "Winner's curse & selection bias") {
@@ -157,7 +154,13 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac, s
     xlim_use <- c(xlim_log_low, xlim_log_high); x_transform <- identity; x_label_expr <- expression(log(Cumulative~Odds~Ratio))
   }
   
-  p_fut <- mean(sim$stop_fut, na.rm = TRUE); p_ia <- mean(sim$stop_ia, na.rm = TRUE); p_reach_final <- mean(!(sim$stop_fut | sim$stop_ia), na.rm = TRUE)
+  # Logic to calculate overall power
+  p_fut <- mean(sim$stop_fut, na.rm = TRUE)
+  p_ia <- mean(sim$stop_ia, na.rm = TRUE)
+  p_final_suc <- mean(sim$stop_final, na.rm = TRUE)
+  empirical_power <- p_ia + p_final_suc
+  
+  p_reach_final <- mean(!(sim$stop_fut | sim$stop_ia), na.rm = TRUE)
   avg_n <- round(p_fut * sim$n_at_fut + p_ia * sim$n_at_ia + p_reach_final * sim$n_total)
   
   groups <- list("All @ futility" = sim$logCOR_paths[,"fut"][is.finite(sim$logCOR_paths[,"fut"])], "Stopped futility" = sim$logCOR_paths[,"fut"][sim$stop_fut & is.finite(sim$logCOR_paths[,"fut"])], "All @ interim" = sim$logCOR_paths[,"ia"][is.finite(sim$logCOR_paths[,"ia"])], "Stopped IA success" = sim$logCOR_paths[,"ia"][sim$stop_ia & is.finite(sim$logCOR_paths[,"ia"])], "All @ final" = sim$logCOR_paths[,"final"][is.finite(sim$logCOR_paths[,"final"])], "Stopped final success" = sim$logCOR_paths[,"final"][sim$stop_final & is.finite(sim$logCOR_paths[,"final"])])
@@ -167,11 +170,11 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac, s
   
   if (length(groups) == 0) { plot.new(); text(0.5, 0.5, "No valid data", cex = 1.4, col = "gray"); return(invisible(NULL)) }
   
-  # Large bottom margin (line 12) to fit multiple footnote lines
-  op <- par(mar = c(12, 12, 6, 28)); on.exit(par(op))
+  # Slightly larger margin (14) to fit 4 distinct lines of footnote text
+  op <- par(mar = c(14, 12, 6, 28)); on.exit(par(op))
   plot(0, type = "n", xlim = xlim_use, ylim = c(0.4, length(groups) + 0.9), xlab = "", ylab = "", yaxt = "n", las = 1, main = sprintf("%s\n(avg sample size = %d)", main, avg_n))
   
-  # Footnotes (Strategic placement via 'line')
+  # --- FOOTNOTES ---
   mtext(x_label_expr, side = 1, line = 3, adj = 0.5, font = 2, cex = 1.1)
   
   # Line 1: Look timings
@@ -184,9 +187,14 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac, s
                 if(use_cor_scale) COR_true else log(COR_true), if(use_cor_scale) COR_NI else log(COR_NI)), 
         side = 1, line = 7.5, adj = 0, cex = 0.9, col = "darkblue")
   
-  # Line 3: ESS Note
+  # Line 3: EMPIRICAL POWER (NEW)
+  mtext(sprintf("Empirical Power: %.1f%% (IA success + Final success) across %d simulations", 
+                empirical_power * 100, sim$nSims), 
+        side = 1, line = 9, adj = 0, cex = 1.0, font = 2, col = "forestgreen")
+  
+  # Line 4: ESS Note
   mtext("Note: ESS (Expected Sample Size) is the average N across all sims, accounting for early stopping.", 
-        side = 1, line = 9, adj = 0, cex = 0.85, col = "gray30")
+        side = 1, line = 10.5, adj = 0, cex = 0.85, col = "gray30")
   
   # Trajectories
   if (show_traj_success || show_traj_fail) {
@@ -217,7 +225,7 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac, s
   
   # Side Table stats
   usr <- par("usr"); x_range <- usr[2] - usr[1]; x_text_actual <- usr[2] + 0.05 * x_range; x_text_n <- usr[2] + 0.16 * x_range; x_text_pct <- usr[2] + 0.27 * x_range
-  p_final_suc <- mean(sim$stop_final, na.rm = TRUE); props_all <- c(1, p_fut, 1 - p_fut, p_ia, 1 - p_fut - p_ia, p_final_suc); n_all <- c(sim$n_at_fut, sim$n_at_fut, sim$n_at_ia, sim$n_at_ia, sim$n_total, sim$n_total); props <- props_all[keep]; n_col <- n_all[keep]
+  props_all <- c(1, p_fut, 1 - p_fut, p_ia, 1 - p_fut - p_ia, p_final_suc); n_all <- c(sim$n_at_fut, sim$n_at_fut, sim$n_at_ia, sim$n_at_ia, sim$n_total, sim$n_total); props <- props_all[keep]; n_col <- n_all[keep]
   for (i in seq_along(groups)) {
     col_text <- if (group_names[i] == "All @ futility") "black" else if (grepl("futility", group_names[i])) "firebrick" else if (grepl("success", group_names[i])) "forestgreen" else "gray30"
     text(x_text_actual, i, format(counts_actual[i], big.mark=","), adj = 0, cex = 1.05, col = col_text, xpd = TRUE)
@@ -229,11 +237,11 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac, s
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-#   UI & Server
+#   UI & Server (Logic remains as provided)
 # ─────────────────────────────────────────────────────────────────────────────
 
 ui <- page_sidebar(
-  title = "Ordinal NI Trial Simulator + Winner's Curse v1.13",
+  title = "Ordinal NI Trial Simulator + Winner's Curse v1.14",
   sidebar = sidebar(
     h4("Simulation Settings"),
     numericInput("n_total", "Total sample size", value = 600),
