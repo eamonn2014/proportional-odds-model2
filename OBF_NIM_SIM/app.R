@@ -1,6 +1,6 @@
 # =============================================================================
 #   Shiny App: Ordinal Non-Inferiority Trial Simulator with Winner's Curse
-#   v3.0 — FULL RESTORATION + PROGRESS BAR FIX + WHISKER FIX
+#   v3.1 — FULL RESTORATION + LARGE STATS + HIGH-RES DOWNLOADER
 # =============================================================================
 
 library(shiny)
@@ -14,11 +14,12 @@ library(future.apply)
 library(progressr)
 
 # ─────────────────────────────────────────────────────────────────────────────
-#   Helpers (Unchanged from original)
+#   Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
 ilogit <- function(z) 1 / (1 + exp(-z))
 parse_probs <- function(txt) as.numeric(trimws(unlist(strsplit(txt, ","))))
+
 validate_probs <- function(p) {
   if (any(is.na(p)))           return("Probabilities must be numeric (comma-separated).")
   if (length(p) < 3)           return("Need at least 3 categories.")
@@ -26,10 +27,12 @@ validate_probs <- function(p) {
   if (abs(sum(p) - 1) > 1e-6) return(sprintf("Must sum to ~1 (got %.6f).", sum(p)))
   NULL
 }
+
 theta_from_control_pmf <- function(p_control) {
   cum_control <- cumsum(p_control)
   qlogis(cum_control[seq_len(length(p_control)-1)])
 }
+
 pmf_from_beta <- function(theta, beta, x = 1) {
   cdf <- ilogit(theta - beta * x)
   cdf <- c(cdf, 1)
@@ -37,6 +40,7 @@ pmf_from_beta <- function(theta, beta, x = 1) {
   pmf[pmf < 0] <- 0
   pmf / sum(pmf)
 }
+
 fit_logCOR <- function(df) {
   fit <- try(MASS::polr(y ~ trt, data = df, Hess = TRUE), silent = TRUE)
   if (inherits(fit, "try-error") || is.null(fit$coefficients)) return(NULL)
@@ -49,6 +53,7 @@ fit_logCOR <- function(df) {
   if (!is.finite(se) || se < 1e-8) return(NULL)
   list(logCOR_hat = logCOR_hat, se = se)
 }
+
 expected_n_breakdown <- function(sim) {
   p_fut   <- mean(sim$stop_fut, na.rm = TRUE)
   p_ia    <- mean(sim$stop_ia,  na.rm = TRUE)
@@ -64,7 +69,7 @@ expected_n_breakdown <- function(sim) {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-#   Simulation Engine (FIXED PROGRESS BAR)
+#   Simulation Engine
 # ─────────────────────────────────────────────────────────────────────────────
 
 simulate_obf_ordinal <- function(COR_true, COR_NI, n_total, futility_frac, info_frac,
@@ -79,6 +84,7 @@ simulate_obf_ordinal <- function(COR_true, COR_NI, n_total, futility_frac, info_
   split_n <- function(N) { nC <- floor(N/2); list(nC = nC, nT = N - nC) }
   n_fut <- round(futility_frac * n_total); n1 <- round(info_frac * n_total)
   z_fut <- qnorm(futility_p)
+  
   one_sim <- function(i) {
     out <- list(Z_fut = NA_real_, COR_fut = NA_real_, Z1 = NA_real_, COR1 = NA_real_,
                 Z2 = NA_real_, COR2 = NA_real_, stop_fut = FALSE, stop_ia = FALSE, 
@@ -115,6 +121,7 @@ simulate_obf_ordinal <- function(COR_true, COR_NI, n_total, futility_frac, info_
     }
     out
   }
+  
   if (is.null(workers)) workers <- max(1, future::availableCores() - 1)
   old_plan <- future::plan(); on.exit(future::plan(old_plan), add = TRUE)
   future::plan(multisession, workers = workers)
@@ -123,13 +130,15 @@ simulate_obf_ordinal <- function(COR_true, COR_NI, n_total, futility_frac, info_
     p <- progressr::progressor(along = seq_len(nSims))
     future.apply::future_lapply(seq_len(nSims), FUN = function(i) {
       res <- one_sim(i)
-      p() # Removed the message=sprintf part to fix resetting counts
+      p()
       res
     }, future.seed = TRUE)
   })
+  
   logCOR_paths <- cbind(fut=vapply(sims, `[[`, numeric(1), "logCOR_fut"), 
                         ia=vapply(sims, `[[`, numeric(1), "logCOR_ia"), 
                         final=vapply(sims, `[[`, numeric(1), "logCOR_final"))
+  
   list(Z_fut_all=vapply(sims, `[[`, numeric(1), "Z_fut"), COR_fut_all=vapply(sims, `[[`, numeric(1), "COR_fut"),
        Z1_all=vapply(sims, `[[`, numeric(1), "Z1"), COR1_all=vapply(sims, `[[`, numeric(1), "COR1"),
        Z2_all=vapply(sims, `[[`, numeric(1), "Z2"), COR2_all=vapply(sims, `[[`, numeric(1), "COR2"),
@@ -145,7 +154,9 @@ sim_table <- function(sim) {
     q <- quantile(x, c(0.025,0.5,0.975), names=FALSE)
     c(N=length(x), Min=min(x), Max=max(x), Mean=mean(x), Median=q[2], `2.5%`=q[1], `97.5%`=q[3])
   }
-  fut <- safe_summ_ext(sim$COR_fut_all[sim$stop_fut]); ia <- safe_summ_ext(sim$COR1_all[sim$stop_ia]); fin <- safe_summ_ext(sim$COR2_all[sim$stop_final])
+  fut <- safe_summ_ext(sim$COR_fut_all[sim$stop_fut])
+  ia <- safe_summ_ext(sim$COR1_all[sim$stop_ia])
+  fin <- safe_summ_ext(sim$COR2_all[sim$stop_final])
   data.frame(Stage = c("Futility stop", "IA success stop", "Final success stop"),
              N = c(fut["N"], ia["N"], fin["N"]), Min = c(fut["Min"], ia["Min"], fin["Min"]),
              Mean = c(fut["Mean"], ia["Mean"], fin["Mean"]), Median = c(fut["Median"], ia["Median"], fin["Median"]),
@@ -153,10 +164,9 @@ sim_table <- function(sim) {
              Max = c(fut["Max"], ia["Max"], fin["Max"]), check.names = FALSE) |> mutate(across(where(is.numeric), ~ round(.x, 3)))
 }
 
- 
-# =============================================================================
-#   plot
-# =============================================================================
+# ─────────────────────────────────────────────────────────────────────────────
+#   Plotting Function
+# ─────────────────────────────────────────────────────────────────────────────
 
 selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
                               show_traj_success = FALSE, show_traj_fail = FALSE,
@@ -167,7 +177,6 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
   log_min_nice <- xlim_log_low
   log_max_nice <- xlim_log_high
   
-  # Coordinate Transform Logic
   if (use_cor_scale) {
     xlim_use <- exp(c(log_min_nice, log_max_nice))
     x_transform <- exp
@@ -178,7 +187,6 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
     x_label_expr <- expression(log(Cumulative~Odds~Ratio))
   }
   
-  # Summary Stats for Footnotes
   p_fut <- mean(sim$stop_fut, na.rm = TRUE)
   p_ia <- mean(sim$stop_ia, na.rm = TRUE)
   p_final_suc <- mean(sim$stop_final, na.rm = TRUE)
@@ -195,7 +203,6 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
   power_text <- sprintf("- Empirical Power: %.1f%% (%.1f%%–%.1f%%) (IA success + Final success) across %d simulations",
                         empirical_power * 100, ci_lower * 100, ci_upper * 100, n_sims_used)
   
-  # Grouping the Data
   groups <- list("All @ futility" = sim$logCOR_paths[, "fut"][is.finite(sim$logCOR_paths[, "fut"])],
                  "Stopped futility" = sim$logCOR_paths[, "fut"][sim$stop_fut & is.finite(sim$logCOR_paths[, "fut"])],
                  "All @ interim" = sim$logCOR_paths[, "ia"][is.finite(sim$logCOR_paths[, "ia"])],
@@ -208,10 +215,8 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
   keep <- sapply(groups, function(g) length(g) > 0 && all(is.finite(g)))
   groups <- groups[keep]; group_names <- names(groups); counts_actual <- counts_actual[keep]
   
-  # Jitter Logic
   set.seed(202506); n_max <- nrow(sim$logCOR_paths); jitter_master <- runif(n_max, -0.30, 0.30)
   
-  # Layout Setup
   op <- par(no.readonly = TRUE); on.exit({ par(op); layout(1) }, add = TRUE)
   layout(matrix(c(1, 2), nrow = 1), widths = c(5.2, 2.2))
   
@@ -220,7 +225,6 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
   plot(0, type = "n", xlim = xlim_use, ylim = c(0.4, length(groups) + 0.9),
        xlab = "", ylab = "", yaxt = "n", las = 1, main = sprintf("%s\n(Expected Sample Size = %d)", main, avg_n))
   
-  # Footnotes
   footnote_cex <- 1.05
   mtext(x_label_expr, side = 1, line = 3.5, adj = 0.5, font = 2, cex = 1.2)
   mtext(sprintf("- Futility Look: N = %d (%d%% info) | IA Success Look: N = %d (%d%% info) | Final Analysis: N = %d",
@@ -238,7 +242,7 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
   abline(v = x_transform(log(COR_NI)),   lty = 3, col = "red",       lwd = 2.5)
   abline(h = seq_along(groups), col = "gray92", lwd = 0.8)
   
-  # Trajectories (if enabled)
+  # Trajectories
   if (show_traj_success || show_traj_fail) {
     group_y_map <- setNames(seq_along(groups), group_names)
     for (i in seq_len(nrow(sim$logCOR_paths))) {
@@ -262,7 +266,6 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
     }
   }
   
-  # Draw Jittered Points and Boxplots
   for (ii in seq_along(groups)) {
     nm <- group_names[ii]
     if (grepl("All @ futility", nm)) idx <- which(is.finite(sim$logCOR_paths[, "fut"]))
@@ -274,23 +277,15 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
     else next
     
     vals <- groups[[ii]]; jitter_y <- jitter_master[idx]
-    
-    # 1. Individual points (Background)
-    col_p <- if (grepl("All @ futility", nm)) rgb(0.1,0.4,0.9,0.25) 
-    else if (grepl("futility", nm)) rgb(0.9,0.15,0.15,0.25) 
-    else if (grepl("success", nm)) rgb(0.1,0.65,0.1,0.25) 
-    else rgb(0.3,0.3,0.3,0.25)
+    col_p <- if (grepl("All @ futility", nm)) rgb(0.1,0.4,0.9,0.25) else if (grepl("futility", nm)) rgb(0.9,0.15,0.15,0.25) else if (grepl("success", nm)) rgb(0.1,0.65,0.1,0.25) else rgb(0.3,0.3,0.3,0.25)
     points(vals, ii + jitter_y, pch = 19, cex = 0.6, col = col_p)
     
-    # 2. Box-and-Whisker (Foreground)
     if (length(vals) >= 3) {
       q <- quantile(vals, c(0.25, 0.5, 0.75))
       iqr <- q[3] - q[1]
       w_upper <- max(vals[vals <= q[3] + 1.5 * iqr]); w_lower <- min(vals[vals >= q[1] - 1.5 * iqr])
-      segments(w_lower, ii, q[1], ii, col = "steelblue", lwd = 1.2)
-      segments(q[3], ii, w_upper, ii, col = "steelblue", lwd = 1.2)
-      segments(w_lower, ii - 0.05, w_lower, ii + 0.05, col = "steelblue", lwd = 1.2)
-      segments(w_upper, ii - 0.05, w_upper, ii + 0.05, col = "steelblue", lwd = 1.2)
+      segments(w_lower, ii, q[1], ii, col = "steelblue", lwd = 1.2); segments(q[3], ii, w_upper, ii, col = "steelblue", lwd = 1.2)
+      segments(w_lower, ii - 0.05, w_lower, ii + 0.05, col = "steelblue", lwd = 1.2); segments(w_upper, ii - 0.05, w_upper, ii + 0.05, col = "steelblue", lwd = 1.2)
       rect(q[1], ii - 0.14, q[3], ii + 0.14, col = rgb(0.88,0.93,1,0.5), border = "steelblue", lwd = 1.4)
       segments(q[2], ii - 0.14, q[2], ii + 0.14, lwd = 5, col = "royalblue3")
     }
@@ -299,7 +294,6 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
   # --- RIGHT PANEL: STATS TABLE ---
   par(mar = c(15, 1, 6, 1), xpd = FALSE)
   plot.new(); plot.window(xlim = c(0, 1), ylim = c(0.4, length(groups) + 0.9))
-  
   header_cex <- 1.15
   text(0.02, length(groups) + 0.75, "Trials (N)", adj = 0, font = 2, cex = header_cex)
   text(0.45, length(groups) + 0.75, "N/Trial", adj = 0, font = 2, cex = header_cex)
@@ -309,7 +303,6 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
   props_all <- c(1, p_fut, 1-p_fut, p_ia, 1-p_fut-p_ia, p_final_suc)
   n_all <- c(sim$n_at_fut, sim$n_at_fut, sim$n_at_ia, sim$n_at_ia, sim$n_total, sim$n_total)
   props <- props_all[keep]; n_col <- n_all[keep]
-  
   for (ii in seq_along(groups)) {
     col_t <- if (grepl("All @ futility", group_names[ii])) "black" else if (grepl("futility", group_names[ii])) "firebrick" else if (grepl("success", group_names[ii])) "forestgreen" else "gray30"
     text(0.02, ii, format(counts_actual[ii], big.mark=","), adj = 0, col = col_t, cex = data_cex)
@@ -319,11 +312,11 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-#   UI (Restored to original sidebar structure)
+#   UI
 # ─────────────────────────────────────────────────────────────────────────────
 
 ui <- page_sidebar(
-  title = "Ordinal Endpoint, Non-Inferiority, Group Sequential Design, Trial Simulator v3.0",
+  title = "Ordinal Endpoint, Non-Inferiority, Group Sequential Design, Trial Simulator v3.1",
   sidebar = sidebar(
     width = 350,
     actionButton("run_btn", "Run Simulation", class = "btn-primary btn-lg", icon = icon("play-circle"), width = "100%"),
@@ -346,7 +339,10 @@ ui <- page_sidebar(
              hr(style = "margin: 1.2em 0; border-top: 1px dashed #ccc;"),
              tags$strong("Show trajectories"),
              checkboxInput("show_traj_success", "Successful trajectories", value = FALSE),
-             checkboxInput("show_traj_fail", "Failed / futility trajectories", value = FALSE))
+             checkboxInput("show_traj_fail", "Failed / futility trajectories", value = FALSE),
+             hr(),
+             downloadButton("download_plot", "Download Superb JPEG", class = "btn-success", style = "width: 100%;")
+    )
   ),
   card(
     tabsetPanel(
@@ -358,18 +354,11 @@ ui <- page_sidebar(
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-#   Server (Restored)
+#   Server
 # ─────────────────────────────────────────────────────────────────────────────
 
 server <- function(input, output, session) {
   sim_store <- reactiveVal(NULL)
-  
-  nice_log_limits <- function(sim) {
-    lv <- as.vector(sim$logCOR_paths)
-    lv <- lv[is.finite(lv)]
-    if (length(lv) == 0) return(c(-1, 2))
-    c(floor(min(lv)*2)/2, ceiling(max(lv)*2)/2)
-  }
   
   observeEvent(input$run_btn, {
     design <- getDesignGroupSequential(sided = 1, alpha = 0.025, informationRates = c(input$info_frac, 1), typeOfDesign = "asOF")
@@ -380,11 +369,30 @@ server <- function(input, output, session) {
                                 seed = input$seed, nSims = input$n_sims)
     sim$rpact_design <- design
     sim_store(sim)
-    
-    lims <- nice_log_limits(sim)
-    updateSliderInput(session, "xlim_log_low", value = lims[1])
-    updateSliderInput(session, "xlim_log_high", value = lims[2])
   }, ignoreInit = TRUE)
+  
+  output$boxplot <- renderPlot({
+    req(sim_store())
+    selection_boxplot(sim_store(), COR_true = input$COR_true, COR_NI = input$COR_NI,
+                      futility_frac = input$futility_frac, info_frac = input$info_frac,
+                      show_traj_success = input$show_traj_success, show_traj_fail = input$show_traj_fail,
+                      use_cor_scale = input$use_cor_scale, xlim_log_low = input$xlim_log_low, xlim_log_high = input$xlim_log_high)
+  })
+  
+  output$download_plot <- downloadHandler(
+    filename = function() {
+      paste0("Simulation_Results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".jpg")
+    },
+    content = function(file) {
+      req(sim_store())
+      jpeg(file, width = 12, height = 10, units = "in", res = 300, quality = 100)
+      selection_boxplot(sim_store(), COR_true = input$COR_true, COR_NI = input$COR_NI,
+                        futility_frac = input$futility_frac, info_frac = input$info_frac,
+                        show_traj_success = input$show_traj_success, show_traj_fail = input$show_traj_fail,
+                        use_cor_scale = input$use_cor_scale, xlim_log_low = input$xlim_log_low, xlim_log_high = input$xlim_log_high)
+      dev.off()
+    }
+  )
   
   output$status <- renderText({ if (is.null(sim_store())) "Click 'Run' to start." else "Complete." })
   output$summary_table <- renderTable({ req(sim_store()); sim_table(sim_store()) }, digits = 3)
@@ -395,14 +403,6 @@ server <- function(input, output, session) {
     cat(sprintf("Total One-sided Alpha: %.4f\nAlpha Spent Stage 1 (IA): %.4f\nAlpha Spent Stage 2 (Final): %.4f\n", d$alpha, d$alphaSpent[1], d$alphaSpent[2]))
     cat("\n--- Nominal Stage-wise P-values (1-sided) ---\n")
     cat(sprintf("Nominal p at Stage 1: %.6f\nNominal p at Stage 2: %.6f\n", pnorm(-d$criticalValues[1]), pnorm(-d$criticalValues[2])))
-  })
-  
-  output$boxplot <- renderPlot({
-    req(sim_store())
-    selection_boxplot(sim_store(), COR_true = input$COR_true, COR_NI = input$COR_NI,
-                      futility_frac = input$futility_frac, info_frac = input$info_frac,
-                      show_traj_success = input$show_traj_success, show_traj_fail = input$show_traj_fail,
-                      use_cor_scale = input$use_cor_scale, xlim_log_low = input$xlim_log_low, xlim_log_high = input$xlim_log_high)
   })
 }
 
