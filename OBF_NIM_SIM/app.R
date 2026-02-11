@@ -146,531 +146,6 @@ sim_table <- function(sim) {
 #   Plotting Function (Updated with Power Footnote)
 # ─────────────────────────────────────────────────────────────────────────────
 
-# selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac, show_traj_success = FALSE, show_traj_fail = FALSE, use_cor_scale = FALSE, xlim_log_low = -3, xlim_log_high = 4, main = "Winner's curse & selection bias") {
-#   point_cex <- 0.6; point_alpha <- 0.25; jitter_height <- 0.30; box_width <- 0.28
-#   if (use_cor_scale) {
-#     xlim_use <- c(exp(xlim_log_low), exp(xlim_log_high)); x_transform <- exp; x_label_expr <- "Cumulative Odds Ratio (COR)"
-#   } else {
-#     xlim_use <- c(xlim_log_low, xlim_log_high); x_transform <- identity; x_label_expr <- expression(log(Cumulative~Odds~Ratio))
-#   }
-#   
-#   # Logic to calculate overall power
-#   p_fut <- mean(sim$stop_fut, na.rm = TRUE)
-#   p_ia <- mean(sim$stop_ia, na.rm = TRUE)
-#   p_final_suc <- mean(sim$stop_final, na.rm = TRUE)
-#   empirical_power <- p_ia + p_final_suc
-#   
-#   p_reach_final <- mean(!(sim$stop_fut | sim$stop_ia), na.rm = TRUE)
-#   avg_n <- round(p_fut * sim$n_at_fut + p_ia * sim$n_at_ia + p_reach_final * sim$n_total)
-#   
-#   groups <- list("All @ futility" = sim$logCOR_paths[,"fut"][is.finite(sim$logCOR_paths[,"fut"])], "Stopped futility" = sim$logCOR_paths[,"fut"][sim$stop_fut & is.finite(sim$logCOR_paths[,"fut"])], "All @ interim" = sim$logCOR_paths[,"ia"][is.finite(sim$logCOR_paths[,"ia"])], "Stopped IA success" = sim$logCOR_paths[,"ia"][sim$stop_ia & is.finite(sim$logCOR_paths[,"ia"])], "All @ final" = sim$logCOR_paths[,"final"][is.finite(sim$logCOR_paths[,"final"])], "Stopped final success" = sim$logCOR_paths[,"final"][sim$stop_final & is.finite(sim$logCOR_paths[,"final"])])
-#   counts_actual <- sapply(groups, length); if (use_cor_scale) groups <- lapply(groups, exp)
-#   keep <- sapply(groups, function(g) length(g) > 0 && all(is.finite(g)))
-#   groups <- groups[keep]; group_names <- names(groups); counts_actual <- counts_actual[keep]
-#   
-#   if (length(groups) == 0) { plot.new(); text(0.5, 0.5, "No valid data", cex = 1.4, col = "gray"); return(invisible(NULL)) }
-#   
-#   # Slightly larger margin (14) to fit 4 distinct lines of footnote text
-#   op <- par(mar = c(14, 12, 6, 28)); on.exit(par(op))
-#   plot(0, type = "n", xlim = xlim_use, ylim = c(0.4, length(groups) + 0.9), xlab = "", ylab = "", yaxt = "n", las = 1, main = sprintf("%s\n(avg sample size = %d)", main, avg_n))
-#   
-#   # --- FOOTNOTES ---
-#   mtext(x_label_expr, side = 1, line = 3, adj = 0.5, font = 2, cex = 1.1)
-#   
-#   # Line 1: Look timings
-#   mtext(sprintf("Futility Look: N = %d (%d%% info) | IA Success Look: N = %d (%d%% info) | Final Analysis: N = %d", 
-#                 sim$n_at_fut, round(futility_frac*100), sim$n_at_ia, round(info_frac*100), sim$n_total), 
-#         side = 1, line = 6, adj = 0, cex = 0.9, col = "black")
-#   
-#   # Line 2: Reference lines
-#   mtext(sprintf("Vertical Lines: Green dashed = True Effect (%.2f) | Red dotted = NI Margin (%.2f)", 
-#                 if(use_cor_scale) COR_true else log(COR_true), if(use_cor_scale) COR_NI else log(COR_NI)), 
-#         side = 1, line = 7.5, adj = 0, cex = 0.9, col = "darkblue")
-#   
-#   # Line 3: EMPIRICAL POWER (NEW)
-#   mtext(sprintf("Empirical Power: %.1f%% (IA success + Final success) across %d simulations", 
-#                 empirical_power * 100, sim$nSims), 
-#         side = 1, line = 9, adj = 0, cex = 1.0, font = 2, col = "forestgreen")
-#   
-#   # Line 4: ESS Note
-#   mtext("Note: ESS (Expected Sample Size) is the average N across all sims, accounting for early stopping.", 
-#         side = 1, line = 10.5, adj = 0, cex = 0.85, col = "gray30")
-#   
-#   # Trajectories
-#   if (show_traj_success || show_traj_fail) {
-#     for (i in seq_len(nrow(sim$logCOR_paths))) {
-#       is_suc <- sim$stop_final[i] || sim$stop_ia[i]
-#       if (is_suc && !show_traj_success) next
-#       if (!is_suc && !show_traj_fail) next
-#       y_pos <- c(1, 3, 5); vals <- sim$logCOR_paths[i, c("fut", "ia", "final")]
-#       idx <- is.finite(vals); if(sum(idx) > 1) { 
-#         v <- if(use_cor_scale) exp(vals[idx]) else vals[idx]
-#         lines(v, y_pos[idx], col = if(is_suc) rgb(0.1, 0.65, 0.1, 0.18) else rgb(0.9, 0.2, 0.2, 0.18), lwd = 0.9, lty = 2)
-#       }
-#     }
-#   }
-#   
-#   # Vertical markers and Axis
-#   axis(2, at = seq_along(groups), labels = group_names, las = 1, cex.axis = 0.95)
-#   abline(v = x_transform(log(COR_true)), lty = 2, col = "darkgreen", lwd = 2.5)
-#   abline(v = x_transform(log(COR_NI)), lty = 3, col = "red", lwd = 2.5)
-#   
-#   # Boxplots and Jitter points
-#   for (i in seq_along(groups)) {
-#     vals <- groups[[i]]; n <- length(vals); if (n == 0) next
-#     set.seed(2025 + i * 100); jitter_y <- runif(n, -jitter_height, jitter_height)
-#     points(vals, i + jitter_y, pch = 19, cex = point_cex, col = if (group_names[i] == "All @ futility") rgb(0.1,0.4,0.9,point_alpha) else if (grepl("futility", group_names[i])) rgb(0.9,0.15,0.15,point_alpha) else if (grepl("success", group_names[i])) rgb(0.1,0.65,0.1,point_alpha) else rgb(0.3,0.3,0.3,point_alpha))
-#     if (n >= 3) { q <- quantile(vals, c(0.25,0.5,0.75)); iqr <- q[3] - q[1]; lower_whisk <- min(vals[vals >= q[1] - 1.5*iqr]); upper_whisk <- max(vals[vals <= q[3] + 1.5*iqr]); rect(q[1], i - box_width/2, q[3], i + box_width/2, col = rgb(0.88,0.93,1,0.5), border = "steelblue", lwd = 1.4); segments(q[2], i - box_width/2, q[2], i + box_width/2, lwd = 5, col = "royalblue3"); segments(lower_whisk, i, q[1], i, lwd = 2.4, col = "midnightblue"); segments(q[3], i, upper_whisk, i, lwd = 2.4, col = "midnightblue") }
-#   }
-#   
-#   # Side Table stats
-#   usr <- par("usr"); x_range <- usr[2] - usr[1]; x_text_actual <- usr[2] + 0.05 * x_range; x_text_n <- usr[2] + 0.16 * x_range; x_text_pct <- usr[2] + 0.27 * x_range
-#   props_all <- c(1, p_fut, 1 - p_fut, p_ia, 1 - p_fut - p_ia, p_final_suc); n_all <- c(sim$n_at_fut, sim$n_at_fut, sim$n_at_ia, sim$n_at_ia, sim$n_total, sim$n_total); props <- props_all[keep]; n_col <- n_all[keep]
-#   for (i in seq_along(groups)) {
-#     col_text <- if (group_names[i] == "All @ futility") "black" else if (grepl("futility", group_names[i])) "firebrick" else if (grepl("success", group_names[i])) "forestgreen" else "gray30"
-#     text(x_text_actual, i, format(counts_actual[i], big.mark=","), adj = 0, cex = 1.05, col = col_text, xpd = TRUE)
-#     text(x_text_n, i, sprintf("%d", n_col[i]), adj = 0, cex = 1.05, col = "gray30", xpd = TRUE)
-#     text(x_text_pct, i, sprintf("%.1f%%", 100 * props[i]), adj = 0, cex = 1.05, font = 2, col = col_text, xpd = TRUE)
-#   }
-#   text(x_text_actual, length(groups) + 0.75, "No. of trials", adj = 0, cex = 1.0, font = 2, xpd = TRUE); text(x_text_n, length(groups) + 0.75, "N per trial", adj = 0, cex = 1.0, font = 2, xpd = TRUE); text(x_text_pct, length(groups) + 0.75, "% of sims", adj = 0, cex = 1.0, font = 2, xpd = TRUE)
-#   invisible(NULL)
-# }
-
-# selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac, 
-#                               show_traj_success = FALSE, show_traj_fail = FALSE, 
-#                               use_cor_scale = FALSE, 
-#                               xlim_log_low = -3, xlim_log_high = 4, 
-#                               main = "Winner's curse & selection bias") {
-#   
-#   point_cex <- 0.6
-#   point_alpha <- 0.25
-#   jitter_height <- 0.30
-#   box_width <- 0.28
-#   
-#   if (use_cor_scale) {
-#     xlim_use <- c(exp(xlim_log_low), exp(xlim_log_high))
-#     x_transform <- exp
-#     x_label_expr <- "Cumulative Odds Ratio (COR)"
-#   } else {
-#     xlim_use <- c(xlim_log_low, xlim_log_high)
-#     x_transform <- identity
-#     x_label_expr <- expression(log(Cumulative~Odds~Ratio))
-#   }
-#   
-#   # ────────────────────────────────────────────────────────────────
-#   # Calculate overall power and average sample size
-#   # ────────────────────────────────────────────────────────────────
-#   p_fut <- mean(sim$stop_fut, na.rm = TRUE)
-#   p_ia <- mean(sim$stop_ia, na.rm = TRUE)
-#   p_final_suc <- mean(sim$stop_final, na.rm = TRUE)
-#   empirical_power <- p_ia + p_final_suc
-#   
-#   p_reach_final <- mean(!(sim$stop_fut | sim$stop_ia), na.rm = TRUE)
-#   avg_n <- round(p_fut * sim$n_at_fut + p_ia * sim$n_at_ia + p_reach_final * sim$n_total)
-#   
-#   # ────────────────────────────────────────────────────────────────
-#   # Define groups
-#   # ────────────────────────────────────────────────────────────────
-#   groups <- list(
-#     "All @ futility"       = sim$logCOR_paths[,"fut"][is.finite(sim$logCOR_paths[,"fut"])],
-#     "Stopped futility"     = sim$logCOR_paths[,"fut"][sim$stop_fut & is.finite(sim$logCOR_paths[,"fut"])],
-#     "All @ interim"        = sim$logCOR_paths[,"ia"][is.finite(sim$logCOR_paths[,"ia"])],
-#     "Stopped IA success"   = sim$logCOR_paths[,"ia"][sim$stop_ia & is.finite(sim$logCOR_paths[,"ia"])],
-#     "All @ final"          = sim$logCOR_paths[,"final"][is.finite(sim$logCOR_paths[,"final"])],
-#     "Stopped final success"= sim$logCOR_paths[,"final"][sim$stop_final & is.finite(sim$logCOR_paths[,"final"])]
-#   )
-#   
-#   counts_actual <- sapply(groups, length)
-#   
-#   if (use_cor_scale) {
-#     groups <- lapply(groups, exp)
-#   }
-#   
-#   keep <- sapply(groups, function(g) length(g) > 0 && all(is.finite(g)))
-#   groups <- groups[keep]
-#   group_names <- names(groups)
-#   counts_actual <- counts_actual[keep]
-#   
-#   if (length(groups) == 0) {
-#     plot.new()
-#     text(0.5, 0.5, "No valid data", cex = 1.4, col = "gray")
-#     return(invisible(NULL))
-#   }
-#   
-#   # ────────────────────────────────────────────────────────────────
-#   # Generate ONE consistent jitter vector for all simulations
-#   # ────────────────────────────────────────────────────────────────
-#   set.seed(202506)  # fixed seed → reproducible & consistent jitter pattern
-#   n_max <- nrow(sim$logCOR_paths)  # max possible simulations
-#   jitter_master <- runif(n_max, -jitter_height, jitter_height)
-#   
-#   # ────────────────────────────────────────────────────────────────
-#   # Plot setup
-#   # ────────────────────────────────────────────────────────────────
-#   op <- par(mar = c(14, 12, 6, 28))
-#   on.exit(par(op))
-#   
-#   plot(0, type = "n", 
-#        xlim = xlim_use, 
-#        ylim = c(0.4, length(groups) + 0.9), 
-#        xlab = "", ylab = "", yaxt = "n", las = 1,
-#        main = sprintf("%s\n(avg sample size = %d)", main, avg_n))
-#   
-#   # ────────────────────────────────────────────────────────────────
-#   # Footnotes
-#   # ────────────────────────────────────────────────────────────────
-#   mtext(x_label_expr, side = 1, line = 3, adj = 0.5, font = 2, cex = 1.1)
-#   
-#   mtext(sprintf("Futility Look: N = %d (%d%% info) | IA Success Look: N = %d (%d%% info) | Final Analysis: N = %d", 
-#                 sim$n_at_fut, round(futility_frac*100), 
-#                 sim$n_at_ia, round(info_frac*100), sim$n_total), 
-#         side = 1, line = 6, adj = 0, cex = 0.9, col = "black")
-#   
-#   mtext(sprintf("Vertical Lines: Green dashed = True Effect (%.2f) | Red dotted = NI Margin (%.2f)", 
-#                 if(use_cor_scale) COR_true else log(COR_true), 
-#                 if(use_cor_scale) COR_NI else log(COR_NI)), 
-#         side = 1, line = 7.5, adj = 0, cex = 0.9, col = "darkblue")
-#   
-#   mtext(sprintf("Empirical Power: %.1f%% (IA success + Final success) across %d simulations", 
-#                 empirical_power * 100, sim$nSims), 
-#         side = 1, line = 9, adj = 0, cex = 1.0, font = 2, col = "forestgreen")
-#   
-#   mtext("Note: ESS (Expected Sample Size) is the average N across all sims, accounting for early stopping.", 
-#         side = 1, line = 10.5, adj = 0, cex = 0.85, col = "gray30")
-#   
-#   # ────────────────────────────────────────────────────────────────
-#   # Optional trajectories
-#   # ────────────────────────────────────────────────────────────────
-#   if (show_traj_success || show_traj_fail) {
-#     for (i in seq_len(nrow(sim$logCOR_paths))) {
-#       is_suc <- sim$stop_final[i] || sim$stop_ia[i]
-#       if (is_suc && !show_traj_success) next
-#       if (!is_suc && !show_traj_fail) next
-#       
-#       y_pos <- c(1, 3, 5)
-#       vals <- sim$logCOR_paths[i, c("fut", "ia", "final")]
-#       idx <- is.finite(vals)
-#       
-#       if (sum(idx) > 1) {
-#         v <- if(use_cor_scale) exp(vals[idx]) else vals[idx]
-#         lines(v, y_pos[idx], 
-#               col = if(is_suc) rgb(0.1, 0.65, 0.1, 0.18) else rgb(0.9, 0.2, 0.2, 0.18),
-#               lwd = 0.9, lty = 2)
-#       }
-#     }
-#   }
-#   
-#   # ────────────────────────────────────────────────────────────────
-#   # Vertical reference lines and y-axis
-#   # ────────────────────────────────────────────────────────────────
-#   axis(2, at = seq_along(groups), labels = group_names, las = 1, cex.axis = 0.95)
-#   abline(v = x_transform(log(COR_true)),  lty = 2, col = "darkgreen", lwd = 2.5)
-#   abline(v = x_transform(log(COR_NI)),    lty = 3, col = "red",       lwd = 2.5)
-#   
-#   # Optional: faint horizontal guides
-#   abline(h = seq_along(groups), col = "gray92", lwd = 0.8)
-#   
-#   # ────────────────────────────────────────────────────────────────
-#   # Boxplots + jittered points (using consistent jitter)
-#   # ────────────────────────────────────────────────────────────────
-#   for (i in seq_along(groups)) {
-#     vals <- groups[[i]]
-#     n <- length(vals)
-#     if (n == 0) next
-#     
-#     # Use the same jitter positions as in the original simulation order
-#     # (we take the first n elements — corresponds to the rows that reached / stopped here)
-#     jitter_y <- jitter_master[seq_len(n)]
-#     
-#     # Points
-#     col_point <- if (group_names[i] == "All @ futility")       rgb(0.1, 0.4, 0.9, point_alpha) else
-#       if (grepl("futility", group_names[i]))            rgb(0.9, 0.15, 0.15, point_alpha) else
-#         if (grepl("success", group_names[i]))             rgb(0.1, 0.65, 0.1, point_alpha) else
-#           rgb(0.3, 0.3, 0.3, point_alpha)
-#     
-#     points(vals, i + jitter_y, 
-#            pch = 19, cex = point_cex, col = col_point)
-#     
-#     # Box (only if enough data)
-#     if (n >= 3) {
-#       q <- quantile(vals, c(0.25, 0.5, 0.75))
-#       iqr <- q[3] - q[1]
-#       lower_whisk <- min(vals[vals >= q[1] - 1.5*iqr])
-#       upper_whisk <- max(vals[vals <= q[3] + 1.5*iqr])
-#       
-#       rect(q[1], i - box_width/2, q[3], i + box_width/2, 
-#            col = rgb(0.88, 0.93, 1, 0.5), border = "steelblue", lwd = 1.4)
-#       segments(q[2], i - box_width/2, q[2], i + box_width/2, lwd = 5, col = "royalblue3")
-#       segments(lower_whisk, i, q[1], i, lwd = 2.4, col = "midnightblue")
-#       segments(q[3], i, upper_whisk, i, lwd = 2.4, col = "midnightblue")
-#     }
-#   }
-#   
-#   # ────────────────────────────────────────────────────────────────
-#   # Side legend/table with counts, N, %
-#   # ────────────────────────────────────────────────────────────────
-#   usr <- par("usr")
-#   x_range <- usr[2] - usr[1]
-#   x_text_actual <- usr[2] + 0.05 * x_range
-#   x_text_n      <- usr[2] + 0.16 * x_range
-#   x_text_pct    <- usr[2] + 0.27 * x_range
-#   
-#   props_all <- c(1, p_fut, 1 - p_fut, p_ia, 1 - p_fut - p_ia, p_final_suc)
-#   n_all     <- c(sim$n_at_fut, sim$n_at_fut, sim$n_at_ia, sim$n_at_ia, sim$n_total, sim$n_total)
-#   
-#   props <- props_all[keep]
-#   n_col <- n_all[keep]
-#   
-#   for (i in seq_along(groups)) {
-#     col_text <- if (group_names[i] == "All @ futility") "black" else
-#       if (grepl("futility", group_names[i]))   "firebrick" else
-#         if (grepl("success", group_names[i]))    "forestgreen" else
-#           "gray30"
-#     
-#     text(x_text_actual, i, format(counts_actual[i], big.mark=","), 
-#          adj = 0, cex = 1.05, col = col_text, xpd = TRUE)
-#     text(x_text_n,      i, sprintf("%d", n_col[i]), 
-#          adj = 0, cex = 1.05, col = "gray30", xpd = TRUE)
-#     text(x_text_pct,    i, sprintf("%.1f%%", 100 * props[i]), 
-#          adj = 0, cex = 1.05, font = 2, col = col_text, xpd = TRUE)
-#   }
-#   
-#   text(x_text_actual, length(groups) + 0.75, "No. of trials", adj = 0, cex = 1.0, font = 2, xpd = TRUE)
-#   text(x_text_n,      length(groups) + 0.75, "N per trial",  adj = 0, cex = 1.0, font = 2, xpd = TRUE)
-#   text(x_text_pct,    length(groups) + 0.75, "% of sims",    adj = 0, cex = 1.0, font = 2, xpd = TRUE)
-#   
-#   invisible(NULL)
-# }
-
-# selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac, 
-#                               show_traj_success = FALSE, show_traj_fail = FALSE, 
-#                               use_cor_scale = FALSE, 
-#                               xlim_log_low = -3, xlim_log_high = 4, 
-#                               main = "Winner's curse & selection bias") {
-#   
-#   point_cex <- 0.6
-#   point_alpha <- 0.25
-#   jitter_height <- 0.30
-#   box_width <- 0.28
-#   
-#   if (use_cor_scale) {
-#     xlim_use <- c(exp(xlim_log_low), exp(xlim_log_high))
-#     x_transform <- exp
-#     x_label_expr <- "Cumulative Odds Ratio (COR)"
-#   } else {
-#     xlim_use <- c(xlim_log_low, xlim_log_high)
-#     x_transform <- identity
-#     x_label_expr <- expression(log(Cumulative~Odds~Ratio))
-#   }
-#   
-#   # ────────────────────────────────────────────────────────────────
-#   # Calculate overall power and average sample size
-#   # ────────────────────────────────────────────────────────────────
-#   p_fut <- mean(sim$stop_fut, na.rm = TRUE)
-#   p_ia <- mean(sim$stop_ia, na.rm = TRUE)
-#   p_final_suc <- mean(sim$stop_final, na.rm = TRUE)
-#   empirical_power <- p_ia + p_final_suc
-#   
-#   p_reach_final <- mean(!(sim$stop_fut | sim$stop_ia), na.rm = TRUE)
-#   avg_n <- round(p_fut * sim$n_at_fut + p_ia * sim$n_at_ia + p_reach_final * sim$n_total)
-#   
-#   # ────────────────────────────────────────────────────────────────
-#   # Define groups
-#   # ────────────────────────────────────────────────────────────────
-#   groups <- list(
-#     "All @ futility"       = sim$logCOR_paths[,"fut"][is.finite(sim$logCOR_paths[,"fut"])],
-#     "Stopped futility"     = sim$logCOR_paths[,"fut"][sim$stop_fut & is.finite(sim$logCOR_paths[,"fut"])],
-#     "All @ interim"        = sim$logCOR_paths[,"ia"][is.finite(sim$logCOR_paths[,"ia"])],
-#     "Stopped IA success"   = sim$logCOR_paths[,"ia"][sim$stop_ia & is.finite(sim$logCOR_paths[,"ia"])],
-#     "All @ final"          = sim$logCOR_paths[,"final"][is.finite(sim$logCOR_paths[,"final"])],
-#     "Stopped final success"= sim$logCOR_paths[,"final"][sim$stop_final & is.finite(sim$logCOR_paths[,"final"])]
-#   )
-#   
-#   counts_actual <- sapply(groups, length)
-#   
-#   if (use_cor_scale) {
-#     groups <- lapply(groups, exp)
-#   }
-#   
-#   keep <- sapply(groups, function(g) length(g) > 0 && all(is.finite(g)))
-#   groups <- groups[keep]
-#   group_names <- names(groups)
-#   counts_actual <- counts_actual[keep]
-#   
-#   if (length(groups) == 0) {
-#     plot.new()
-#     text(0.5, 0.5, "No valid data", cex = 1.4, col = "gray")
-#     return(invisible(NULL))
-#   }
-#   
-#   # ────────────────────────────────────────────────────────────────
-#   # Generate ONE consistent jitter vector — indexed by simulation row
-#   # ────────────────────────────────────────────────────────────────
-#   set.seed(202506)  # fixed seed for reproducible jitter pattern
-#   n_max <- nrow(sim$logCOR_paths)
-#   jitter_master <- runif(n_max, -jitter_height, jitter_height)
-#   
-#   # ────────────────────────────────────────────────────────────────
-#   # Plot setup
-#   # ────────────────────────────────────────────────────────────────
-#   op <- par(mar = c(14, 12, 6, 28))
-#   on.exit(par(op))
-#   
-#   plot(0, type = "n", 
-#        xlim = xlim_use, 
-#        ylim = c(0.4, length(groups) + 0.9), 
-#        xlab = "", ylab = "", yaxt = "n", las = 1,
-#        main = sprintf("%s\n(avg sample size = %d)", main, avg_n))
-#   
-#   # ────────────────────────────────────────────────────────────────
-#   # Footnotes
-#   # ────────────────────────────────────────────────────────────────
-#   mtext(x_label_expr, side = 1, line = 3, adj = 0.5, font = 2, cex = 1.1)
-#   
-#   mtext(sprintf("Futility Look: N = %d (%d%% info) | IA Success Look: N = %d (%d%% info) | Final Analysis: N = %d", 
-#                 sim$n_at_fut, round(futility_frac*100), 
-#                 sim$n_at_ia, round(info_frac*100), sim$n_total), 
-#         side = 1, line = 6, adj = 0, cex = 0.9, col = "black")
-#   
-#   mtext(sprintf("Vertical Lines: Green dashed = True Effect (%.2f) | Red dotted = NI Margin (%.2f)", 
-#                 if(use_cor_scale) COR_true else log(COR_true), 
-#                 if(use_cor_scale) COR_NI else log(COR_NI)), 
-#         side = 1, line = 7.5, adj = 0, cex = 0.9, col = "darkblue")
-#   
-#   mtext(sprintf("Empirical Power: %.1f%% (IA success + Final success) across %d simulations", 
-#                 empirical_power * 100, sim$nSims), 
-#         side = 1, line = 9, adj = 0, cex = 1.0, font = 2, col = "forestgreen")
-#   
-#   mtext("Note: ESS (Expected Sample Size) is the average N across all sims, accounting for early stopping.", 
-#         side = 1, line = 10.5, adj = 0, cex = 0.85, col = "gray30")
-#   
-#   # ────────────────────────────────────────────────────────────────
-#   # Optional trajectories
-#   # ────────────────────────────────────────────────────────────────
-#   if (show_traj_success || show_traj_fail) {
-#     for (i in seq_len(nrow(sim$logCOR_paths))) {
-#       is_suc <- sim$stop_final[i] || sim$stop_ia[i]
-#       if (is_suc && !show_traj_success) next
-#       if (!is_suc && !show_traj_fail) next
-#       
-#       y_pos <- c(1, 3, 5)
-#       vals <- sim$logCOR_paths[i, c("fut", "ia", "final")]
-#       idx <- is.finite(vals)
-#       
-#       if (sum(idx) > 1) {
-#         v <- if(use_cor_scale) exp(vals[idx]) else vals[idx]
-#         lines(v, y_pos[idx], 
-#               col = if(is_suc) rgb(0.1, 0.65, 0.1, 0.18) else rgb(0.9, 0.2, 0.2, 0.18),
-#               lwd = 0.9, lty = 2)
-#       }
-#     }
-#   }
-#   
-#   # ────────────────────────────────────────────────────────────────
-#   # Vertical reference lines and y-axis
-#   # ────────────────────────────────────────────────────────────────
-#   axis(2, at = seq_along(groups), labels = group_names, las = 1, cex.axis = 0.95)
-#   abline(v = x_transform(log(COR_true)),  lty = 2, col = "darkgreen", lwd = 2.5)
-#   abline(v = x_transform(log(COR_NI)),    lty = 3, col = "red",       lwd = 2.5)
-#   
-#   # Optional: faint horizontal guides for better alignment
-#   abline(h = seq_along(groups), col = "gray92", lwd = 0.8)
-#   
-#   # ────────────────────────────────────────────────────────────────
-#   # Boxplots + jittered points — using original row indices for consistent jitter
-#   # ────────────────────────────────────────────────────────────────
-#   for (i in seq_along(groups)) {
-#     name <- group_names[i]
-#     
-#     if (grepl("All @ futility", name)) {
-#       idx <- which(is.finite(sim$logCOR_paths[,"fut"]))
-#     } else if (grepl("Stopped futility", name)) {
-#       idx <- which(sim$stop_fut & is.finite(sim$logCOR_paths[,"fut"]))
-#     } else if (grepl("All @ interim", name)) {
-#       idx <- which(is.finite(sim$logCOR_paths[,"ia"]))
-#     } else if (grepl("Stopped IA success", name)) {
-#       idx <- which(sim$stop_ia & is.finite(sim$logCOR_paths[,"ia"]))
-#     } else if (grepl("All @ final", name)) {
-#       idx <- which(is.finite(sim$logCOR_paths[,"final"]))
-#     } else if (grepl("Stopped final success", name)) {
-#       idx <- which(sim$stop_final & is.finite(sim$logCOR_paths[,"final"]))
-#     } else {
-#       next  # safety
-#     }
-#     
-#     vals <- groups[[i]]
-#     n <- length(vals)
-#     if (n == 0) next
-#     
-#     # Pick jitter from the exact original simulation rows that appear in this group
-#     jitter_y <- jitter_master[idx]
-#     
-#     # Sanity check
-#     if (length(jitter_y) != n) {
-#       warning(sprintf("Jitter length mismatch in group: %s (expected %d, got %d)", name, n, length(jitter_y)))
-#       next
-#     }
-#     
-#     # Points
-#     col_point <- if (grepl("All @ futility", name))       rgb(0.1, 0.4, 0.9, point_alpha) else
-#       if (grepl("futility", name))             rgb(0.9, 0.15, 0.15, point_alpha) else
-#         if (grepl("success", name))              rgb(0.1, 0.65, 0.1, point_alpha) else
-#           rgb(0.3, 0.3, 0.3, point_alpha)
-#     
-#     points(vals, i + jitter_y, 
-#            pch = 19, cex = point_cex, col = col_point)
-#     
-#     # Box (only if enough data)
-#     if (n >= 3) {
-#       q <- quantile(vals, c(0.25, 0.5, 0.75))
-#       iqr <- q[3] - q[1]
-#       lower_whisk <- min(vals[vals >= q[1] - 1.5*iqr])
-#       upper_whisk <- max(vals[vals <= q[3] + 1.5*iqr])
-#       
-#       rect(q[1], i - box_width/2, q[3], i + box_width/2, 
-#            col = rgb(0.88, 0.93, 1, 0.5), border = "steelblue", lwd = 1.4)
-#       segments(q[2], i - box_width/2, q[2], i + box_width/2, lwd = 5, col = "royalblue3")
-#       segments(lower_whisk, i, q[1], i, lwd = 2.4, col = "midnightblue")
-#       segments(q[3], i, upper_whisk, i, lwd = 2.4, col = "midnightblue")
-#     }
-#   }
-#   
-#   # ────────────────────────────────────────────────────────────────
-#   # Side legend/table with counts, N, %
-#   # ────────────────────────────────────────────────────────────────
-#   usr <- par("usr")
-#   x_range <- usr[2] - usr[1]
-#   x_text_actual <- usr[2] + 0.05 * x_range
-#   x_text_n      <- usr[2] + 0.16 * x_range
-#   x_text_pct    <- usr[2] + 0.27 * x_range
-#   
-#   props_all <- c(1, p_fut, 1 - p_fut, p_ia, 1 - p_fut - p_ia, p_final_suc)
-#   n_all     <- c(sim$n_at_fut, sim$n_at_fut, sim$n_at_ia, sim$n_at_ia, sim$n_total, sim$n_total)
-#   
-#   props <- props_all[keep]
-#   n_col <- n_all[keep]
-#   
-#   for (i in seq_along(groups)) {
-#     col_text <- if (grepl("All @ futility", group_names[i])) "black" else
-#       if (grepl("futility", group_names[i]))   "firebrick" else
-#         if (grepl("success", group_names[i]))    "forestgreen" else
-#           "gray30"
-#     
-#     text(x_text_actual, i, format(counts_actual[i], big.mark=","), 
-#          adj = 0, cex = 1.05, col = col_text, xpd = TRUE)
-#     text(x_text_n,      i, sprintf("%d", n_col[i]), 
-#          adj = 0, cex = 1.05, col = "gray30", xpd = TRUE)
-#     text(x_text_pct,    i, sprintf("%.1f%%", 100 * props[i]), 
-#          adj = 0, cex = 1.05, font = 2, col = col_text, xpd = TRUE)
-#   }
-#   
-#   text(x_text_actual, length(groups) + 0.75, "No. of trials", adj = 0, cex = 1.0, font = 2, xpd = TRUE)
-#   text(x_text_n,      length(groups) + 0.75, "N per trial",  adj = 0, cex = 1.0, font = 2, xpd = TRUE)
-#   text(x_text_pct,    length(groups) + 0.75, "% of sims",    adj = 0, cex = 1.0, font = 2, xpd = TRUE)
-#   
-#   invisible(NULL)
-# }
-
 selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac, 
                               show_traj_success = FALSE, show_traj_fail = FALSE, 
                               use_cor_scale = FALSE, 
@@ -702,6 +177,24 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
   
   p_reach_final <- mean(!(sim$stop_fut | sim$stop_ia), na.rm = TRUE)
   avg_n <- round(p_fut * sim$n_at_fut + p_ia * sim$n_at_ia + p_reach_final * sim$n_total)
+  
+  # ────────────────────────────────────────────────────────────────
+  # Monte Carlo 95% CI for empirical power (Wilson score interval)
+  # ────────────────────────────────────────────────────────────────
+  n_sims_used <- sim$nSims
+  k_success <- round(empirical_power * n_sims_used)  # integer successes
+  z <- qnorm(0.975)                                  # ≈1.96
+  n <- n_sims_used
+  center <- (k_success + z^2 / 2) / (n + z^2)
+  margin <- z * sqrt( (k_success/n * (1 - k_success/n) + z^2/(4*n)) / (n + z^2) )
+  ci_lower <- max(0, center - margin)
+  ci_upper <- min(1, center + margin)
+  
+  power_text <- sprintf("Empirical Power: %.1f%% (%.1f%%–%.1f%%) (IA success + Final success) across %d simulations",
+                        empirical_power * 100,
+                        ci_lower * 100,
+                        ci_upper * 100,
+                        n_sims_used)
   
   # ────────────────────────────────────────────────────────────────
   # Define groups
@@ -762,19 +255,17 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
                 if(use_cor_scale) COR_NI else log(COR_NI)), 
         side = 1, line = 7.5, adj = 0, cex = 0.9, col = "darkblue")
   
-  mtext(sprintf("Empirical Power: %.1f%% (IA success + Final success) across %d simulations", 
-                empirical_power * 100, sim$nSims), 
+  mtext(power_text, 
         side = 1, line = 9, adj = 0, cex = 1.0, font = 2, col = "forestgreen")
   
-  mtext("Note: ESS (Expected Sample Size) is the average N across all sims, accounting for early stopping.", 
+  mtext("Note: ESS (Expected Sample Size) is the average N across all sims, accounting for early stopping. Power CI is Monte Carlo 95% Wilson interval.",
         side = 1, line = 10.5, adj = 0, cex = 0.85, col = "gray30")
   
   # ────────────────────────────────────────────────────────────────
-  # Trajectories: connect through the exact jittered positions of each point
+  # Trajectories: connect through jittered positions (as in your last request)
   # ────────────────────────────────────────────────────────────────
   if (show_traj_success || show_traj_fail) {
     
-    # Map group name → base y position (integer row number)
     group_y_map <- setNames(seq_along(groups), group_names)
     
     for (i in seq_len(nrow(sim$logCOR_paths))) {
@@ -783,7 +274,6 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
       if (is_success && !show_traj_success) next
       if (!is_success && !show_traj_fail)    next
       
-      # Stages present
       has_fut   <- is.finite(sim$logCOR_paths[i, "fut"])
       has_ia    <- is.finite(sim$logCOR_paths[i, "ia"])
       has_final <- is.finite(sim$logCOR_paths[i, "final"])
@@ -796,10 +286,9 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
       if (has_fut) {
         group_name <- ifelse(sim$stop_fut[i], "Stopped futility", "All @ futility")
         if (group_name %in% names(groups)) {
-          idx_fut <- which(sim$logCOR_paths[,"fut"] == sim$logCOR_paths[i, "fut"] & is.finite(sim$logCOR_paths[,"fut"]))
-          # Take first match (assuming unique values; if ties exist, this is approximate)
-          if (length(idx_fut) > 0) {
-            jitter_this <- jitter_master[idx_fut[1]]
+          idx_match <- which(sim$logCOR_paths[,"fut"] == sim$logCOR_paths[i, "fut"] & is.finite(sim$logCOR_paths[,"fut"]))
+          if (length(idx_match) > 0) {
+            jitter_this <- jitter_master[idx_match[1]]
             path_x <- c(path_x, sim$logCOR_paths[i, "fut"])
             path_y <- c(path_y, group_y_map[group_name] + jitter_this)
           }
@@ -809,9 +298,9 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
       if (has_ia) {
         group_name <- ifelse(sim$stop_ia[i], "Stopped IA success", "All @ interim")
         if (group_name %in% names(groups)) {
-          idx_ia <- which(sim$logCOR_paths[,"ia"] == sim$logCOR_paths[i, "ia"] & is.finite(sim$logCOR_paths[,"ia"]))
-          if (length(idx_ia) > 0) {
-            jitter_this <- jitter_master[idx_ia[1]]
+          idx_match <- which(sim$logCOR_paths[,"ia"] == sim$logCOR_paths[i, "ia"] & is.finite(sim$logCOR_paths[,"ia"]))
+          if (length(idx_match) > 0) {
+            jitter_this <- jitter_master[idx_match[1]]
             path_x <- c(path_x, sim$logCOR_paths[i, "ia"])
             path_y <- c(path_y, group_y_map[group_name] + jitter_this)
           }
@@ -821,9 +310,9 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
       if (has_final) {
         group_name <- ifelse(sim$stop_final[i], "Stopped final success", "All @ final")
         if (group_name %in% names(groups)) {
-          idx_final <- which(sim$logCOR_paths[,"final"] == sim$logCOR_paths[i, "final"] & is.finite(sim$logCOR_paths[,"final"]))
-          if (length(idx_final) > 0) {
-            jitter_this <- jitter_master[idx_final[1]]
+          idx_match <- which(sim$logCOR_paths[,"final"] == sim$logCOR_paths[i, "final"] & is.finite(sim$logCOR_paths[,"final"]))
+          if (length(idx_match) > 0) {
+            jitter_this <- jitter_master[idx_match[1]]
             path_x <- c(path_x, sim$logCOR_paths[i, "final"])
             path_y <- c(path_y, group_y_map[group_name] + jitter_this)
           }
