@@ -630,6 +630,7 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
 # New Plot function for CP-colored IA2 boxplot
 ############################################################
 
+
 cp_selection_boxplot <- function(sim, COR_true, COR_NI,
                                  use_cor_scale = FALSE,
                                  xlim_log_low = -3, xlim_log_high = 4,
@@ -648,9 +649,7 @@ cp_selection_boxplot <- function(sim, COR_true, COR_NI,
     x_label_expr <- expression(log(Cumulative~Odds~Ratio))
   }
   
-  # ──────────────────────────────────────────────────────────────
-  # Data – same as main plot "2 All @ interim"
-  # ──────────────────────────────────────────────────────────────
+  # Data selection
   logcor_ia <- sim$logCOR_paths[, "ia"][is.finite(sim$logCOR_paths[, "ia"])]
   vals <- if (use_cor_scale) exp(logcor_ia) else logcor_ia
   
@@ -660,7 +659,6 @@ cp_selection_boxplot <- function(sim, COR_true, COR_NI,
   n_points <- length(vals)
   n_at_ia  <- sim$n_at_ia
   
-  # Title with counts embedded
   main <- sprintf("%s\n(%d trials reaching IA2, N/trial = %d)", 
                   main_prefix, n_points, n_at_ia)
   
@@ -669,9 +667,9 @@ cp_selection_boxplot <- function(sim, COR_true, COR_NI,
     return(invisible(NULL))
   }
   
-  # Continuous color: red (low) → yellow → green (high)
+  # Color ramp: red (low CP) → yellow → green (high CP)
   colramp <- colorRampPalette(c("red", "yellow", "green"))(101)
-  cp_norm <- pmax(0, pmin(1, cp_ia))
+  cp_norm <- pmax(0, pmin(1, cp_ia))           # clamp [0,1]
   col_idx <- round(cp_norm * 100) + 1
   point_colors <- colramp[col_idx]
   
@@ -683,8 +681,10 @@ cp_selection_boxplot <- function(sim, COR_true, COR_NI,
   op <- par(no.readonly = TRUE)
   on.exit({ par(op); layout(1) }, add = TRUE)
   
-  # No layout split anymore – full width
-  par(mar = c(15, 12, 8, 4), xpd = FALSE)  # extra top margin for longer title
+  # Use layout to make space for legend on right
+  layout(matrix(c(1, 2), nrow = 1), widths = c(6, 1.4))
+  
+  par(mar = c(15, 12, 8, 2), xpd = FALSE)
   
   plot(
     0, type = "n",
@@ -711,13 +711,13 @@ cp_selection_boxplot <- function(sim, COR_true, COR_NI,
   
   abline(h = 1, col = "gray92", lwd = 0.8)
   
-  # Points – low alpha for proper density buildup
+  # Points
   points(vals, 1 + jitter_y,
          pch = 19,
          cex = 1.0,
-         col = adjustcolor(point_colors, alpha.f = 0.18))
+         col = adjustcolor(point_colors, alpha.f = 0.8))
   
-  # Boxplot summary
+  # Boxplot summary (same as before)
   if (length(vals) >= 3) {
     q <- quantile(vals, c(0.25, 0.5, 0.75))
     iqr <- q[3] - q[1]
@@ -732,8 +732,141 @@ cp_selection_boxplot <- function(sim, COR_true, COR_NI,
     segments(q[2], 1 - 0.14, q[2], 1 + 0.14, lwd = 5, col = "royalblue3")
   }
   
+  # ─── LEGEND ───────────────────────────────────────────────
+  par(mar = c(15, 1, 8, 4), xpd = TRUE)
+  plot.new()
+  plot.window(xlim = c(0, 1), ylim = c(0, 1))
+  
+  # Color bar
+  n_colors <- 100
+  y_pos <- seq(0.15, 0.85, length.out = n_colors)
+  for (i in seq_len(n_colors)) {
+    rect(0.1, y_pos[i], 0.4, y_pos[i] + (0.7 / n_colors), 
+         col = colramp[i], border = NA)
+  }
+  
+  # Labels
+  text(0.5, 0.90, "Conditional Power", adj = 0.5, font = 2, cex = 1.1)
+  text(0.5, 0.10, "0", adj = 0.5, cex = 1.0)
+  text(0.5, 0.90, "1", adj = 0.5, cex = 1.0)
+  text(0.5, 0.50, "0.5", adj = 0.5, cex = 1.0)
+  
+  # Arrows / indication
+  arrows(0.25, 0.12, 0.25, 0.05, length = 0.08, col = "gray40")
+  arrows(0.25, 0.88, 0.25, 0.95, length = 0.08, col = "gray40")
+  
   par(op)
 }
+
+
+
+# 
+# cp_selection_boxplot <- function(sim, COR_true, COR_NI,
+#                                  use_cor_scale = FALSE,
+#                                  xlim_log_low = -3, xlim_log_high = 4,
+#                                  main_prefix = "2 All @ interim – colored continuously by CP") {
+#   
+#   log_min_nice <- xlim_log_low
+#   log_max_nice <- xlim_log_high
+#   
+#   if (use_cor_scale) {
+#     xlim_use     <- exp(c(log_min_nice, log_max_nice))
+#     x_transform  <- exp
+#     x_label_expr <- "Cumulative Odds Ratio (COR)"
+#   } else {
+#     xlim_use     <- c(log_min_nice, log_max_nice)
+#     x_transform  <- identity
+#     x_label_expr <- expression(log(Cumulative~Odds~Ratio))
+#   }
+#   
+#   # ──────────────────────────────────────────────────────────────
+#   # Data – same as main plot "2 All @ interim"
+#   # ──────────────────────────────────────────────────────────────
+#   logcor_ia <- sim$logCOR_paths[, "ia"][is.finite(sim$logCOR_paths[, "ia"])]
+#   vals <- if (use_cor_scale) exp(logcor_ia) else logcor_ia
+#   
+#   idx <- which(is.finite(sim$logCOR_paths[, "ia"]))
+#   cp_ia <- sim$CP_after_ia_to_final_obs[idx]
+#   
+#   n_points <- length(vals)
+#   n_at_ia  <- sim$n_at_ia
+#   
+#   # Title with counts embedded
+#   main <- sprintf("%s\n(%d trials reaching IA2, N/trial = %d)", 
+#                   main_prefix, n_points, n_at_ia)
+#   
+#   if (n_points == 0) {
+#     plot(0, type = "n", main = "No finite estimates at interim", xaxt = "n", yaxt = "n")
+#     return(invisible(NULL))
+#   }
+#   
+#   # Continuous color: red (low) → yellow → green (high)
+#   colramp <- colorRampPalette(c("red", "yellow", "green"))(101)
+#   cp_norm <- pmax(0, pmin(1, cp_ia))
+#   col_idx <- round(cp_norm * 100) + 1
+#   point_colors <- colramp[col_idx]
+#   
+#   set.seed(202506)
+#   n_max <- nrow(sim$logCOR_paths)
+#   jitter_master <- runif(n_max, -0.30, 0.30)
+#   jitter_y <- jitter_master[idx]
+#   
+#   op <- par(no.readonly = TRUE)
+#   on.exit({ par(op); layout(1) }, add = TRUE)
+#   
+#   # No layout split anymore – full width
+#   par(mar = c(15, 12, 8, 4), xpd = FALSE)  # extra top margin for longer title
+#   
+#   plot(
+#     0, type = "n",
+#     xlim = xlim_use,
+#     ylim = c(0.4, 1.9),
+#     xlab = "", ylab = "",
+#     yaxt = "n", las = 1,
+#     main = main
+#   )
+#   
+#   mtext(x_label_expr, side = 1, line = 3.5, adj = 0.5, font = 2, cex = 1.2)
+#   
+#   mtext(
+#     sprintf("- True effect: %.2f (green dashed) | NI margin: %.2f (red dotted)",
+#             if (use_cor_scale) COR_true else log(COR_true),
+#             if (use_cor_scale) COR_NI   else log(COR_NI)),
+#     side = 1, line = 8.5, adj = 0, cex = 1.0
+#   )
+#   
+#   axis(2, at = 1, labels = "2 All @ interim", las = 1, cex.axis = 1.1)
+#   
+#   abline(v = x_transform(log(COR_true)), lty = 2, col = "darkgreen", lwd = 2.5)
+#   abline(v = x_transform(log(COR_NI)),   lty = 3, col = "red",       lwd = 2.5)
+#   
+#   abline(h = 1, col = "gray92", lwd = 0.8)
+#   
+#   # Points – low alpha for proper density buildup
+#   points(vals, 1 + jitter_y,
+#          pch = 19,
+#          cex = 1.0,
+#          col = adjustcolor(point_colors, alpha.f = 0.18))
+#   
+#   # Boxplot summary
+#   if (length(vals) >= 3) {
+#     q <- quantile(vals, c(0.25, 0.5, 0.75))
+#     iqr <- q[3] - q[1]
+#     w_upper <- max(vals[vals <= q[3] + 1.5 * iqr])
+#     w_lower <- min(vals[vals >= q[1] - 1.5 * iqr])
+#     
+#     segments(w_lower, 1, q[1], 1, col = "steelblue", lwd = 1.2)
+#     segments(q[3],   1, w_upper, 1, col = "steelblue", lwd = 1.2)
+#     segments(w_lower, 1 - 0.05, w_lower, 1 + 0.05, col = "steelblue", lwd = 1.2)
+#     segments(w_upper, 1 - 0.05, w_upper, 1 + 0.05, col = "steelblue", lwd = 1.2)
+#     rect(q[1], 1 - 0.14, q[3], 1 + 0.14, col = rgb(0.88,0.93,1,0.5), border = "steelblue", lwd = 1.4)
+#     segments(q[2], 1 - 0.14, q[2], 1 + 0.14, lwd = 5, col = "royalblue3")
+#   }
+#   
+#   par(op)
+# }
+
+
 # cp_selection_boxplot <- function(sim, COR_true, COR_NI,
 #                                  use_cor_scale = FALSE,
 #                                  xlim_log_low = -3, xlim_log_high = 4,
