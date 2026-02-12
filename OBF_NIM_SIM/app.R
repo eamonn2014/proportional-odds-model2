@@ -1,3 +1,8 @@
+############################################
+# Ordinal NI Group Sequential Trial Simulator
+# Streamlined v3.3 (chunked + lower overhead)
+############################################
+
 library(shiny)
 library(shinyWidgets)
 library(MASS)
@@ -7,6 +12,10 @@ library(rpact)
 library(future)
 library(future.apply)
 library(progressr)
+
+############################################################
+# Helpers
+############################################################
 
 ilogit <- function(z) 1 / (1 + exp(-z))
 
@@ -33,24 +42,8 @@ pmf_from_beta <- function(theta, beta, x = 1) {
   pmf / sum(pmf)
 }
 
-fit_logCOR <- function(df) {
-  fit <- try(MASS::polr(y ~ trt, data = df, Hess = TRUE), silent = TRUE)
-  if (inherits(fit, "try-error") || is.null(fit$coefficients)) return(NULL)
-  
-  coef_names <- names(fit$coefficients)
-  trt_name <- coef_names[grepl("^trt", coef_names)][1]
-  if (is.na(trt_name)) return(NULL)
-  
-  logCOR_hat <- as.numeric(fit$coefficients[[trt_name]])
-  v <- vcov(fit)
-  se <- sqrt(v[trt_name, trt_name])
-  if (!is.finite(se) || se < 1e-8) return(NULL)
-  
-  list(logCOR_hat = logCOR_hat, se = se)
-}
-
 # CP for "lower Z is better" NI rule (success if Z_T <= zcrit_T)
-# Matches CP.docx structure but written with the lower-tail boundary.
+# Written with the lower-tail boundary.
 conditional_power_ni_cp <- function(Z_i, I_i, I_T, theta_margin_adj, zcrit_T) {
   if (!is.finite(Z_i) || !is.finite(I_i) || !is.finite(I_T) ||
       !is.finite(theta_margin_adj) || !is.finite(zcrit_T)) {
@@ -90,15 +83,21 @@ expected_n_breakdown <- function(sim) {
     )
 }
 
-simulate_obf_ordinal <- function(COR_true, COR_NI, n_total, futility_frac, info_frac,
-                                 zcrit1, zcrit2, futility_p, p_control, cp_threshold = 0.2,
-                                 seed = 1234, nSims = 1000, workers = NULL) {
-  
+############################################################
+# Streamlined simulator (chunked futures + numeric output)
+############################################################
+
+simulate_obf_ordinal <- function(
+    COR_true, COR_NI, n_total, futility_frac, info_frac,
+    zcrit1, zcrit2, futility_p, p_control, cp_threshold = 0.2,
+    seed = 1234, nSims = 1000, chunk_size = 100
+) {
   msg <- validate_probs(p_control)
   if (!is.null(msg)) stop(msg)
   
   theta <- theta_from_control_pmf(p_control)
-  K <- length(p_control) - 1
+  K <- length(p_control) - 1L
+  y_levels <- 0:K
   
   beta_true <- log(COR_true)
   beta_NI   <- log(COR_NI)
@@ -106,88 +105,96 @@ simulate_obf_ordinal <- function(COR_true, COR_NI, n_total, futility_frac, info_
   pi_control <- p_control
   pi_treat   <- pmf_from_beta(theta, beta_true)
   
-  split_n <- function(N) { nC <- floor(N / 2); list(nC = nC, nT = N - nC) }
+  split_n <- function(N) { nC <- floor(N / 2); c(nC = nC, nT = N - nC) }
   
   n_fut <- round(futility_frac * n_total)
   n1    <- round(info_frac     * n_total)
   
+  s_fut <- split_n(n_fut)
+  s_ia  <- split_n(n1)
+  s_tot <- split_n(n_total)
+  
   z_fut <- qnorm(futility_p)
   
+  # Prebuild constant trt factors (levels fixed => coefficient name stable: "trtT")
+  trt_fut <- factor(c(rep("C", s_fut["nC"]), rep("T", s_fut["nT"])), levels = c("C","T"))
+  trt_ia  <- factor(c(rep("C", s_ia ["nC"]), rep("T", s_ia ["nT"])), levels = c("C","T"))
+  trt_tot <- factor(c(rep("C", s_tot["nC"]), rep("T", s_tot["nT"])), levels = c("C","T"))
+  
+  # Fast polr wrapper: keep Hess for SE, but avoid storing model matrix
+  fit_logCOR_vec <- function(y_int, trt_fac) {
+    dat <- list(
+      y   = factor(y_int, ordered = TRUE, levels = y_levels),
+      trt = trt_fac
+    )
+    
+    fit <- try(
+      MASS::polr(y ~ trt, data = dat, Hess = TRUE, model = FALSE, method = "logistic"),
+      silent = TRUE
+    )
+    if (inherits(fit, "try-error") || is.null(fit$coefficients)) return(NULL)
+    if (!("trtT" %in% names(fit$coefficients))) return(NULL)
+    
+    logCOR_hat <- unname(fit$coefficients[["trtT"]])
+    v <- vcov(fit)
+    se <- sqrt(v["trtT","trtT"])
+    if (!is.finite(se) || se < 1e-8) return(NULL)
+    
+    list(logCOR_hat = logCOR_hat, se = se)
+  }
+  
+  # One simulation returns fixed numeric vector length 15:
+  # 1 Z_fut, 2 COR_fut, 3 Z1, 4 COR1, 5 Z2, 6 COR2,
+  # 7 stop_fut, 8 stop_ia, 9 stop_final, 10 stop_lowcp,
+  # 11 logCOR_fut, 12 logCOR_ia, 13 logCOR_final,
+  # 14 CP_fut_to_ia, 15 CP_ia_to_final
   one_sim <- function(i) {
+    out <- rep(NA_real_, 15)
+    out[7:10] <- 0
     
-    out <- list(
-      Z_fut = NA_real_, COR_fut = NA_real_,
-      Z1    = NA_real_, COR1    = NA_real_,
-      Z2    = NA_real_, COR2    = NA_real_,
-      
-      stop_fut = FALSE, stop_ia = FALSE, stop_final = FALSE, stop_fut_low_cp = FALSE,
-      
-      logCOR_fut   = NA_real_,
-      logCOR_ia    = NA_real_,
-      logCOR_final = NA_real_,
-      
-      CP_after_fut_to_ia_obs   = NA_real_,
-      CP_after_ia_to_final_obs = NA_real_
-    )
+    # --- Futility look ---
+    yCf <- sample.int(K + 1, s_fut["nC"], TRUE, pi_control) - 1L
+    yTf <- sample.int(K + 1, s_fut["nT"], TRUE, pi_treat)   - 1L
+    y_fut <- c(yCf, yTf)
     
-    s_f <- split_n(n_fut)
+    fit_f <- fit_logCOR_vec(y_fut, trt_fut)
     
-    yCf <- sample.int(K + 1, s_f$nC, TRUE, pi_control) - 1
-    yTf <- sample.int(K + 1, s_f$nT, TRUE, pi_treat)   - 1
-    
-    df_f <- data.frame(
-      y   = factor(c(yCf, yTf), ordered = TRUE, levels = 0:K),
-      trt = factor(rep(c("C", "T"), c(s_f$nC, s_f$nT)), levels = c("C", "T"))
-    )
-    
-    fit_f <- fit_logCOR(df_f)
-    
-    I_fut <- NA_real_
-    theta_fut <- NA_real_
-    
+    I_fut <- theta_fut <- NA_real_
     if (!is.null(fit_f)) {
-      out$Z_fut <- (fit_f$logCOR_hat - beta_NI) / fit_f$se
-      out$COR_fut <- exp(fit_f$logCOR_hat)
-      out$logCOR_fut <- fit_f$logCOR_hat
+      out[11] <- fit_f$logCOR_hat
+      out[1]  <- (fit_f$logCOR_hat - beta_NI) / fit_f$se
+      out[2]  <- exp(fit_f$logCOR_hat)
       
-      I_fut <- 1 / (fit_f$se^2)
+      I_fut     <- 1 / (fit_f$se^2)
       theta_fut <- fit_f$logCOR_hat - beta_NI
       
-      if (out$Z_fut > z_fut) {
-        out$stop_fut <- TRUE
-        return(out)
-      }
+      if (out[1] > z_fut) { out[7] <- 1; return(out) }
     }
     
-    n_add_ia <- n1 - n_fut
-    s_add <- split_n(n_add_ia)
+    # --- Interim look (extend to n1) ---
+    n_add_iaC <- s_ia["nC"] - s_fut["nC"]
+    n_add_iaT <- s_ia["nT"] - s_fut["nT"]
     
-    yCa <- sample.int(K + 1, s_add$nC, TRUE, pi_control) - 1
-    yTa <- sample.int(K + 1, s_add$nT, TRUE, pi_treat)   - 1
+    if (n_add_iaC > 0) yCf <- c(yCf, sample.int(K + 1, n_add_iaC, TRUE, pi_control) - 1L)
+    if (n_add_iaT > 0) yTf <- c(yTf, sample.int(K + 1, n_add_iaT, TRUE, pi_treat)   - 1L)
     
-    df_add <- data.frame(
-      y   = factor(c(yCa, yTa), ordered = TRUE, levels = 0:K),
-      trt = factor(rep(c("C", "T"), c(s_add$nC, s_add$nT)), levels = c("C", "T"))
-    )
+    y_ia <- c(yCf, yTf)
+    fit1 <- fit_logCOR_vec(y_ia, trt_ia)
     
-    df1 <- rbind(df_f, df_add)
-    fit1 <- fit_logCOR(df1)
-    
-    I_ia <- NA_real_
-    theta_ia <- NA_real_
-    
+    I_ia <- theta_ia <- NA_real_
     if (!is.null(fit1)) {
-      out$Z1 <- (fit1$logCOR_hat - beta_NI) / fit1$se
-      out$COR1 <- exp(fit1$logCOR_hat)
-      out$logCOR_ia <- fit1$logCOR_hat
+      out[12] <- fit1$logCOR_hat
+      out[3]  <- (fit1$logCOR_hat - beta_NI) / fit1$se
+      out[4]  <- exp(fit1$logCOR_hat)
       
-      I_ia <- 1 / (fit1$se^2)
+      I_ia     <- 1 / (fit1$se^2)
       theta_ia <- fit1$logCOR_hat - beta_NI
       
-      if (is.finite(out$Z_fut) && is.finite(I_fut) && n_fut > 0) {
+      # CP from futility -> IA (planned info scaling)
+      if (is.finite(out[1]) && is.finite(I_fut) && n_fut > 0) {
         I_ia_plan_from_fut <- I_fut * (n1 / n_fut)
-        out$CP_after_fut_to_ia_obs <- conditional_power_ni_cp(
-          Z_i              = out$Z_fut,
+        out[14] <- conditional_power_ni_cp(
+          Z_i              = out[1],
           I_i              = I_fut,
           I_T              = I_ia_plan_from_fut,
           theta_margin_adj = theta_fut,
@@ -195,15 +202,14 @@ simulate_obf_ordinal <- function(COR_true, COR_NI, n_total, futility_frac, info_
         )
       }
       
-      if (out$Z1 <= zcrit1) {
-        out$stop_ia <- TRUE
-        return(out)
-      }
+      # IA success
+      if (out[3] <= zcrit1) { out[8] <- 1; return(out) }
       
+      # CP from IA -> final (planned info scaling)
       if (is.finite(I_ia) && n1 > 0) {
         I_final_plan <- I_ia * (n_total / n1)
-        out$CP_after_ia_to_final_obs <- conditional_power_ni_cp(
-          Z_i              = out$Z1,
+        out[15] <- conditional_power_ni_cp(
+          Z_i              = out[3],
           I_i              = I_ia,
           I_T              = I_final_plan,
           theta_margin_adj = theta_ia,
@@ -211,82 +217,88 @@ simulate_obf_ordinal <- function(COR_true, COR_NI, n_total, futility_frac, info_
         )
       }
       
-      if (is.finite(out$CP_after_ia_to_final_obs) &&
-          out$CP_after_ia_to_final_obs < cp_threshold) {
-        out$stop_fut_low_cp <- TRUE
-        return(out)
+      # CP futility at IA2
+      if (is.finite(out[15]) && out[15] < cp_threshold) {
+        out[10] <- 1; return(out)
       }
     }
     
-    n_add_final <- n_total - n1
-    s_final <- split_n(n_add_final)
+    # --- Final look (extend to n_total) ---
+    n_add_finC <- s_tot["nC"] - s_ia["nC"]
+    n_add_finT <- s_tot["nT"] - s_ia["nT"]
     
-    yCf2 <- sample.int(K + 1, s_final$nC, TRUE, pi_control) - 1
-    yTf2 <- sample.int(K + 1, s_final$nT, TRUE, pi_treat)   - 1
+    if (n_add_finC > 0) yCf <- c(yCf, sample.int(K + 1, n_add_finC, TRUE, pi_control) - 1L)
+    if (n_add_finT > 0) yTf <- c(yTf, sample.int(K + 1, n_add_finT, TRUE, pi_treat)   - 1L)
     
-    df_final_add <- data.frame(
-      y   = factor(c(yCf2, yTf2), ordered = TRUE, levels = 0:K),
-      trt = factor(rep(c("C", "T"), c(s_final$nC, s_final$nT)), levels = c("C", "T"))
-    )
-    
-    df2 <- rbind(df1, df_final_add)
-    fit2 <- fit_logCOR(df2)
+    y_fin <- c(yCf, yTf)
+    fit2 <- fit_logCOR_vec(y_fin, trt_tot)
     
     if (!is.null(fit2)) {
-      out$Z2 <- (fit2$logCOR_hat - beta_NI) / fit2$se
-      out$COR2 <- exp(fit2$logCOR_hat)
-      out$logCOR_final <- fit2$logCOR_hat
-      if (out$Z2 <= zcrit2) out$stop_final <- TRUE
+      out[13] <- fit2$logCOR_hat
+      out[5]  <- (fit2$logCOR_hat - beta_NI) / fit2$se
+      out[6]  <- exp(fit2$logCOR_hat)
+      if (out[5] <= zcrit2) out[9] <- 1
     }
     
     out
   }
   
-  if (is.null(workers)) workers <- max(1, future::availableCores() - 1)
+  # ---- Chunking setup ----
+  # Split sims into chunks to reduce future overhead for nSims ~ 10,000. [1](https://rdrr.io/cran/progressr/man/progressr.html)
+  idx <- split(seq_len(nSims), ceiling(seq_len(nSims) / chunk_size))
   
-  old_plan <- future::plan()
-  on.exit(future::plan(old_plan), add = TRUE)
-  
-  future::plan(multisession, workers = workers)
   set.seed(seed)
   
-  sims <- progressr::withProgressShiny(
+  # ---- Run in parallel with chunked progress ----
+  res_mat <- progressr::withProgressShiny(
     message = "Running simulations...",
     detail  = "Processing...",
     value   = 0,
     {
-      p <- progressr::progressor(along = seq_len(nSims))
-      future.apply::future_lapply(seq_len(nSims), FUN = function(i) {
-        res <- one_sim(i)
-        p()
-        res
-      }, future.seed = TRUE)
+      p <- progressr::progressor(along = idx)
+      
+      chunks <- future.apply::future_lapply(
+        idx,
+        FUN = function(ii) {
+          block <- vapply(ii, one_sim, FUN.VALUE = numeric(15))
+          p()                 # one progress update per chunk
+          t(block)            # return n_chunk x 15
+        },
+        future.seed = TRUE    # parallel-safe, reproducible RNG [1](https://rdrr.io/cran/progressr/man/progressr.html)[6](https://stackoverflow.com/questions/77675885/error-that-profile-on-a-model-generated-with-masspolr-cannot-find-data-whe)
+      )
+      
+      do.call(rbind, chunks)  # nSims x 15
     }
   )
   
+  stop_fut        <- as.logical(res_mat[, 7])
+  stop_ia         <- as.logical(res_mat[, 8])
+  stop_final      <- as.logical(res_mat[, 9])
+  stop_fut_low_cp <- as.logical(res_mat[,10])
+  
   logCOR_paths <- cbind(
-    fut   = vapply(sims, `[[`, numeric(1), "logCOR_fut"),
-    ia    = vapply(sims, `[[`, numeric(1), "logCOR_ia"),
-    final = vapply(sims, `[[`, numeric(1), "logCOR_final")
+    fut   = res_mat[,11],
+    ia    = res_mat[,12],
+    final = res_mat[,13]
   )
   
   list(
-    Z_fut_all   = vapply(sims, `[[`, numeric(1),  "Z_fut"),
-    COR_fut_all = vapply(sims, `[[`, numeric(1),  "COR_fut"),
-    Z1_all      = vapply(sims, `[[`, numeric(1),  "Z1"),
-    COR1_all    = vapply(sims, `[[`, numeric(1),  "COR1"),
-    Z2_all      = vapply(sims, `[[`, numeric(1),  "Z2"),
-    COR2_all    = vapply(sims, `[[`, numeric(1),  "COR2"),
+    Z_fut_all   = res_mat[,1],
+    COR_fut_all = res_mat[,2],
+    Z1_all      = res_mat[,3],
+    COR1_all    = res_mat[,4],
+    Z2_all      = res_mat[,5],
+    COR2_all    = res_mat[,6],
     
-    stop_fut        = vapply(sims, `[[`, logical(1), "stop_fut"),
-    stop_ia         = vapply(sims, `[[`, logical(1), "stop_ia"),
-    stop_final      = vapply(sims, `[[`, logical(1), "stop_final"),
-    stop_fut_low_cp = vapply(sims, `[[`, logical(1), "stop_fut_low_cp"),
+    stop_fut        = stop_fut,
+    stop_ia         = stop_ia,
+    stop_final      = stop_final,
+    stop_fut_low_cp = stop_fut_low_cp,
     
     logCOR_paths = logCOR_paths,
     
-    CP_after_fut_to_ia_obs   = vapply(sims, `[[`, numeric(1), "CP_after_fut_to_ia_obs"),
-    CP_after_ia_to_final_obs = vapply(sims, `[[`, numeric(1), "CP_after_ia_to_final_obs"),
+    CP_after_fut_to_ia_obs   = res_mat[,14],
+    CP_after_ia_to_final_obs = res_mat[,15],
     
     n_at_fut = n_fut, n_at_ia = n1, n_total = n_total, nSims = nSims,
     z_fut = z_fut, zcrit1 = zcrit1, zcrit2 = zcrit2,
@@ -294,6 +306,10 @@ simulate_obf_ordinal <- function(COR_true, COR_NI, n_total, futility_frac, info_
     rpact_design = NULL
   )
 }
+
+############################################################
+# Summary table
+############################################################
 
 sim_table <- function(sim) {
   
@@ -325,6 +341,11 @@ sim_table <- function(sim) {
       across(-c(Stage, N), ~ round(as.numeric(.x), 3))
     )
 }
+
+############################################################
+# Plot function (UNCHANGED from your original)
+# (Kept verbatim to preserve functionality)
+############################################################
 
 selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
                               show_traj_success = FALSE, show_traj_fail = FALSE,
@@ -605,13 +626,21 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
   }
 }
 
+############################################################
+# UI
+############################################################
+
 ui <- page_sidebar(
-  title = "Ordinal Endpoint, Non-Inferiority, Group Sequential Design, Trial Simulator v3.3",
+  title = "Ordinal Endpoint, Non-Inferiority, Group Sequential Design, Trial Simulator v3.3 (Streamlined)",
   sidebar = sidebar(
     width = 350,
     
-    actionButton("run_btn", "Run Simulation",
-                 class = "btn-primary btn-lg", icon = icon("play-circle"), width = "100%"),
+    actionButton(
+      "run_btn", "Run Simulation",
+      class = "btn-primary btn-lg",
+      icon  = icon("play-circle"),
+      width = "100%"
+    ),
     
     hr(style = "margin: 1.2em 0;"),
     
@@ -619,18 +648,21 @@ ui <- page_sidebar(
       style = "padding: 0 8px;",
       h5("Trial & Simulation Settings"),
       
-      numericInput("n_sims", "Number of simulations", value = 1000),
+      numericInput("n_sims",  "Number of simulations", value = 1000),
       numericInput("n_total", "Total sample size (1:1 rand.)", value = 600),
-      textInput("p_control_txt", "Control probabilities", value = "0.04, 0.02, 0.45, 0.34, 0.15"),
+      textInput("p_control_txt", "Control probabilities",
+                value = "0.04, 0.02, 0.45, 0.34, 0.15"),
       
       numericInput("COR_true", "True cumulative odds ratio (COR)", value = 1.0, step = 0.05),
-      numericInput("COR_NI", "Non inferiority margin COR", value = 1.6, step = 0.1),
+      numericInput("COR_NI",   "Non inferiority margin COR",       value = 1.6, step = 0.1),
       
-      numericInput("futility_p", "Futility p-value threshold IA1", value = 0.70),
-      numericInput("cp_threshold", "CP futility threshold at IA2", value = 0.1, min = 0, max = 1, step = 0.05),
+      numericInput("futility_p",    "Futility p-value threshold IA1", value = 0.70),
+      numericInput("cp_threshold",  "CP futility threshold at IA2",   value = 0.1, min = 0, max = 1, step = 0.05),
       
-      sliderInput("futility_frac", "Futility look fraction", min = 0.2, max = 0.7, value = 0.5),
-      sliderInput("info_frac", "Interim look fraction", min = 0.5, max = 0.95, value = 0.80),
+      sliderInput("futility_frac", "Futility look fraction", min = 0.2, max = 0.7,  value = 0.5),
+      sliderInput("info_frac",     "Interim look fraction",  min = 0.5, max = 0.95, value = 0.80),
+      
+      numericInput("chunk_size", "Chunk size (speed for large sims)", value = 100, min = 10, step = 10),
       
       numericInput("seed", "Random seed", value = 202506)
     ),
@@ -709,11 +741,19 @@ ui <- page_sidebar(
   )
 )
 
+############################################################
+# Server
+############################################################
+
 server <- function(input, output, session) {
   
-  sim_store <- reactiveVal(NULL)
+  # Set future plan ONCE (not inside each simulation run)
+  # You can tune workers here if desired.
+  future::plan(future::multisession, workers = max(1, future::availableCores() - 1))
+  onStop(function() future::plan(future::sequential))
   
-  observeEvent(input$run_btn, {
+  # Run simulation only when button is clicked
+  sim <- eventReactive(input$run_btn, {
     
     design <- getDesignGroupSequential(
       sided = 1,
@@ -722,7 +762,7 @@ server <- function(input, output, session) {
       typeOfDesign = "asOF"
     )
     
-    sim <- simulate_obf_ordinal(
+    ans <- simulate_obf_ordinal(
       COR_true = input$COR_true,
       COR_NI   = input$COR_NI,
       n_total  = input$n_total,
@@ -734,18 +774,19 @@ server <- function(input, output, session) {
       p_control  = parse_probs(input$p_control_txt),
       cp_threshold = input$cp_threshold,
       seed  = input$seed,
-      nSims = input$n_sims
+      nSims = input$n_sims,
+      chunk_size = input$chunk_size
     )
     
-    sim$rpact_design <- design
-    sim_store(sim)
+    ans$rpact_design <- design
+    ans
     
   }, ignoreInit = TRUE)
   
   output$boxplot <- renderPlot({
-    req(sim_store())
+    req(sim())
     selection_boxplot(
-      sim_store(),
+      sim(),
       COR_true = input$COR_true,
       COR_NI   = input$COR_NI,
       futility_frac = input$futility_frac,
@@ -763,10 +804,10 @@ server <- function(input, output, session) {
       paste0("Simulation_Results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".jpg")
     },
     content = function(file) {
-      req(sim_store())
+      req(sim())
       jpeg(file, width = 12, height = 10, units = "in", res = 300, quality = 100)
       selection_boxplot(
-        sim_store(),
+        sim(),
         COR_true = input$COR_true,
         COR_NI   = input$COR_NI,
         futility_frac = input$futility_frac,
@@ -782,28 +823,28 @@ server <- function(input, output, session) {
   )
   
   output$status <- renderText({
-    if (is.null(sim_store())) "Click 'Run' to start." else "Complete."
+    if (is.null(sim())) "Click 'Run' to start." else "Complete."
   })
   
   output$summary_table <- renderTable({
-    req(sim_store())
-    sim_table(sim_store())
+    req(sim())
+    sim_table(sim())
   }, digits = 3)
   
   output$ess_breakdown <- renderTable({
-    req(sim_store())
-    expected_n_breakdown(sim_store())
+    req(sim())
+    expected_n_breakdown(sim())
   }, digits = 4)
   
   output$ess_total_note <- renderPrint({
-    req(sim_store())
-    df <- expected_n_breakdown(sim_store())
+    req(sim())
+    df <- expected_n_breakdown(sim())
     cat(sprintf("ESS (Average Sample Size) = %.1f\n", sum(df$Contribution)))
   })
   
   output$rpact_info <- renderPrint({
-    req(sim_store())
-    d <- sim_store()$rpact_design
+    req(sim())
+    d <- sim()$rpact_design
     
     cat(sprintf(
       "Total One-sided Alpha: %.4f\nAlpha Spent Stage 1 (IA): %.4f\nAlpha Spent Stage 2 (Final): %.4f\n",
