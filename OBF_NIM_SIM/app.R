@@ -820,11 +820,12 @@ ui <- page_sidebar(
                                      step = 0.1)
                  ),
                  column(4,
-                        numericInput("rcs_knots",
-                                     "Number of spline degrees of freedom",
+                        numericInput("spline_df",
+                                     "Degrees of freedom for B-spline (higher = more wiggly curve)",
                                      value = 4,
                                      min = 3,
-                                     max = 6)
+                                     max = 8,
+                                     step = 1)
                  )
                ),
                
@@ -931,50 +932,66 @@ server <- function(input, output, session) {
                   "Try: COR_true = 0.6–0.8, futility_p = 0.80–0.90, more simulations"))
     )
     
-    k <- isolate(as.integer(input$rcs_knots %||% 4))
-    req(k >= 3 && k <= 6)
+    # Use the new input name
+    # df_val <- isolate(as.integer(input$spline_df %||% 4)) 
+    df_val <- as.integer(input$spline_df %||% 4)
+    req(df_val >= 3 && df_val <= 8)
     
     fit <- tryCatch(
-      lm(CP ~ ns(logCOR, df = k), data = df),
+      lm(CP ~ bs(logCOR, df = df_val, degree = 3), data = df),
       error = function(e) {
         showNotification(paste("Spline fit failed:", e$message), type = "error")
         NULL
       }
     )
     
-    req(fit, "Spline model did not fit successfully")
+    req(fit, "B-spline model did not fit")
     
     list(
       fit     = fit,
       data    = df,
       n_valid = nrow(df),
-      df      = k   # degrees of freedom
+      df      = df_val
     )
   })
   
   output$cp_rcs_plot <- renderPlot({
+    
+    
+    input$spline_df   # ← just referencing it creates dependency
+    
+    
     obj <- cp_rcs_fit()
     req(obj, obj$fit, obj$data)
     
     df  <- obj$data
     fit <- obj$fit
     
+    # Slightly expanded range to better show behavior at edges
     rng <- range(df$logCOR)
-    log_seq <- seq(rng[1] - 0.08 * diff(rng), rng[2] + 0.08 * diff(rng), length.out = 250)
+    log_seq <- seq(
+      rng[1] - 0.08 * diff(rng),
+      rng[2] + 0.08 * diff(rng),
+      length.out = 250
+    )
     
-    pred <- predict(fit, 
-                    newdata = data.frame(logCOR = log_seq),
-                    interval = "confidence",
-                    level = 0.95)
+    # Predict with confidence interval
+    pred <- predict(
+      fit,
+      newdata = data.frame(logCOR = log_seq),
+      interval = "confidence",
+      level = 0.95
+    )
     
     fitv <- pred[, "fit"]
     lwr  <- pred[, "lwr"]
     upr  <- pred[, "upr"]
     
+    # Remove any non-finite predictions (edge cases)
     ok <- is.finite(fitv) & is.finite(lwr) & is.finite(upr)
     if (sum(ok) < 20) {
       plot.new()
-      title("Prediction mostly non-finite")
+      title("Prediction mostly non-finite – check data range")
       return()
     }
     
@@ -983,20 +1000,61 @@ server <- function(input, output, session) {
     lwr     <- lwr[ok]
     upr     <- upr[ok]
     
-    plot(range(log_seq), c(0,1), type = "n",
-         xlab = "log(COR) at interim", 
-         ylab = "Conditional Power to final",
-         main = sprintf("Natural spline fit (n = %d, df = %d)", obj$n_valid, obj$df))
+    # Main plot
+    plot(
+      range(log_seq), c(0, 1),
+      type = "n",
+      xlab = "log(COR) at interim analysis",
+      ylab = "Conditional Power to final analysis",
+      main = sprintf(
+        "B-spline fit to CP\n(n = %d simulations reaching IA2, df = %d)",
+        obj$n_valid, obj$df
+      ),
+      las = 1,
+      cex.main = 1.1,
+      cex.lab = 1.05
+    )
     
-    polygon(c(log_seq, rev(log_seq)), c(lwr, rev(upr)),
-            col = rgb(0.7, 0.8, 1, 0.35), border = NA)
+    # Confidence band (light blue shading)
+    polygon(
+      c(log_seq, rev(log_seq)),
+      c(lwr, rev(upr)),
+      col = rgb(0.7, 0.85, 1, 0.35),
+      border = NA
+    )
     
+    # Fitted line
     lines(log_seq, fitv, col = "blue3", lwd = 3)
-    points(df$logCOR, df$CP, pch = 16, cex = 0.8, col = rgb(0,0,0,0.25))
     
+    # Raw data points (semi-transparent)
+    points(
+      df$logCOR, df$CP,
+      pch = 16, cex = 0.8,
+      col = rgb(0, 0, 0, 0.25)
+    )
+    
+    # Vertical reference line for user input
     abline(v = input$logor_input, col = "red2", lty = 2, lwd = 2.2)
-    abline(h = seq(0,1,by=0.2), col = "gray85", lty = 3)
-    grid(col = "gray92")
+    
+    # Horizontal grid lines for readability
+    abline(h = seq(0, 1, by = 0.2), col = "gray85", lty = 3)
+    
+    # Light grid
+    grid(col = "gray92", lty = "dotted")
+    
+    # Small legend in top-right corner
+    legend(
+      "topright",
+      legend = c("Fitted curve", "95% confidence band", "Observed points"),
+      col = c("blue3", rgb(0.7,0.85,1,0.6), rgb(0,0,0,0.25)),
+      lwd = c(3, NA, NA),
+      pch = c(NA, 22, 16),
+      pt.bg = c(NA, rgb(0.7,0.85,1,0.6), NA),
+      pt.cex = c(NA, 2, 1.2),
+      bty = "n",
+      cex = 0.9,
+      inset = 0.02
+    )
   })
   
   output$cp_prediction <- renderPrint({
