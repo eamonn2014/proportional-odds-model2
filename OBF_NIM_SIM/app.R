@@ -1,6 +1,6 @@
 ############################################
 # Ordinal NI Group Sequential Trial Simulator
-# Streamlined v3.3 (chunked + lower overhead)
+# Streamlined v3.3 → switched CP RCS to lm + natural splines
 ############################################
 
 library(shiny)
@@ -12,7 +12,7 @@ library(rpact)
 library(future)
 library(future.apply)
 library(progressr)
-library(rms)
+library(splines)   # ← added for ns()
 
 ############################################################
 # Helpers
@@ -43,8 +43,6 @@ pmf_from_beta <- function(theta, beta, x = 1) {
   pmf / sum(pmf)
 }
 
-# CP for "lower Z is better" NI rule (success if Z_T <= zcrit_T)
-# Written with the lower-tail boundary.
 conditional_power_ni_cp <- function(Z_i, I_i, I_T, theta_margin_adj, zcrit_T) {
   if (!is.finite(Z_i) || !is.finite(I_i) || !is.finite(I_T) ||
       !is.finite(theta_margin_adj) || !is.finite(zcrit_T)) {
@@ -85,7 +83,7 @@ expected_n_breakdown <- function(sim) {
 }
 
 ############################################################
-# Streamlined simulator (chunked futures + numeric output)
+# Simulator (unchanged)
 ############################################################
 
 simulate_obf_ordinal <- function(
@@ -117,12 +115,10 @@ simulate_obf_ordinal <- function(
   
   z_fut <- qnorm(futility_p)
   
-  # Prebuild constant trt factors (levels fixed => coefficient name stable: "trtT")
   trt_fut <- factor(c(rep("C", s_fut["nC"]), rep("T", s_fut["nT"])), levels = c("C","T"))
   trt_ia  <- factor(c(rep("C", s_ia ["nC"]), rep("T", s_ia ["nT"])), levels = c("C","T"))
   trt_tot <- factor(c(rep("C", s_tot["nC"]), rep("T", s_tot["nT"])), levels = c("C","T"))
   
-  # Fast polr wrapper: keep Hess for SE, but avoid storing model matrix
   fit_logCOR_vec <- function(y_int, trt_fac) {
     dat <- list(
       y   = factor(y_int, ordered = TRUE, levels = y_levels),
@@ -144,16 +140,10 @@ simulate_obf_ordinal <- function(
     list(logCOR_hat = logCOR_hat, se = se)
   }
   
-  # One simulation returns fixed numeric vector length 15:
-  # 1 Z_fut, 2 COR_fut, 3 Z1, 4 COR1, 5 Z2, 6 COR2,
-  # 7 stop_fut, 8 stop_ia, 9 stop_final, 10 stop_lowcp,
-  # 11 logCOR_fut, 12 logCOR_ia, 13 logCOR_final,
-  # 14 CP_fut_to_ia, 15 CP_ia_to_final
   one_sim <- function(i) {
     out <- rep(NA_real_, 15)
     out[7:10] <- 0
     
-    # --- Futility look ---
     yCf <- sample.int(K + 1, s_fut["nC"], TRUE, pi_control) - 1L
     yTf <- sample.int(K + 1, s_fut["nT"], TRUE, pi_treat)   - 1L
     y_fut <- c(yCf, yTf)
@@ -172,7 +162,6 @@ simulate_obf_ordinal <- function(
       if (out[1] > z_fut) { out[7] <- 1; return(out) }
     }
     
-    # --- Interim look (extend to n1) ---
     n_add_iaC <- s_ia["nC"] - s_fut["nC"]
     n_add_iaT <- s_ia["nT"] - s_fut["nT"]
     
@@ -191,7 +180,6 @@ simulate_obf_ordinal <- function(
       I_ia     <- 1 / (fit1$se^2)
       theta_ia <- fit1$logCOR_hat - beta_NI
       
-      # CP from futility -> IA (planned info scaling)
       if (is.finite(out[1]) && is.finite(I_fut) && n_fut > 0) {
         I_ia_plan_from_fut <- I_fut * (n1 / n_fut)
         out[14] <- conditional_power_ni_cp(
@@ -203,7 +191,6 @@ simulate_obf_ordinal <- function(
         )
       }
       
-      # CP from IA -> final (planned info scaling)
       if (is.finite(I_ia) && n1 > 0) {
         I_final_plan <- I_ia * (n_total / n1)
         out[15] <- conditional_power_ni_cp(
@@ -215,16 +202,13 @@ simulate_obf_ordinal <- function(
         )
       }
       
-      # IA success
       if (out[3] <= zcrit1) { out[8] <- 1; return(out) }
       
-      # CP futility at IA2
       if (is.finite(out[15]) && out[15] < cp_threshold) {
         out[10] <- 1; return(out)
       }
     }
     
-    # --- Final look (extend to n_total) ---
     n_add_finC <- s_tot["nC"] - s_ia["nC"]
     n_add_finT <- s_tot["nT"] - s_ia["nT"]
     
@@ -244,13 +228,10 @@ simulate_obf_ordinal <- function(
     out
   }
   
-  # ---- Chunking setup ----
-  # Split sims into chunks to reduce future overhead for nSims ~ 10,000. [1](https://rdrr.io/cran/progressr/man/progressr.html)
   idx <- split(seq_len(nSims), ceiling(seq_len(nSims) / chunk_size))
   
   set.seed(seed)
   
-  # ---- Run in parallel with chunked progress ----
   res_mat <- progressr::withProgressShiny(
     message = "Running simulations...",
     detail  = "Processing...",
@@ -262,13 +243,13 @@ simulate_obf_ordinal <- function(
         idx,
         FUN = function(ii) {
           block <- vapply(ii, one_sim, FUN.VALUE = numeric(15))
-          p()                 # one progress update per chunk
-          t(block)            # return n_chunk x 15
+          p()
+          t(block)
         },
-        future.seed = TRUE    # parallel-safe, reproducible RNG [1](https://rdrr.io/cran/progressr/man/progressr.html)[6](https://stackoverflow.com/questions/77675885/error-that-profile-on-a-model-generated-with-masspolr-cannot-find-data-whe)
+        future.seed = TRUE
       )
       
-      do.call(rbind, chunks)  # nSims x 15
+      do.call(rbind, chunks)
     }
   )
   
@@ -309,7 +290,7 @@ simulate_obf_ordinal <- function(
 }
 
 ############################################################
-# Summary table
+# Summary table (unchanged)
 ############################################################
 
 sim_table <- function(sim) {
@@ -344,8 +325,7 @@ sim_table <- function(sim) {
 }
 
 ############################################################
-# Plot function (UNCHANGED from your original)
-# (Kept verbatim to preserve functionality)
+# Plots (selection_boxplot and cp_selection_boxplot unchanged)
 ############################################################
 
 selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
@@ -627,11 +607,6 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
   }
 }
 
-############################################################
-# New Plot function for CP-colored IA2 boxplot
-############################################################
-
-
 cp_selection_boxplot <- function(sim, COR_true, COR_NI,
                                  use_cor_scale = FALSE,
                                  xlim_log_low = -3, xlim_log_high = 4,
@@ -650,7 +625,6 @@ cp_selection_boxplot <- function(sim, COR_true, COR_NI,
     x_label_expr <- expression(log(Cumulative~Odds~Ratio))
   }
   
-  # Data selection
   logcor_ia <- sim$logCOR_paths[, "ia"][is.finite(sim$logCOR_paths[, "ia"])]
   vals <- if (use_cor_scale) exp(logcor_ia) else logcor_ia
   
@@ -668,9 +642,8 @@ cp_selection_boxplot <- function(sim, COR_true, COR_NI,
     return(invisible(NULL))
   }
   
-  # Color ramp: red (low CP) → yellow → green (high CP)
   colramp <- colorRampPalette(c("red", "yellow", "green"))(101)
-  cp_norm <- pmax(0, pmin(1, cp_ia))           # clamp [0,1]
+  cp_norm <- pmax(0, pmin(1, cp_ia))
   col_idx <- round(cp_norm * 100) + 1
   point_colors <- colramp[col_idx]
   
@@ -682,7 +655,6 @@ cp_selection_boxplot <- function(sim, COR_true, COR_NI,
   op <- par(no.readonly = TRUE)
   on.exit({ par(op); layout(1) }, add = TRUE)
   
-  # Use layout to make space for legend on right
   layout(matrix(c(1, 2), nrow = 1), widths = c(6, 1.4))
   
   par(mar = c(15, 12, 8, 2), xpd = FALSE)
@@ -712,13 +684,11 @@ cp_selection_boxplot <- function(sim, COR_true, COR_NI,
   
   abline(h = 1, col = "gray92", lwd = 0.8)
   
-  # Points
   points(vals, 1 + jitter_y,
          pch = 19,
          cex = 1.0,
          col = adjustcolor(point_colors, alpha.f = 0.8))
   
-  # Boxplot summary (same as before)
   if (length(vals) >= 3) {
     q <- quantile(vals, c(0.25, 0.5, 0.75))
     iqr <- q[3] - q[1]
@@ -733,12 +703,10 @@ cp_selection_boxplot <- function(sim, COR_true, COR_NI,
     segments(q[2], 1 - 0.14, q[2], 1 + 0.14, lwd = 5, col = "royalblue3")
   }
   
-  # ─── LEGEND ───────────────────────────────────────────────
   par(mar = c(15, 1, 8, 4), xpd = TRUE)
   plot.new()
   plot.window(xlim = c(0, 1), ylim = c(0, 1))
   
-  # Color bar
   n_colors <- 100
   y_pos <- seq(0.15, 0.85, length.out = n_colors)
   for (i in seq_len(n_colors)) {
@@ -746,242 +714,23 @@ cp_selection_boxplot <- function(sim, COR_true, COR_NI,
          col = colramp[i], border = NA)
   }
   
-  # Labels
   text(0.5, 0.90, "Conditional Power", adj = 0.5, font = 2, cex = 1.1)
   text(0.5, 0.10, "0", adj = 0.5, cex = 1.0)
   text(0.5, 0.90, "1", adj = 0.5, cex = 1.0)
   text(0.5, 0.50, "0.5", adj = 0.5, cex = 1.0)
   
-  # Arrows / indication
   arrows(0.25, 0.12, 0.25, 0.05, length = 0.08, col = "gray40")
   arrows(0.25, 0.88, 0.25, 0.95, length = 0.08, col = "gray40")
   
   par(op)
 }
 
-
-
-# 
-# cp_selection_boxplot <- function(sim, COR_true, COR_NI,
-#                                  use_cor_scale = FALSE,
-#                                  xlim_log_low = -3, xlim_log_high = 4,
-#                                  main_prefix = "2 All @ interim – colored continuously by CP") {
-#   
-#   log_min_nice <- xlim_log_low
-#   log_max_nice <- xlim_log_high
-#   
-#   if (use_cor_scale) {
-#     xlim_use     <- exp(c(log_min_nice, log_max_nice))
-#     x_transform  <- exp
-#     x_label_expr <- "Cumulative Odds Ratio (COR)"
-#   } else {
-#     xlim_use     <- c(log_min_nice, log_max_nice)
-#     x_transform  <- identity
-#     x_label_expr <- expression(log(Cumulative~Odds~Ratio))
-#   }
-#   
-#   # ──────────────────────────────────────────────────────────────
-#   # Data – same as main plot "2 All @ interim"
-#   # ──────────────────────────────────────────────────────────────
-#   logcor_ia <- sim$logCOR_paths[, "ia"][is.finite(sim$logCOR_paths[, "ia"])]
-#   vals <- if (use_cor_scale) exp(logcor_ia) else logcor_ia
-#   
-#   idx <- which(is.finite(sim$logCOR_paths[, "ia"]))
-#   cp_ia <- sim$CP_after_ia_to_final_obs[idx]
-#   
-#   n_points <- length(vals)
-#   n_at_ia  <- sim$n_at_ia
-#   
-#   # Title with counts embedded
-#   main <- sprintf("%s\n(%d trials reaching IA2, N/trial = %d)", 
-#                   main_prefix, n_points, n_at_ia)
-#   
-#   if (n_points == 0) {
-#     plot(0, type = "n", main = "No finite estimates at interim", xaxt = "n", yaxt = "n")
-#     return(invisible(NULL))
-#   }
-#   
-#   # Continuous color: red (low) → yellow → green (high)
-#   colramp <- colorRampPalette(c("red", "yellow", "green"))(101)
-#   cp_norm <- pmax(0, pmin(1, cp_ia))
-#   col_idx <- round(cp_norm * 100) + 1
-#   point_colors <- colramp[col_idx]
-#   
-#   set.seed(202506)
-#   n_max <- nrow(sim$logCOR_paths)
-#   jitter_master <- runif(n_max, -0.30, 0.30)
-#   jitter_y <- jitter_master[idx]
-#   
-#   op <- par(no.readonly = TRUE)
-#   on.exit({ par(op); layout(1) }, add = TRUE)
-#   
-#   # No layout split anymore – full width
-#   par(mar = c(15, 12, 8, 4), xpd = FALSE)  # extra top margin for longer title
-#   
-#   plot(
-#     0, type = "n",
-#     xlim = xlim_use,
-#     ylim = c(0.4, 1.9),
-#     xlab = "", ylab = "",
-#     yaxt = "n", las = 1,
-#     main = main
-#   )
-#   
-#   mtext(x_label_expr, side = 1, line = 3.5, adj = 0.5, font = 2, cex = 1.2)
-#   
-#   mtext(
-#     sprintf("- True effect: %.2f (green dashed) | NI margin: %.2f (red dotted)",
-#             if (use_cor_scale) COR_true else log(COR_true),
-#             if (use_cor_scale) COR_NI   else log(COR_NI)),
-#     side = 1, line = 8.5, adj = 0, cex = 1.0
-#   )
-#   
-#   axis(2, at = 1, labels = "2 All @ interim", las = 1, cex.axis = 1.1)
-#   
-#   abline(v = x_transform(log(COR_true)), lty = 2, col = "darkgreen", lwd = 2.5)
-#   abline(v = x_transform(log(COR_NI)),   lty = 3, col = "red",       lwd = 2.5)
-#   
-#   abline(h = 1, col = "gray92", lwd = 0.8)
-#   
-#   # Points – low alpha for proper density buildup
-#   points(vals, 1 + jitter_y,
-#          pch = 19,
-#          cex = 1.0,
-#          col = adjustcolor(point_colors, alpha.f = 0.18))
-#   
-#   # Boxplot summary
-#   if (length(vals) >= 3) {
-#     q <- quantile(vals, c(0.25, 0.5, 0.75))
-#     iqr <- q[3] - q[1]
-#     w_upper <- max(vals[vals <= q[3] + 1.5 * iqr])
-#     w_lower <- min(vals[vals >= q[1] - 1.5 * iqr])
-#     
-#     segments(w_lower, 1, q[1], 1, col = "steelblue", lwd = 1.2)
-#     segments(q[3],   1, w_upper, 1, col = "steelblue", lwd = 1.2)
-#     segments(w_lower, 1 - 0.05, w_lower, 1 + 0.05, col = "steelblue", lwd = 1.2)
-#     segments(w_upper, 1 - 0.05, w_upper, 1 + 0.05, col = "steelblue", lwd = 1.2)
-#     rect(q[1], 1 - 0.14, q[3], 1 + 0.14, col = rgb(0.88,0.93,1,0.5), border = "steelblue", lwd = 1.4)
-#     segments(q[2], 1 - 0.14, q[2], 1 + 0.14, lwd = 5, col = "royalblue3")
-#   }
-#   
-#   par(op)
-# }
-
-
-# cp_selection_boxplot <- function(sim, COR_true, COR_NI,
-#                                  use_cor_scale = FALSE,
-#                                  xlim_log_low = -3, xlim_log_high = 4,
-#                                  main = "2 All @ interim – ALL POINTS FORCED BLACK (proof of density)") {
-#   
-#   log_min_nice <- xlim_log_low
-#   log_max_nice <- xlim_log_high
-#   
-#   if (use_cor_scale) {
-#     xlim_use     <- exp(c(log_min_nice, log_max_nice))
-#     x_transform  <- exp
-#     x_label_expr <- "Cumulative Odds Ratio (COR)"
-#   } else {
-#     xlim_use     <- c(log_min_nice, log_max_nice)
-#     x_transform  <- identity
-#     x_label_expr <- expression(log(Cumulative~Odds~Ratio))
-#   }
-#   
-#   # ──────────────────────────────────────────────────────────────
-#   # Exact same data selection as main plot
-#   # ──────────────────────────────────────────────────────────────
-#   logcor_ia <- sim$logCOR_paths[, "ia"][is.finite(sim$logCOR_paths[, "ia"])]
-#   vals <- if (use_cor_scale) exp(logcor_ia) else logcor_ia
-#   
-#   idx <- which(is.finite(sim$logCOR_paths[, "ia"]))
-#   
-#   cat("Points being plotted (should be ~480):", length(vals), "\n")
-#   
-#   if (length(vals) == 0) {
-#     plot(0, type = "n", main = "No finite estimates", xaxt = "n", yaxt = "n")
-#     return(invisible(NULL))
-#   }
-#   
-#   set.seed(202506)
-#   n_max <- nrow(sim$logCOR_paths)
-#   jitter_master <- runif(n_max, -0.30, 0.30)
-#   jitter_y <- jitter_master[idx]
-#   
-#   op <- par(no.readonly = TRUE)
-#   on.exit({ par(op); layout(1) }, add = TRUE)
-#   layout(matrix(c(1, 2), nrow = 1), widths = c(5.2, 2.2))
-#   
-#   par(mar = c(15, 12, 6, 2), xpd = FALSE)
-#   
-#   plot(
-#     0, type = "n",
-#     xlim = xlim_use,
-#     ylim = c(0.4, 1.9),
-#     xlab = "", ylab = "",
-#     yaxt = "n", las = 1,
-#     main = main
-#   )
-#   
-#   mtext(x_label_expr, side = 1, line = 3.5, adj = 0.5, font = 2, cex = 1.2)
-#   
-#   mtext(
-#     sprintf("- True: %.2f (green dashed) | NI: %.2f (red dotted)",
-#             if (use_cor_scale) COR_true else log(COR_true),
-#             if (use_cor_scale) COR_NI   else log(COR_NI)),
-#     side = 1, line = 8.5, adj = 0, cex = 1.0
-#   )
-#   
-#   axis(2, at = 1, labels = "2 All @ interim", las = 1, cex.axis = 1.1)
-#   
-#   abline(v = x_transform(log(COR_true)), lty = 2, col = "darkgreen", lwd = 2.5)
-#   abline(v = x_transform(log(COR_NI)),   lty = 3, col = "red",       lwd = 2.5)
-#   
-#   abline(h = 1, col = "gray92", lwd = 0.8)
-#   
-#   # ──────────────────────────────────────────────────────────────
-#   # PROOF: all points black, opaque, larger size → density should match main plot
-#   # ──────────────────────────────────────────────────────────────
-#   points(vals, 1 + jitter_y,
-#          pch = 19,
-#          cex = 1.2,          # large enough to see individuals, but not huge
-#          col = "black")      # fully opaque black – no transparency, no color gradient
-#   
-#   # Boxplot summary (same as main plot)
-#   if (length(vals) >= 3) {
-#     q <- quantile(vals, c(0.25, 0.5, 0.75))
-#     iqr <- q[3] - q[1]
-#     w_upper <- max(vals[vals <= q[3] + 1.5 * iqr])
-#     w_lower <- min(vals[vals >= q[1] - 1.5 * iqr])
-#     
-#     segments(w_lower, 1, q[1], 1, col = "steelblue", lwd = 1.2)
-#     segments(q[3],   1, w_upper, 1, col = "steelblue", lwd = 1.2)
-#     segments(w_lower, 1 - 0.05, w_lower, 1 + 0.05, col = "steelblue", lwd = 1.2)
-#     segments(w_upper, 1 - 0.05, w_upper, 1 + 0.05, col = "steelblue", lwd = 1.2)
-#     rect(q[1], 1 - 0.14, q[3], 1 + 0.14, col = rgb(0.88,0.93,1,0.5), border = "steelblue", lwd = 1.4)
-#     segments(q[2], 1 - 0.14, q[2], 1 + 0.14, lwd = 5, col = "royalblue3")
-#   }
-#   
-#   # Right panel – just the count (no gradient for this proof version)
-#   par(mar = c(15, 1, 6, 1), xpd = FALSE)
-#   plot.new()
-#   plot.window(xlim = c(0, 1), ylim = c(0.4, 1.9))
-#   
-#   text(0.02, 1.75, "Trials (N)", adj = 0, font = 2, cex = 1.15)
-#   text(0.45, 1.75, "N/Trial",   adj = 0, font = 2, cex = 1.15)
-#   
-#   text(0.02, 1, format(length(vals), big.mark=","), adj = 0, cex = 1.1)
-#   text(0.45, 1, sprintf("%d", sim$n_at_ia), adj = 0, cex = 1.1)
-#   
-#   par(op)
-# }
-
-
-
 ############################################################
-# UI
+# UI (unchanged)
 ############################################################
 
 ui <- page_sidebar(
-  title = "Ordinal Endpoint, Non-Inferiority, Group Sequential Design, Trial Simulator v3.3 (Streamlined)",
+  title = "Ordinal NI Group Sequential Trial Simulator – lm + ns for CP curve",
   sidebar = sidebar(
     width = 350,
     
@@ -1061,7 +810,7 @@ ui <- page_sidebar(
                plotOutput("cp_boxplot", height = "600px"),
                
                hr(),
-               h4("CP vs log(COR) – RCS Model"),
+               h4("CP vs log(COR) at IA – Natural Spline Fit"),
                
                fluidRow(
                  column(4,
@@ -1072,7 +821,7 @@ ui <- page_sidebar(
                  ),
                  column(4,
                         numericInput("rcs_knots",
-                                     "Number of RCS knots",
+                                     "Number of spline degrees of freedom",
                                      value = 4,
                                      min = 3,
                                      max = 6)
@@ -1089,7 +838,6 @@ ui <- page_sidebar(
                h5("Average OR for different CP thresholds (among sims with CP < threshold at IA)"),
                tableOutput("cp_table")
       ),
-      
       
       tabPanel("Wiki",
                div(style = "padding: 25px; max-width: 1000px;",
@@ -1112,12 +860,10 @@ ui <- page_sidebar(
                    p("Because this is a non-inferiority design, the red vertical line represents the NI margin. If the estimated log(COR) is sufficiently below that margin, non-inferiority is declared."),
                    br(),
                    h4("Futility at IA1 (P-value approach)"),
-                   p("At the first look, the trial may stop for futility if the observed one-sided p-value is too large (i.e., insufficient evidence that treatment is non-inferior)."),
-                   p("This approach evaluates the observed test statistic directly against a user-defined futility threshold."),
+                   p("At the first look, the trial may stop for futility if the observed one-sided p-value is too large."),
                    br(),
                    h4("Conditional Power (CP) Futility at IA2"),
                    p("At the second look, the trial may stop for futility based on Conditional Power."),
-                   p("In this simulator, the assumed future treatment effect is the observed interim COR. If CP falls below the user-defined threshold, the trial stops for futility."),
                    hr(),
                    p(style = "font-style: italic; color: gray;",
                      "This simulator is for educational and design exploration purposes only.")
@@ -1132,40 +878,9 @@ ui <- page_sidebar(
 
 server <- function(input, output, session) {
   
-  # Set future plan ONCE (not inside each simulation run)
-  # You can tune workers here if desired.
   future::plan(future::multisession, workers = max(1, future::availableCores() - 1))
   onStop(function() future::plan(future::sequential))
   
-  cp_rcs_fit <- reactive({
-    s <- sim()
-    req(s)
-    
-    df <- data.frame(
-      logCOR = s$logCOR_paths[, "ia"],
-      CP     = s$CP_after_ia_to_final_obs
-    )
-    df <- df[is.finite(df$logCOR) & is.finite(df$CP), , drop = FALSE]
-    
-    shiny::validate(shiny::need(nrow(df) > 20, "Not enough IA2 data to fit spline model."))
-    
-    # --- dd must be visible to rms (Shiny scoping workaround) ---
-    dd <<- rms::datadist(df)
-    options(datadist = "dd")
-    
-    # --- KEY FIX: freeze knots into formula as a constant number ---
-    k   <- isolate(as.integer(input$rcs_knots))
-    fml <- as.formula(sprintf("CP ~ rms::rcs(logCOR, %d)", k))
-    
-    fit <- rms::ols(fml, data = df, x = TRUE, y = TRUE)
-    
-    list(fit = fit, data = df)
-  })
-  
-  
-  
-  
-  # Run simulation only when button is clicked
   sim <- eventReactive(input$run_btn, {
     
     design <- getDesignGroupSequential(
@@ -1196,69 +911,118 @@ server <- function(input, output, session) {
     
   }, ignoreInit = TRUE)
   
+  # ───────────────────────────────────────────────
+  # CP fit using lm + natural splines (no rms needed)
+  # ───────────────────────────────────────────────
+  cp_rcs_fit <- reactive({
+    s <- sim()
+    req(s)
+    
+    df <- data.frame(
+      logCOR = s$logCOR_paths[, "ia"],
+      CP     = s$CP_after_ia_to_final_obs
+    ) %>%
+      filter(is.finite(logCOR) & is.finite(CP) & CP >= 0 & CP <= 1)
+    
+    shiny::validate(
+      need(nrow(df) >= 30,
+           paste0("Only ", nrow(df), " valid IA2 observations.\n",
+                  "Need ≥30 for reliable spline fit.\n",
+                  "Try: COR_true = 0.6–0.8, futility_p = 0.80–0.90, more simulations"))
+    )
+    
+    k <- isolate(as.integer(input$rcs_knots %||% 4))
+    req(k >= 3 && k <= 6)
+    
+    fit <- tryCatch(
+      lm(CP ~ ns(logCOR, df = k), data = df),
+      error = function(e) {
+        showNotification(paste("Spline fit failed:", e$message), type = "error")
+        NULL
+      }
+    )
+    
+    req(fit, "Spline model did not fit successfully")
+    
+    list(
+      fit     = fit,
+      data    = df,
+      n_valid = nrow(df),
+      df      = k   # degrees of freedom
+    )
+  })
+  
   output$cp_rcs_plot <- renderPlot({
     obj <- cp_rcs_fit()
-    fit <- obj$fit
+    req(obj, obj$fit, obj$data)
+    
     df  <- obj$data
+    fit <- obj$fit
     
-    dd <- datadist(df)
-    old <- options(datadist = "dd")
-    on.exit(options(old), add = TRUE)
+    rng <- range(df$logCOR)
+    log_seq <- seq(rng[1] - 0.08 * diff(rng), rng[2] + 0.08 * diff(rng), length.out = 250)
     
-    log_seq <- seq(min(df$logCOR), max(df$logCOR), length.out = 200)
-    
-    pred <- predict(fit,
+    pred <- predict(fit, 
                     newdata = data.frame(logCOR = log_seq),
-                    type = "lp",
-                    se.fit = TRUE)
+                    interval = "confidence",
+                    level = 0.95)
     
-    fit_vals <- as.numeric(drop(pred$fit))
-    se_vals  <- as.numeric(drop(pred$se.fit))
+    fitv <- pred[, "fit"]
+    lwr  <- pred[, "lwr"]
+    upr  <- pred[, "upr"]
     
-    # if predict returned any NA/non-finite values, align vectors
-    ok <- is.finite(log_seq) & is.finite(fit_vals) & is.finite(se_vals)
-    log_seq  <- log_seq[ok]
-    fit_vals <- fit_vals[ok]
-    se_vals  <- se_vals[ok]
+    ok <- is.finite(fitv) & is.finite(lwr) & is.finite(upr)
+    if (sum(ok) < 20) {
+      plot.new()
+      title("Prediction mostly non-finite")
+      return()
+    }
     
+    log_seq <- log_seq[ok]
+    fitv    <- fitv[ok]
+    lwr     <- lwr[ok]
+    upr     <- upr[ok]
     
-    upper <- fit_vals + 1.96 * se_vals
-    lower <- fit_vals - 1.96 * se_vals
+    plot(range(log_seq), c(0,1), type = "n",
+         xlab = "log(COR) at interim", 
+         ylab = "Conditional Power to final",
+         main = sprintf("Natural spline fit (n = %d, df = %d)", obj$n_valid, obj$df))
     
-    lines(log_seq, fit_vals, col = "blue", lwd = 3)
-    lines(log_seq, upper,    col = "blue", lty = 2)
-    lines(log_seq, lower,    col = "blue", lty = 2)
+    polygon(c(log_seq, rev(log_seq)), c(lwr, rev(upr)),
+            col = rgb(0.7, 0.8, 1, 0.35), border = NA)
     
+    lines(log_seq, fitv, col = "blue3", lwd = 3)
+    points(df$logCOR, df$CP, pch = 16, cex = 0.8, col = rgb(0,0,0,0.25))
     
-    abline(v = input$logor_input, col = "red", lty = 2)
+    abline(v = input$logor_input, col = "red2", lty = 2, lwd = 2.2)
+    abline(h = seq(0,1,by=0.2), col = "gray85", lty = 3)
+    grid(col = "gray92")
   })
   
   output$cp_prediction <- renderPrint({
     obj <- cp_rcs_fit()
-    req(obj)
-    
-    # make rms happy about datadist (your previous fix)
-    dd <<- rms::datadist(obj$data)
-    options(datadist = "dd")
+    req(obj, obj$fit)
     
     pred <- predict(obj$fit,
                     newdata = data.frame(logCOR = input$logor_input),
-                    type = "lp",
-                    se.fit = TRUE)
+                    interval = "confidence",
+                    level = 0.95)
     
-    # ---- KEY FIX: coerce to plain numeric scalars ----
-    est <- as.numeric(drop(pred$fit))[1]
-    se  <- as.numeric(drop(pred$se.fit))[1]
+    est  <- pred[1, "fit"]
+    lwr  <- pred[1, "lwr"]
+    upr  <- pred[1, "upr"]
     
-    lower <- est - 1.96 * se
-    upper <- est + 1.96 * se
+    if (!is.finite(est)) {
+      cat("Prediction failed (non-finite result)\n")
+      return()
+    }
     
-    cat("Predicted CP at log(COR) =", input$logor_input, "\n")
-    cat("Estimate:", round(est, 3), "\n")
-    cat("95% CI :", round(lower, 3), "to", round(upper, 3), "\n")
+    cat(sprintf("log(COR) = %.3f\n", input$logor_input))
+    cat(sprintf("Predicted CP     : %.3f\n", est))
+    cat(sprintf("95%% CI           : %.3f – %.3f\n", max(0, lwr), min(1, upr)))
+    cat(sprintf("(based on %d simulations reaching IA2)\n", obj$n_valid))
   })
   
-
   output$boxplot <- renderPlot({
     req(sim())
     selection_boxplot(
@@ -1286,64 +1050,6 @@ server <- function(input, output, session) {
       xlim_log_high     = input$xlim_log_high
     )
   })
-  
-  output$cp_or_table <- renderPrint({
-    req(sim())
-    
-    idx <- which(is.finite(sim()$logCOR_paths[, "ia"]))
-    if (length(idx) == 0) {
-      cat("No simulations reached IA2 with finite estimates.\n")
-      return()
-    }
-    
-    logcor_ia <- sim()$logCOR_paths[idx, "ia"]
-    cp_ia     <- sim()$CP_after_ia_to_final_obs[idx]
-    
-    # OR or log(OR)
-    if (input$use_cor_scale) {
-      or_values <- exp(logcor_ia)
-      header    <- "OR"
-    } else {
-      or_values <- logcor_ia
-      header    <- "log(OR)"
-    }
-    
-    # Create a nice table
-    df <- data.frame(
-      Sim_Index = idx,
-      CP        = round(cp_ia, 4),
-      Value     = round(or_values, 4)
-    )
-    colnames(df)[3] <- header
-    
-    # Print formatted table
-    cat("CP and", header, "for each simulation reaching IA2\n")
-    cat("Total:", nrow(df), "simulations\n\n")
-    print(df, row.names = FALSE, right = FALSE)
-  })
-  
-  output$download_plot <- downloadHandler(
-    filename = function() {
-      paste0("Simulation_Results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".jpg")
-    },
-    content = function(file) {
-      req(sim())
-      jpeg(file, width = 12, height = 10, units = "in", res = 300, quality = 100)
-      selection_boxplot(
-        sim(),
-        COR_true = input$COR_true,
-        COR_NI   = input$COR_NI,
-        futility_frac = input$futility_frac,
-        info_frac     = input$info_frac,
-        show_traj_success = input$show_traj_success,
-        show_traj_fail    = input$show_traj_fail,
-        use_cor_scale     = input$use_cor_scale,
-        xlim_log_low      = input$xlim_log_low,
-        xlim_log_high     = input$xlim_log_high
-      )
-      dev.off()
-    }
-  )
   
   output$status <- renderText({
     if (is.null(sim())) "Click 'Run' to start." else "Complete."
@@ -1383,31 +1089,6 @@ server <- function(input, output, session) {
     ))
   })
   
-  
-  
-  # output$cp_table <- renderTable({
-  #   req(sim())
-  #   cps <- seq(0.05, 0.95, by = 0.05)
-  #   results <- data.frame(
-  #     CP_Threshold = cps,
-  #     Average_OR = numeric(length(cps)),
-  #     Num_Sims = integer(length(cps))
-  #   )
-  #   valid_idx_all <- which(is.finite(sim()$COR1_all) & is.finite(sim()$CP_after_ia_to_final_obs))
-  #   for (i in seq_along(cps)) {
-  #     cp_th <- cps[i]
-  #     sub_idx <- valid_idx_all[sim()$CP_after_ia_to_final_obs[valid_idx_all] < cp_th]
-  #     if (length(sub_idx) > 0) {
-  #       results$Average_OR[i] <- round(mean(sim()$COR1_all[sub_idx], na.rm = TRUE), 3)
-  #       results$Num_Sims[i] <- length(sub_idx)
-  #     } else {
-  #       results$Average_OR[i] <- NA
-  #       results$Num_Sims[i] <- 0
-  #     }
-  #   }
-  #   results
-  # }, digits = 3)
-  
   output$cp_table <- renderTable({
     req(sim())
     cps <- seq(0.05, 0.95, by = 0.05)
@@ -1417,10 +1098,7 @@ server <- function(input, output, session) {
       Num_Sims     = integer(length(cps))
     )
     
-    # Explicitly: only simulations that reached IA2
     reached_ia_idx <- which(!sim()$stop_fut & is.finite(sim()$COR1_all))
-    
-    
     
     if (length(reached_ia_idx) == 0) {
       results$Average_OR <- NA
@@ -1445,6 +1123,29 @@ server <- function(input, output, session) {
     
     results
   }, digits = 3)
+  
+  output$download_plot <- downloadHandler(
+    filename = function() {
+      paste0("Simulation_Results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".jpg")
+    },
+    content = function(file) {
+      req(sim())
+      jpeg(file, width = 12, height = 10, units = "in", res = 300, quality = 100)
+      selection_boxplot(
+        sim(),
+        COR_true = input$COR_true,
+        COR_NI   = input$COR_NI,
+        futility_frac = input$futility_frac,
+        info_frac     = input$info_frac,
+        show_traj_success = input$show_traj_success,
+        show_traj_fail    = input$show_traj_fail,
+        use_cor_scale     = input$use_cor_scale,
+        xlim_log_low      = input$xlim_log_low,
+        xlim_log_high     = input$xlim_log_high
+      )
+      dev.off()
+    }
+  )
 }
 
 shinyApp(ui, server)
