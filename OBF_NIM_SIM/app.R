@@ -12,6 +12,7 @@ library(rpact)
 library(future)
 library(future.apply)
 library(progressr)
+library(rms)
 
 ############################################################
 # Helpers
@@ -1056,18 +1057,39 @@ ui <- page_sidebar(
                verbatimTextOutput("ess_total_note")),
       
       tabPanel("CP Analysis",
-               plotOutput("cp_boxplot", height = "750px"),
-               tabPanel("CP Analysis",
-                        plotOutput("cp_boxplot", height = "750px"),
-                        hr(),
-                        h5("CP and OR for each simulation reaching IA2"),
-                        verbatimTextOutput("cp_or_table"),
-                        hr(),
-                        h5("Average OR for different CP thresholds (among sims with CP < threshold at IA)"),
-                        tableOutput("cp_table")),
+               
+               plotOutput("cp_boxplot", height = "600px"),
+               
+               hr(),
+               h4("CP vs log(COR) – RCS Model"),
+               
+               fluidRow(
+                 column(4,
+                        numericInput("logor_input",
+                                     "Input log(COR) for prediction",
+                                     value = 0,
+                                     step = 0.1)
+                 ),
+                 column(4,
+                        numericInput("rcs_knots",
+                                     "Number of RCS knots",
+                                     value = 4,
+                                     min = 3,
+                                     max = 6)
+                 )
+               ),
+               
+               plotOutput("cp_rcs_plot", height = "500px"),
+               
+               hr(),
+               h5("Predicted CP for Input log(COR)"),
+               verbatimTextOutput("cp_prediction"),
+               
                hr(),
                h5("Average OR for different CP thresholds (among sims with CP < threshold at IA)"),
-               tableOutput("cp_table")),
+               tableOutput("cp_table")
+      ),
+      
       
       tabPanel("Wiki",
                div(style = "padding: 25px; max-width: 1000px;",
@@ -1115,6 +1137,34 @@ server <- function(input, output, session) {
   future::plan(future::multisession, workers = max(1, future::availableCores() - 1))
   onStop(function() future::plan(future::sequential))
   
+  cp_rcs_fit <- reactive({
+    s <- sim()
+    req(s)
+    
+    df <- data.frame(
+      logCOR = s$logCOR_paths[, "ia"],
+      CP     = s$CP_after_ia_to_final_obs
+    )
+    df <- df[is.finite(df$logCOR) & is.finite(df$CP), , drop = FALSE]
+    
+    shiny::validate(shiny::need(nrow(df) > 20, "Not enough IA2 data to fit spline model."))
+    
+    # --- dd must be visible to rms (Shiny scoping workaround) ---
+    dd <<- rms::datadist(df)
+    options(datadist = "dd")
+    
+    # --- KEY FIX: freeze knots into formula as a constant number ---
+    k   <- isolate(as.integer(input$rcs_knots))
+    fml <- as.formula(sprintf("CP ~ rms::rcs(logCOR, %d)", k))
+    
+    fit <- rms::ols(fml, data = df, x = TRUE, y = TRUE)
+    
+    list(fit = fit, data = df)
+  })
+  
+  
+  
+  
   # Run simulation only when button is clicked
   sim <- eventReactive(input$run_btn, {
     
@@ -1146,6 +1196,69 @@ server <- function(input, output, session) {
     
   }, ignoreInit = TRUE)
   
+  output$cp_rcs_plot <- renderPlot({
+    obj <- cp_rcs_fit()
+    fit <- obj$fit
+    df  <- obj$data
+    
+    dd <- datadist(df)
+    old <- options(datadist = "dd")
+    on.exit(options(old), add = TRUE)
+    
+    log_seq <- seq(min(df$logCOR), max(df$logCOR), length.out = 200)
+    
+    pred <- predict(fit,
+                    newdata = data.frame(logCOR = log_seq),
+                    type = "lp",
+                    se.fit = TRUE)
+    
+    fit_vals <- as.numeric(drop(pred$fit))
+    se_vals  <- as.numeric(drop(pred$se.fit))
+    
+    # if predict returned any NA/non-finite values, align vectors
+    ok <- is.finite(log_seq) & is.finite(fit_vals) & is.finite(se_vals)
+    log_seq  <- log_seq[ok]
+    fit_vals <- fit_vals[ok]
+    se_vals  <- se_vals[ok]
+    
+    
+    upper <- fit_vals + 1.96 * se_vals
+    lower <- fit_vals - 1.96 * se_vals
+    
+    lines(log_seq, fit_vals, col = "blue", lwd = 3)
+    lines(log_seq, upper,    col = "blue", lty = 2)
+    lines(log_seq, lower,    col = "blue", lty = 2)
+    
+    
+    abline(v = input$logor_input, col = "red", lty = 2)
+  })
+  
+  output$cp_prediction <- renderPrint({
+    obj <- cp_rcs_fit()
+    req(obj)
+    
+    # make rms happy about datadist (your previous fix)
+    dd <<- rms::datadist(obj$data)
+    options(datadist = "dd")
+    
+    pred <- predict(obj$fit,
+                    newdata = data.frame(logCOR = input$logor_input),
+                    type = "lp",
+                    se.fit = TRUE)
+    
+    # ---- KEY FIX: coerce to plain numeric scalars ----
+    est <- as.numeric(drop(pred$fit))[1]
+    se  <- as.numeric(drop(pred$se.fit))[1]
+    
+    lower <- est - 1.96 * se
+    upper <- est + 1.96 * se
+    
+    cat("Predicted CP at log(COR) =", input$logor_input, "\n")
+    cat("Estimate:", round(est, 3), "\n")
+    cat("95% CI :", round(lower, 3), "to", round(upper, 3), "\n")
+  })
+  
+
   output$boxplot <- renderPlot({
     req(sim())
     selection_boxplot(
@@ -1269,6 +1382,8 @@ server <- function(input, output, session) {
       pnorm(-d$criticalValues[2])
     ))
   })
+  
+  
   
   # output$cp_table <- renderTable({
   #   req(sim())
