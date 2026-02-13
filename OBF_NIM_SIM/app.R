@@ -66,7 +66,7 @@ expected_n_breakdown <- function(sim) {
   p_final      <- mean(!(sim$stop_fut | sim$stop_ia | sim$stop_fut_low_cp), na.rm = TRUE)
   
   df <- data.frame(
-    Stage       = c("Futility stop", "IA success stop", "IA low-CP futility stop", "Final analysis"),
+    Stage       = c("IA1 Futility stop", "IA2 success stop", "IA2 low-CP futility stop", "Final analysis"),
     Probability = c(p_fut, p_ia_success, p_low_cp, p_final),
     N_at_stage  = c(sim$n_at_fut, sim$n_at_ia, sim$n_at_ia, sim$n_total),
     check.names = FALSE
@@ -308,7 +308,7 @@ sim_table <- function(sim) {
   fin      <- safe_summ_ext(sim$COR2_all[sim$stop_final])
   
   data.frame(
-    Stage  = c("Futility stop", "IA success stop", "IA low-CP futility", "Final success stop"),
+    Stage  = c("IA1 Futility stop", "IA2 success stop", "IA2 low-CP futility", "Final success stop"),
     N      = c(fut["N"], ia_suc["N"], ia_lowcp["N"], fin["N"]),
     Min    = c(fut["Min"], ia_suc["Min"], ia_lowcp["Min"], fin["Min"]),
     Mean   = c(fut["Mean"], ia_suc["Mean"], ia_lowcp["Mean"], fin["Mean"]),
