@@ -791,10 +791,10 @@ ui <- page_sidebar(
   
   card(
     tabsetPanel(
-      tabPanel("Operating Characteristics Plot",
+      tabPanel("Operating Characteristics",
                plotOutput("boxplot", height = "750px")),
       
-      tabPanel("Summary Table",
+      tabPanel("Summary Table, COR Distributions",
                verbatimTextOutput("status"),
                tableOutput("summary_table"),
                hr(),
@@ -806,12 +806,12 @@ ui <- page_sidebar(
                hr(),
                verbatimTextOutput("ess_total_note")),
       
-      tabPanel("CP Analysis",
+      tabPanel("Conditional Probability Analysis",
                
                plotOutput("cp_boxplot", height = "600px"),
                
                hr(),
-               h4("CP vs log(COR) at IA – Restricted Cubic Spline Fit"),
+               h4("Conditional Probability vs log(COR) at IA2"),
                
                fluidRow(
                  column(4,
