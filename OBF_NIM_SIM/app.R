@@ -774,8 +774,8 @@ ui <- page_sidebar(
       h5("Plot Options"),
       
       checkboxInput("use_cor_scale", "Display on COR scale (instead of log)", value = FALSE),
-      sliderInput("xlim_log_low",  "X-axis lower limit (log scale)", min = -6, max = 0, value = -1, step = 0.5),
-      sliderInput("xlim_log_high", "X-axis upper limit (log scale)", min = 0,  max = 7, value = 2,  step = 0.5),
+      sliderInput("xlim_log_low",  "X-axis lower limit (log scale)", min = -6, max = 0, value = -1, step = 0.1),
+      sliderInput("xlim_log_high", "X-axis upper limit (log scale)", min = 0,  max = 7, value = 2,  step = 0.1),
       
       hr(style = "margin: 1.2em 0; border-top: 1px dashed #ccc;"),
       tags$strong("Show trajectories"),
