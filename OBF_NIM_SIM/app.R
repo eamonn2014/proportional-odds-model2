@@ -1,6 +1,6 @@
 ############################################
 # Ordinal NI Group Sequential Trial Simulator
-# Using rms::rcs for conditional power curve
+# Using rms::rcs for conditional power curve + fit quality in title
 ############################################
 
 library(shiny)
@@ -325,7 +325,7 @@ sim_table <- function(sim) {
 }
 
 ############################################################
-# Plots
+# Plots (selection_boxplot and cp_selection_boxplot unchanged)
 ############################################################
 
 selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
@@ -928,17 +928,12 @@ server <- function(input, output, session) {
                   "Need ≥30 for reliable spline fit.\n",
                   "Try: COR_true = 0.6–0.8, futility_p = 0.80–0.90, more simulations"))
     )
-
-    
-    
-    
     
     df_val <- as.integer(input$spline_df %||% 4)
     req(df_val >= 3 && df_val <= 8)
     
     nknots <- df_val + 1L
     
-    # Build formula as string → literal number baked in
     fmla <- as.formula(sprintf("CP ~ rcs(logCOR, %d)", nknots))
     
     dd <- datadist(df)
@@ -951,16 +946,6 @@ server <- function(input, output, session) {
         NULL
       }
     )
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     
     req(fit, "Restricted cubic spline model did not fit")
     
@@ -980,6 +965,11 @@ server <- function(input, output, session) {
     
     df  <- obj$data
     fit <- obj$fit
+    
+    # Compute fit quality metrics
+    resids <- residuals(fit)
+    mse    <- mean(resids^2)
+    rse    <- sqrt(mse)  # Residual Standard Error
     
     rng <- range(df$logCOR)
     log_seq <- seq(
@@ -1019,8 +1009,8 @@ server <- function(input, output, session) {
       xlab = "log(COR) at interim analysis",
       ylab = "Conditional Power to final analysis",
       main = sprintf(
-        "Restricted cubic spline fit to CP\n(n = %d simulations reaching IA2, df = %d)",
-        obj$n_valid, obj$df
+        "Restricted cubic spline fit to CP\n(n = %d simulations reaching IA2, df = %d)\nResidual SE = %.4f   MSE = %.4f",
+        obj$n_valid, obj$df, rse, mse
       ),
       las = 1,
       cex.main = 1.1,
@@ -1065,9 +1055,12 @@ server <- function(input, output, session) {
     obj <- cp_rcs_fit()
     req(obj, obj$fit)
     
+    logcor_input <- input$logor_input
+    cor_input    <- exp(logcor_input)   # the actual COR value
+    
     pred_df <- Predict(
       obj$fit,
-      logCOR = input$logor_input,
+      logCOR = logcor_input,
       conf.int = 0.95
     )
     
@@ -1080,9 +1073,10 @@ server <- function(input, output, session) {
     lwr  <- pred_df$lower
     upr  <- pred_df$upper
     
-    cat(sprintf("log(COR) = %.3f\n", input$logor_input))
-    cat(sprintf("Predicted CP     : %.3f\n", est))
-    cat(sprintf("95%% CI           : %.3f – %.3f\n", max(0, lwr), min(1, upr)))
+    cat(sprintf("Input log(COR)      = %.3f\n", logcor_input))
+    cat(sprintf("Corresponding COR   = %.3f\n", cor_input))
+    cat(sprintf("Predicted CP        : %.3f\n", est))
+    cat(sprintf("95%% CI for CP       : %.3f – %.3f\n", max(0, lwr), min(1, upr)))
     cat(sprintf("(based on %d simulations reaching IA2)\n", obj$n_valid))
   })
   
