@@ -702,27 +702,28 @@ cp_selection_boxplot <- function(sim, COR_true, COR_NI,
     rect(q[1], 1 - 0.14, q[3], 1 + 0.14, col = rgb(0.88,0.93,1,0.5), border = "steelblue", lwd = 1.4)
     segments(q[2], 1 - 0.14, q[2], 1 + 0.14, lwd = 5, col = "royalblue3")
   }
-  
+
   par(mar = c(15, 1, 8, 4), xpd = TRUE)
   plot.new()
   plot.window(xlim = c(0, 1), ylim = c(0, 1))
-  
+
   n_colors <- 100
   y_pos <- seq(0.15, 0.85, length.out = n_colors)
   for (i in seq_len(n_colors)) {
-    rect(0.1, y_pos[i], 0.4, y_pos[i] + (0.7 / n_colors), 
+    rect(0.1, y_pos[i], 0.4, y_pos[i] + (0.7 / n_colors),
          col = colramp[i], border = NA)
   }
-  
-  text(0.5, 0.90, "Conditional Power", adj = 0.5, font = 2, cex = 1.1)
+
+  text(0.5, 0.90, "", adj = 0.5, font = 2, cex = 1.1) #Conditional Power
   text(0.5, 0.10, "0", adj = 0.5, cex = 1.0)
   text(0.5, 0.90, "1", adj = 0.5, cex = 1.0)
   text(0.5, 0.50, "0.5", adj = 0.5, cex = 1.0)
-  
+
   arrows(0.25, 0.12, 0.25, 0.05, length = 0.08, col = "gray40")
   arrows(0.25, 0.88, 0.25, 0.95, length = 0.08, col = "gray40")
-  
+
   par(op)
+ 
 }
 
 ############################################################
@@ -730,7 +731,7 @@ cp_selection_boxplot <- function(sim, COR_true, COR_NI,
 ############################################################
 
 ui <- page_sidebar(
-  title = "Ordinal NI Group Sequential Trial Simulator – rms::rcs for CP curve",
+  title = "Ordinal Endpoint, Non Inferiority, Group Sequential Trial Simulator v4.0",
   sidebar = sidebar(
     width = 350,
     
@@ -814,18 +815,16 @@ ui <- page_sidebar(
                
                fluidRow(
                  column(4,
-                        numericInput("logor_input",
-                                     "Input log(COR) for prediction",
-                                     value = 0,
-                                     step = 0.1)
+                        numericInput("cor_input",              # ← changed ID
+                                     "Input COR for prediction (e.g. 0.6, 1.0, 1.6)",
+                                     value = 1.0,
+                                     min = 0.01, step = 0.05)
                  ),
                  column(4,
                         numericInput("spline_df",
                                      "Degrees of freedom for RCS (higher = more wiggly curve)",
                                      value = 4,
-                                     min = 3,
-                                     max = 8,
-                                     step = 1)
+                                     min = 3, max = 8, step = 1)
                  )
                ),
                
@@ -835,9 +834,9 @@ ui <- page_sidebar(
                h5("Predicted CP for Input log(COR)"),
                verbatimTextOutput("cp_prediction"),
                
-               hr(),
-               h5("Average OR for different CP thresholds (among sims with CP < threshold at IA)"),
-               tableOutput("cp_table")
+               # hr(),
+               # h5("Average OR for different CP thresholds (among sims with CP < threshold at IA)"),
+               # tableOutput("cp_table")
       ),
       
       tabPanel("Wiki",
@@ -1032,7 +1031,8 @@ server <- function(input, output, session) {
       col = rgb(0, 0, 0, 0.25)
     )
     
-    abline(v = input$logor_input, col = "red2", lty = 2, lwd = 2.2)
+    #abline(v = input$logor_input, col = "red2", lty = 2, lwd = 2.2)
+    abline(v = log(input$cor_input), col = "red2", lty = 2, lwd = 2.2)
     
     abline(h = seq(0, 1, by = 0.2), col = "gray85", lty = 3)
     grid(col = "gray92", lty = "dotted")
@@ -1055,8 +1055,14 @@ server <- function(input, output, session) {
     obj <- cp_rcs_fit()
     req(obj, obj$fit)
     
-    logcor_input <- input$logor_input
-    cor_input    <- exp(logcor_input)   # the actual COR value
+    cor_input    <- input$cor_input
+    logcor_input <- log(cor_input)   # convert behind the scenes
+    
+    # Safety check for invalid input
+    if (!is.finite(logcor_input) || cor_input <= 0) {
+      cat("Invalid COR value (must be positive)\n")
+      return()
+    }
     
     pred_df <- Predict(
       obj$fit,
@@ -1065,7 +1071,7 @@ server <- function(input, output, session) {
     )
     
     if (nrow(pred_df) == 0 || !is.finite(pred_df$yhat)) {
-      cat("Prediction failed (non-finite result or out of range)\n")
+      cat("Prediction failed (value out of range or model issue)\n")
       return()
     }
     
@@ -1073,8 +1079,8 @@ server <- function(input, output, session) {
     lwr  <- pred_df$lower
     upr  <- pred_df$upper
     
-    cat(sprintf("Input log(COR)      = %.3f\n", logcor_input))
-    cat(sprintf("Corresponding COR   = %.3f\n", cor_input))
+    cat(sprintf("Input COR           = %.3f\n", cor_input))
+    cat(sprintf("Corresponding log(COR) = %.3f\n", logcor_input))
     cat(sprintf("Predicted CP        : %.3f\n", est))
     cat(sprintf("95%% CI for CP       : %.3f – %.3f\n", max(0, lwr), min(1, upr)))
     cat(sprintf("(based on %d simulations reaching IA2)\n", obj$n_valid))
@@ -1146,40 +1152,40 @@ server <- function(input, output, session) {
     ))
   })
   
-  output$cp_table <- renderTable({
-    req(sim())
-    cps <- seq(0.05, 0.95, by = 0.05)
-    results <- data.frame(
-      CP_Threshold = cps,
-      Average_OR   = numeric(length(cps)),
-      Num_Sims     = integer(length(cps))
-    )
-    
-    reached_ia_idx <- which(!sim()$stop_fut & is.finite(sim()$COR1_all))
-    
-    if (length(reached_ia_idx) == 0) {
-      results$Average_OR <- NA
-      results$Num_Sims   <- 0
-      return(results)
-    }
-    
-    cor_ia_reached   <- sim()$COR1_all[reached_ia_idx]
-    cp_ia_reached    <- sim()$CP_after_ia_to_final_obs[reached_ia_idx]
-    
-    for (i in seq_along(cps)) {
-      cp_th <- cps[i]
-      sub_idx <- which(cp_ia_reached < cp_th)
-      if (length(sub_idx) > 0) {
-        results$Average_OR[i] <- round(mean(cor_ia_reached[sub_idx], na.rm = TRUE), 3)
-        results$Num_Sims[i]   <- length(sub_idx)
-      } else {
-        results$Average_OR[i] <- NA
-        results$Num_Sims[i]   <- 0
-      }
-    }
-    
-    results
-  }, digits = 3)
+  # output$cp_table <- renderTable({
+  #   req(sim())
+  #   cps <- seq(0.05, 0.95, by = 0.05)
+  #   results <- data.frame(
+  #     CP_Threshold = cps,
+  #     Average_OR   = numeric(length(cps)),
+  #     Num_Sims     = integer(length(cps))
+  #   )
+  #   
+  #   reached_ia_idx <- which(!sim()$stop_fut & is.finite(sim()$COR1_all))
+  #   
+  #   if (length(reached_ia_idx) == 0) {
+  #     results$Average_OR <- NA
+  #     results$Num_Sims   <- 0
+  #     return(results)
+  #   }
+  #   
+  #   cor_ia_reached   <- sim()$COR1_all[reached_ia_idx]
+  #   cp_ia_reached    <- sim()$CP_after_ia_to_final_obs[reached_ia_idx]
+  #   
+  #   for (i in seq_along(cps)) {
+  #     cp_th <- cps[i]
+  #     sub_idx <- which(cp_ia_reached < cp_th)
+  #     if (length(sub_idx) > 0) {
+  #       results$Average_OR[i] <- round(mean(cor_ia_reached[sub_idx], na.rm = TRUE), 3)
+  #       results$Num_Sims[i]   <- length(sub_idx)
+  #     } else {
+  #       results$Average_OR[i] <- NA
+  #       results$Num_Sims[i]   <- 0
+  #     }
+  #   }
+  #   
+  #   results
+  # }, digits = 3)
   
   output$download_plot <- downloadHandler(
     filename = function() {
