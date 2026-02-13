@@ -831,7 +831,7 @@ ui <- page_sidebar(
                    "custom_knots_logcor",
                    label = "Knot percentiles (of observed log(COR) at IA)",
                    value = "25,50,75,90,95,97,99",          # ← this becomes the default
-                   placeholder = "e.g. 5,35,50,65,95 or -2,-1,0,1,2   (blank = auto quantiles)"
+                   placeholder = "e.g. 25,50,75,90,95,97,99 or -2,-1,0,1,2   (blank = auto quantiles)"
                  )
                ),
                
