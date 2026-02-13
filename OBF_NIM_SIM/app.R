@@ -702,28 +702,28 @@ cp_selection_boxplot <- function(sim, COR_true, COR_NI,
     rect(q[1], 1 - 0.14, q[3], 1 + 0.14, col = rgb(0.88,0.93,1,0.5), border = "steelblue", lwd = 1.4)
     segments(q[2], 1 - 0.14, q[2], 1 + 0.14, lwd = 5, col = "royalblue3")
   }
-
+  
   par(mar = c(15, 1, 8, 4), xpd = TRUE)
   plot.new()
   plot.window(xlim = c(0, 1), ylim = c(0, 1))
-
+  
   n_colors <- 100
   y_pos <- seq(0.15, 0.85, length.out = n_colors)
   for (i in seq_len(n_colors)) {
     rect(0.1, y_pos[i], 0.4, y_pos[i] + (0.7 / n_colors),
          col = colramp[i], border = NA)
   }
-
+  
   text(0.5, 0.90, "", adj = 0.5, font = 2, cex = 1.1) #Conditional Power
   text(0.5, 0.10, "0", adj = 0.5, cex = 1.0)
   text(0.5, 0.90, "1", adj = 0.5, cex = 1.0)
   text(0.5, 0.50, "0.5", adj = 0.5, cex = 1.0)
-
+  
   arrows(0.25, 0.12, 0.25, 0.05, length = 0.08, col = "gray40")
   arrows(0.25, 0.88, 0.25, 0.95, length = 0.08, col = "gray40")
-
+  
   par(op)
- 
+  
 }
 
 ############################################################
@@ -825,6 +825,13 @@ ui <- page_sidebar(
                                      "Degrees of freedom for RCS (higher = more wiggly curve)",
                                      value = 4,
                                      min = 3, max = 8, step = 1)
+                 ),
+                 
+                 textInput(
+                   "custom_knots_logcor",
+                   label = "Knot percentiles (of observed log(COR) at IA)",
+                   value = "25,50,75,90,95,97,99",          # ← this becomes the default
+                   placeholder = "e.g. 5,35,50,65,95 or -2,-1,0,1,2   (blank = auto quantiles)"
                  )
                ),
                
@@ -925,18 +932,74 @@ server <- function(input, output, session) {
       need(nrow(df) >= 30,
            paste0("Only ", nrow(df), " valid IA2 observations.\n",
                   "Need ≥30 for reliable spline fit.\n",
-                  "Try: COR_true = 0.6–0.8, futility_p = 0.80–0.90, more simulations"))
+                  "Try: COR_true closer to NI margin, higher futility_p, more sims"))
     )
     
-    df_val <- as.integer(input$spline_df %||% 4)
-    req(df_val >= 3 && df_val <= 8)
+    df_val <- max(3L, min(8L, as.integer(input$spline_df %||% 4)))
     
-    nknots <- df_val + 1L
+    knots_text <- trimws(input$custom_knots_logcor %||% "")
+    use_custom <- nzchar(knots_text)
     
-    fmla <- as.formula(sprintf("CP ~ rcs(logCOR, %d)", nknots))
+    knots <- NULL
+    knots_source <- "auto (quantiles)"
+    actual_df <- df_val
     
+    if (use_custom) {
+      # Try to parse as percentiles first (common pattern: 5,35,50,65,95)
+      perc_vals <- suppressWarnings(as.numeric(unlist(strsplit(knots_text, "[, ]+"))))
+      
+      if (all(is.finite(perc_vals)) && all(perc_vals >= 0) && all(perc_vals <= 100) &&
+          length(perc_vals) >= 3 && length(perc_vals) <= 7 &&
+          length(unique(perc_vals)) == length(perc_vals)) {
+        
+        # Treat as percentiles → compute quantiles
+        perc_sorted <- sort(perc_vals / 100)
+        knots <- quantile(df$logCOR, probs = perc_sorted, names = FALSE)
+        knots_source <- sprintf("custom percentiles: %s", paste(perc_vals, collapse = ", "))
+        
+      } else {
+        # Treat as direct log(COR) knot locations
+        knots <- as.numeric(unlist(strsplit(knots_text, "[, ]+")))
+        
+        if (any(!is.finite(knots)) || length(knots) < 2 ||
+            any(diff(sort(knots)) <= 0)) {
+          showNotification(
+            "Invalid knots. Use comma-separated increasing numbers (direct log(COR)) or percentiles (0–100).",
+            type = "error"
+          )
+          knots <- NULL
+          use_custom <- FALSE
+        } else {
+          knots_source <- sprintf("custom log(COR): %s", paste(round(knots, 2), collapse = ", "))
+        }
+      }
+      
+      if (!is.null(knots)) {
+        actual_df <- length(knots) - 1L
+        if (actual_df < 2 || actual_df > 7) {
+          showNotification(
+            sprintf("With %d knots → df = %d (must be 2–7). Using automatic instead.", length(knots), actual_df),
+            type = "warning"
+          )
+          knots <- NULL
+          use_custom <- FALSE
+          actual_df <- df_val
+        }
+      }
+    }
+    
+    # ── Build formula and fit ────────────────────────────────────────────────
     dd <- datadist(df)
     options(datadist = "dd")
+    
+    if (!is.null(knots) && use_custom) {
+      # Custom knots (direct positions or from percentiles)
+      fmla <- CP ~ rcs(logCOR, parms = knots)
+    } else {
+      # Automatic quantiles
+      nk <- df_val + 1L
+      fmla <- as.formula(sprintf("CP ~ rcs(logCOR, %d)", nk))
+    }
     
     fit <- tryCatch(
       ols(fmla, data = df, x = TRUE, y = TRUE),
@@ -946,18 +1009,235 @@ server <- function(input, output, session) {
       }
     )
     
-    req(fit, "Restricted cubic spline model did not fit")
+    req(fit, "Restricted cubic spline did not converge")
     
     list(
-      fit     = fit,
-      data    = df,
-      n_valid = nrow(df),
-      df      = df_val
+      fit         = fit,
+      data        = df,
+      n_valid     = nrow(df),
+      df          = actual_df,
+      knots       = knots,
+      knots_source = knots_source
     )
   })
   
+  # cp_rcs_fit <- reactive({
+  #   s <- sim()
+  #   req(s)
+  #   
+  #   df <- data.frame(
+  #     logCOR = s$logCOR_paths[, "ia"],
+  #     CP     = s$CP_after_ia_to_final_obs
+  #   ) %>%
+  #     filter(is.finite(logCOR) & is.finite(CP) & CP >= 0 & CP <= 1)
+  #   
+  #   shiny::validate(need(nrow(df) >= 30, "... your existing message ..."))
+  #   
+  #   df_val <- as.integer(input$spline_df %||% 4)
+  #   req(df_val >= 3 && df_val <= 8)
+  #   
+  #   knots_text <- trimws(input$custom_knots_logcor)
+  #   
+  #   if (nzchar(knots_text)) {
+  #     # User provided custom knots
+  #     custom_knots <- as.numeric(unlist(strsplit(knots_text, ",")))
+  #     
+  #     shiny::validate(
+  #       need(all(is.finite(custom_knots)), "All knot values must be numeric"),
+  #       need(length(custom_knots) >= 2, "Need at least 2 knots"),
+  #       need(all(diff(custom_knots) > 0), "Knots must be strictly increasing")
+  #     )
+  #     
+  #     nknots <- length(custom_knots)
+  #     # When using custom knots, df = number of knots - 1 (for linear + nonlinear parts)
+  #     # But we let user control df separately → we override
+  #     actual_df <- nknots - 1
+  #     
+  #     shiny::validate(
+  #       need(actual_df >= 2 && actual_df <= 7,
+  #            sprintf("With %d knots you get df = %d (must be 2–7)", nknots, actual_df))
+  #     )
+  #     
+  #     fmla <- as.formula("CP ~ rcs(logCOR, parms = custom_knots)")
+  #     
+  #     dd <- datadist(df)
+  #     dd$limits["Low","logCOR"]   <- min(custom_knots) - 0.1*diff(range(custom_knots))
+  #     dd$limits["High","logCOR"]  <- max(custom_knots) + 0.1*diff(range(custom_knots))
+  #     options(datadist = "dd")
+  #     
+  #     fit <- tryCatch(
+  #       ols(fmla, data = df, x = TRUE, y = TRUE),
+  #       error = function(e) {
+  #         showNotification(paste("Custom knot fit failed:", e$message), type = "error")
+  #         NULL
+  #       }
+  #     )
+  #     
+  #     list(fit = fit, data = df, n_valid = nrow(df), df = actual_df, knots_source = "custom", knots = custom_knots)
+  #     
+  #   } else {
+  #     # Automatic placement (your original code)
+  #     nknots <- df_val + 1L
+  #     fmla <- as.formula(sprintf("CP ~ rcs(logCOR, %d)", nknots))
+  #     
+  #     dd <- datadist(df)
+  #     options(datadist = "dd")
+  #     
+  #     fit <- tryCatch(
+  #       ols(fmla, data = df, x = TRUE, y = TRUE),
+  #       error = function(e) { showNotification(...); NULL }
+  #     )
+  #     
+  #     list(fit = fit, data = df, n_valid = nrow(df), df = df_val, knots_source = "auto", knots = NULL)
+  #   }
+  # })
+  # cp_rcs_fit <- reactive({
+  #   s <- sim()
+  #   req(s)
+  #   
+  #   df <- data.frame(
+  #     logCOR = s$logCOR_paths[, "ia"],
+  #     CP     = s$CP_after_ia_to_final_obs
+  #   ) %>%
+  #     filter(is.finite(logCOR) & is.finite(CP) & CP >= 0 & CP <= 1)
+  #   
+  #   shiny::validate(
+  #     need(nrow(df) >= 30,
+  #          paste0("Only ", nrow(df), " valid IA2 observations.\n",
+  #                 "Need ≥30 for reliable spline fit.\n",
+  #                 "Try: COR_true = 0.6–0.8, futility_p = 0.80–0.90, more simulations"))
+  #   )
+  #   
+  #   df_val <- as.integer(input$spline_df %||% 4)
+  #   req(df_val >= 3 && df_val <= 8)
+  #   
+  #   nknots <- df_val + 1L
+  #   
+  #   fmla <- as.formula(sprintf("CP ~ rcs(logCOR, %d)", nknots))
+  #   
+  #   dd <- datadist(df)
+  #   options(datadist = "dd")
+  #   
+  #   fit <- tryCatch(
+  #     ols(fmla, data = df, x = TRUE, y = TRUE),
+  #     error = function(e) {
+  #       showNotification(paste("Spline fit failed:", e$message), type = "error")
+  #       NULL
+  #     }
+  #   )
+  #   
+  #   req(fit, "Restricted cubic spline model did not fit")
+  #   
+  #   list(
+  #     fit     = fit,
+  #     data    = df,
+  #     n_valid = nrow(df),
+  #     df      = df_val
+  #   )
+  # })
+  
+  # output$cp_rcs_plot <- renderPlot({
+  #   input$spline_df   # dependency
+  #   
+  #   obj <- cp_rcs_fit()
+  #   req(obj, obj$fit, obj$data)
+  #   
+  #   df  <- obj$data
+  #   fit <- obj$fit
+  #   
+  #   # Compute fit quality metrics
+  #   resids <- residuals(fit)
+  #   mse    <- mean(resids^2)
+  #   rse    <- sqrt(mse)  # Residual Standard Error
+  #   
+  #   rng <- range(df$logCOR)
+  #   log_seq <- seq(
+  #     rng[1] - 0.08 * diff(rng),
+  #     rng[2] + 0.08 * diff(rng),
+  #     length.out = 250
+  #   )
+  #   
+  #   pred <- Predict(
+  #     fit,
+  #     logCOR = log_seq,
+  #     conf.int = 0.95
+  #   )
+  #   
+  #   pred <- pred[order(pred$logCOR), ]
+  #   
+  #   fitv <- pred$yhat
+  #   lwr  <- pred$lower
+  #   upr  <- pred$upper
+  #   log_seq <- pred$logCOR
+  #   
+  #   ok <- is.finite(fitv) & is.finite(lwr) & is.finite(upr)
+  #   if (sum(ok) < 20) {
+  #     plot.new()
+  #     title("Prediction mostly non-finite – check data range")
+  #     return()
+  #   }
+  #   
+  #   log_seq <- log_seq[ok]
+  #   fitv    <- fitv[ok]
+  #   lwr     <- lwr[ok]
+  #   upr     <- upr[ok]
+  #   
+  #   knot_info <- if (obj$knots_source == "custom") {
+  #     sprintf("custom knots: %s", paste(round(obj$knots, 2), collapse = ", "))
+  #   } else {
+  #     sprintf("auto (quantiles), df = %d", obj$df)
+  #   }
+  #   
+  #   plot(
+  #     range(log_seq), c(0, 1),
+  #     type = "n",
+  #     xlab = "log(COR) at interim analysis",
+  #     ylab = "Conditional Power to final analysis",
+  #     main = sprintf("RCS fit to CP at IA2\n(n = %d, %s)\nResidual SE = %.4f   MSE = %.4f",
+  #                    obj$n_valid, knot_info, rse, mse),
+  #     las = 1,
+  #     cex.main = 1.1,
+  #     cex.lab = 1.05
+  #   )
+  #   
+  #   polygon(
+  #     c(log_seq, rev(log_seq)),
+  #     c(lwr, rev(upr)),
+  #     col = rgb(0.7, 0.85, 1, 0.35),
+  #     border = NA
+  #   )
+  #   
+  #   lines(log_seq, fitv, col = "blue3", lwd = 3)
+  #   
+  #   points(
+  #     df$logCOR, df$CP,
+  #     pch = 16, cex = 0.8,
+  #     col = rgb(0, 0, 0, 0.25)
+  #   )
+  #   
+  #   #abline(v = input$logor_input, col = "red2", lty = 2, lwd = 2.2)
+  #   abline(v = log(input$cor_input), col = "red2", lty = 2, lwd = 2.2)
+  #   
+  #   abline(h = seq(0, 1, by = 0.2), col = "gray85", lty = 3)
+  #   grid(col = "gray92", lty = "dotted")
+  #   
+  #   legend(
+  #     "topright",
+  #     legend = c("Fitted curve", "95% confidence band", "Observed points"),
+  #     col = c("blue3", rgb(0.7,0.85,1,0.6), rgb(0,0,0,0.25)),
+  #     lwd = c(3, NA, NA),
+  #     pch = c(NA, 22, 16),
+  #     pt.bg = c(NA, rgb(0.7,0.85,1,0.6), NA),
+  #     pt.cex = c(NA, 2, 1.2),
+  #     bty = "n",
+  #     cex = 0.9,
+  #     inset = 0.02
+  #   )
+  # })
+  
   output$cp_rcs_plot <- renderPlot({
-    input$spline_df   # dependency
+    input$spline_df          # trigger
+    input$custom_knots_logcor # trigger
     
     obj <- cp_rcs_fit()
     req(obj, obj$fit, obj$data)
@@ -965,90 +1245,67 @@ server <- function(input, output, session) {
     df  <- obj$data
     fit <- obj$fit
     
-    # Compute fit quality metrics
     resids <- residuals(fit)
-    mse    <- mean(resids^2)
-    rse    <- sqrt(mse)  # Residual Standard Error
+    mse    <- mean(resids^2, na.rm = TRUE)
+    rse    <- sqrt(mse)
     
-    rng <- range(df$logCOR)
-    log_seq <- seq(
-      rng[1] - 0.08 * diff(rng),
-      rng[2] + 0.08 * diff(rng),
-      length.out = 250
-    )
+    rng <- range(df$logCOR, finite = TRUE)
+    pad <- 0.08 * diff(rng)
+    log_seq <- seq(rng[1] - pad, rng[2] + pad, length.out = 250)
     
-    pred <- Predict(
-      fit,
-      logCOR = log_seq,
-      conf.int = 0.95
-    )
-    
+    pred <- Predict(fit, logCOR = log_seq, conf.int = 0.95)
     pred <- pred[order(pred$logCOR), ]
     
-    fitv <- pred$yhat
-    lwr  <- pred$lower
-    upr  <- pred$upper
-    log_seq <- pred$logCOR
-    
-    ok <- is.finite(fitv) & is.finite(lwr) & is.finite(upr)
-    if (sum(ok) < 20) {
-      plot.new()
-      title("Prediction mostly non-finite – check data range")
+    ok <- is.finite(pred$yhat) & is.finite(pred$lower) & is.finite(pred$upper)
+    if (sum(ok) < 30) {
+      plot(0, type = "n", main = "Prediction range invalid – check knots / data")
       return()
     }
     
-    log_seq <- log_seq[ok]
-    fitv    <- fitv[ok]
-    lwr     <- lwr[ok]
-    upr     <- upr[ok]
+    log_seq <- pred$logCOR[ok]
+    fitv    <- pred$yhat[ok]
+    lwr     <- pred$lower[ok]
+    upr     <- pred$upper[ok]
+    
+    knot_txt <- if (!is.null(obj$knots)) {
+      paste(round(obj$knots, 2), collapse = ", ")
+    } else {
+      "auto quantiles"
+    }
     
     plot(
       range(log_seq), c(0, 1),
       type = "n",
-      xlab = "log(COR) at interim analysis",
+      xlab = expression(log(Cumulative~Odds~Ratio)),
       ylab = "Conditional Power to final analysis",
       main = sprintf(
-        "Restricted cubic spline fit to CP\n(n = %d simulations reaching IA2, df = %d)\nResidual SE = %.4f   MSE = %.4f",
-        obj$n_valid, obj$df, rse, mse
+        "RCS fit to observed CP at IA2\n(n = %d reaching IA2, effective df = %d)\nKnots: %s\nResidual SE = %.4f   MSE = %.4f",
+        obj$n_valid, obj$df, obj$knots_source, rse, mse
       ),
-      las = 1,
-      cex.main = 1.1,
-      cex.lab = 1.05
+      las = 1, cex.main = 1.05, cex.lab = 1.1
     )
     
-    polygon(
-      c(log_seq, rev(log_seq)),
-      c(lwr, rev(upr)),
-      col = rgb(0.7, 0.85, 1, 0.35),
-      border = NA
-    )
+    polygon(c(log_seq, rev(log_seq)), c(lwr, rev(upr)),
+            col = rgb(0.75, 0.88, 1, 0.4), border = NA)
     
     lines(log_seq, fitv, col = "blue3", lwd = 3)
     
-    points(
-      df$logCOR, df$CP,
-      pch = 16, cex = 0.8,
-      col = rgb(0, 0, 0, 0.25)
-    )
+    points(df$logCOR, df$CP, pch = 16, cex = 0.75,
+           col = rgb(0,0,0, 0.3))
     
-    #abline(v = input$logor_input, col = "red2", lty = 2, lwd = 2.2)
     abline(v = log(input$cor_input), col = "red2", lty = 2, lwd = 2.2)
+    if (!is.null(obj$knots)) {
+      abline(v = obj$knots, col = "darkorange", lty = 3, lwd = 1.4)
+    }
     
-    abline(h = seq(0, 1, by = 0.2), col = "gray85", lty = 3)
-    grid(col = "gray92", lty = "dotted")
+    grid(col = "gray88", lty = "dotted")
+    abline(h = seq(0,1,0.2), col = "gray90", lty = 3)
     
-    legend(
-      "topright",
-      legend = c("Fitted curve", "95% confidence band", "Observed points"),
-      col = c("blue3", rgb(0.7,0.85,1,0.6), rgb(0,0,0,0.25)),
-      lwd = c(3, NA, NA),
-      pch = c(NA, 22, 16),
-      pt.bg = c(NA, rgb(0.7,0.85,1,0.6), NA),
-      pt.cex = c(NA, 2, 1.2),
-      bty = "n",
-      cex = 0.9,
-      inset = 0.02
-    )
+    legend("topright", inset = 0.02, bty = "n", cex = 0.95,
+           legend = c("Fitted RCS", "95% pointwise CI", "Observed CP", "Input COR", "Knots (if custom)"),
+           col = c("blue3", rgb(0.75,0.88,1,0.7), rgb(0,0,0,0.4), "red2", "darkorange"),
+           lwd = c(3, NA, NA, 2, 1.4), lty = c(1, NA, NA, 2, 3),
+           pch = c(NA, 22, 16, NA, NA), pt.bg = c(NA, rgb(0.75,0.88,1,0.7), NA, NA, NA))
   })
   
   output$cp_prediction <- renderPrint({
