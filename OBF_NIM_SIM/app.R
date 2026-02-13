@@ -610,7 +610,7 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
 cp_selection_boxplot <- function(sim, COR_true, COR_NI,
                                  use_cor_scale = FALSE,
                                  xlim_log_low = -3, xlim_log_high = 4,
-                                 main_prefix = "2 All @ interim – colored continuously by CP") {
+                                 main_prefix = "'2 All @ interim' stage– coloured by conditional probability") {
   
   log_min_nice <- xlim_log_low
   log_max_nice <- xlim_log_high
@@ -794,7 +794,7 @@ ui <- page_sidebar(
       tabPanel("Operating Characteristics",
                plotOutput("boxplot", height = "750px")),
       
-      tabPanel("Summary Table, COR Distributions",
+      tabPanel("Cumulative Odds Ratio Distributions",
                verbatimTextOutput("status"),
                tableOutput("summary_table"),
                hr(),
@@ -806,7 +806,7 @@ ui <- page_sidebar(
                hr(),
                verbatimTextOutput("ess_total_note")),
       
-      tabPanel("Conditional Probability Analysis",
+      tabPanel("Conditional Probability",
                
                plotOutput("cp_boxplot", height = "600px"),
                
