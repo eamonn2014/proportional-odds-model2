@@ -1,6 +1,6 @@
 ############################################
 # Ordinal NI Group Sequential Trial Simulator
-# Streamlined v3.3 → switched CP RCS to lm + natural splines
+# Using rms::rcs for conditional power curve
 ############################################
 
 library(shiny)
@@ -12,7 +12,7 @@ library(rpact)
 library(future)
 library(future.apply)
 library(progressr)
-library(splines)   # ← added for ns()
+library(rms)
 
 ############################################################
 # Helpers
@@ -83,7 +83,7 @@ expected_n_breakdown <- function(sim) {
 }
 
 ############################################################
-# Simulator (unchanged)
+# Simulator
 ############################################################
 
 simulate_obf_ordinal <- function(
@@ -290,7 +290,7 @@ simulate_obf_ordinal <- function(
 }
 
 ############################################################
-# Summary table (unchanged)
+# Summary table
 ############################################################
 
 sim_table <- function(sim) {
@@ -325,7 +325,7 @@ sim_table <- function(sim) {
 }
 
 ############################################################
-# Plots (selection_boxplot and cp_selection_boxplot unchanged)
+# Plots
 ############################################################
 
 selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
@@ -726,11 +726,11 @@ cp_selection_boxplot <- function(sim, COR_true, COR_NI,
 }
 
 ############################################################
-# UI (unchanged)
+# UI
 ############################################################
 
 ui <- page_sidebar(
-  title = "Ordinal NI Group Sequential Trial Simulator – lm + ns for CP curve",
+  title = "Ordinal NI Group Sequential Trial Simulator – rms::rcs for CP curve",
   sidebar = sidebar(
     width = 350,
     
@@ -810,7 +810,7 @@ ui <- page_sidebar(
                plotOutput("cp_boxplot", height = "600px"),
                
                hr(),
-               h4("CP vs log(COR) at IA – Natural Spline Fit"),
+               h4("CP vs log(COR) at IA – Restricted Cubic Spline Fit"),
                
                fluidRow(
                  column(4,
@@ -821,7 +821,7 @@ ui <- page_sidebar(
                  ),
                  column(4,
                         numericInput("spline_df",
-                                     "Degrees of freedom for B-spline (higher = more wiggly curve)",
+                                     "Degrees of freedom for RCS (higher = more wiggly curve)",
                                      value = 4,
                                      min = 3,
                                      max = 8,
@@ -912,9 +912,6 @@ server <- function(input, output, session) {
     
   }, ignoreInit = TRUE)
   
-  # ───────────────────────────────────────────────
-  # CP fit using lm + natural splines (no rms needed)
-  # ───────────────────────────────────────────────
   cp_rcs_fit <- reactive({
     s <- sim()
     req(s)
@@ -931,21 +928,41 @@ server <- function(input, output, session) {
                   "Need ≥30 for reliable spline fit.\n",
                   "Try: COR_true = 0.6–0.8, futility_p = 0.80–0.90, more simulations"))
     )
+
     
-    # Use the new input name
-    # df_val <- isolate(as.integer(input$spline_df %||% 4)) 
+    
+    
+    
     df_val <- as.integer(input$spline_df %||% 4)
     req(df_val >= 3 && df_val <= 8)
     
+    nknots <- df_val + 1L
+    
+    # Build formula as string → literal number baked in
+    fmla <- as.formula(sprintf("CP ~ rcs(logCOR, %d)", nknots))
+    
+    dd <- datadist(df)
+    options(datadist = "dd")
+    
     fit <- tryCatch(
-      lm(CP ~ bs(logCOR, df = df_val, degree = 3), data = df),
+      ols(fmla, data = df, x = TRUE, y = TRUE),
       error = function(e) {
         showNotification(paste("Spline fit failed:", e$message), type = "error")
         NULL
       }
     )
     
-    req(fit, "B-spline model did not fit")
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    req(fit, "Restricted cubic spline model did not fit")
     
     list(
       fit     = fit,
@@ -956,10 +973,7 @@ server <- function(input, output, session) {
   })
   
   output$cp_rcs_plot <- renderPlot({
-    
-    
-    input$spline_df   # ← just referencing it creates dependency
-    
+    input$spline_df   # dependency
     
     obj <- cp_rcs_fit()
     req(obj, obj$fit, obj$data)
@@ -967,7 +981,6 @@ server <- function(input, output, session) {
     df  <- obj$data
     fit <- obj$fit
     
-    # Slightly expanded range to better show behavior at edges
     rng <- range(df$logCOR)
     log_seq <- seq(
       rng[1] - 0.08 * diff(rng),
@@ -975,19 +988,19 @@ server <- function(input, output, session) {
       length.out = 250
     )
     
-    # Predict with confidence interval
-    pred <- predict(
+    pred <- Predict(
       fit,
-      newdata = data.frame(logCOR = log_seq),
-      interval = "confidence",
-      level = 0.95
+      logCOR = log_seq,
+      conf.int = 0.95
     )
     
-    fitv <- pred[, "fit"]
-    lwr  <- pred[, "lwr"]
-    upr  <- pred[, "upr"]
+    pred <- pred[order(pred$logCOR), ]
     
-    # Remove any non-finite predictions (edge cases)
+    fitv <- pred$yhat
+    lwr  <- pred$lower
+    upr  <- pred$upper
+    log_seq <- pred$logCOR
+    
     ok <- is.finite(fitv) & is.finite(lwr) & is.finite(upr)
     if (sum(ok) < 20) {
       plot.new()
@@ -1000,14 +1013,13 @@ server <- function(input, output, session) {
     lwr     <- lwr[ok]
     upr     <- upr[ok]
     
-    # Main plot
     plot(
       range(log_seq), c(0, 1),
       type = "n",
       xlab = "log(COR) at interim analysis",
       ylab = "Conditional Power to final analysis",
       main = sprintf(
-        "B-spline fit to CP\n(n = %d simulations reaching IA2, df = %d)",
+        "Restricted cubic spline fit to CP\n(n = %d simulations reaching IA2, df = %d)",
         obj$n_valid, obj$df
       ),
       las = 1,
@@ -1015,7 +1027,6 @@ server <- function(input, output, session) {
       cex.lab = 1.05
     )
     
-    # Confidence band (light blue shading)
     polygon(
       c(log_seq, rev(log_seq)),
       c(lwr, rev(upr)),
@@ -1023,26 +1034,19 @@ server <- function(input, output, session) {
       border = NA
     )
     
-    # Fitted line
     lines(log_seq, fitv, col = "blue3", lwd = 3)
     
-    # Raw data points (semi-transparent)
     points(
       df$logCOR, df$CP,
       pch = 16, cex = 0.8,
       col = rgb(0, 0, 0, 0.25)
     )
     
-    # Vertical reference line for user input
     abline(v = input$logor_input, col = "red2", lty = 2, lwd = 2.2)
     
-    # Horizontal grid lines for readability
     abline(h = seq(0, 1, by = 0.2), col = "gray85", lty = 3)
-    
-    # Light grid
     grid(col = "gray92", lty = "dotted")
     
-    # Small legend in top-right corner
     legend(
       "topright",
       legend = c("Fitted curve", "95% confidence band", "Observed points"),
@@ -1061,19 +1065,20 @@ server <- function(input, output, session) {
     obj <- cp_rcs_fit()
     req(obj, obj$fit)
     
-    pred <- predict(obj$fit,
-                    newdata = data.frame(logCOR = input$logor_input),
-                    interval = "confidence",
-                    level = 0.95)
+    pred_df <- Predict(
+      obj$fit,
+      logCOR = input$logor_input,
+      conf.int = 0.95
+    )
     
-    est  <- pred[1, "fit"]
-    lwr  <- pred[1, "lwr"]
-    upr  <- pred[1, "upr"]
-    
-    if (!is.finite(est)) {
-      cat("Prediction failed (non-finite result)\n")
+    if (nrow(pred_df) == 0 || !is.finite(pred_df$yhat)) {
+      cat("Prediction failed (non-finite result or out of range)\n")
       return()
     }
+    
+    est  <- pred_df$yhat
+    lwr  <- pred_df$lower
+    upr  <- pred_df$upper
     
     cat(sprintf("log(COR) = %.3f\n", input$logor_input))
     cat(sprintf("Predicted CP     : %.3f\n", est))
