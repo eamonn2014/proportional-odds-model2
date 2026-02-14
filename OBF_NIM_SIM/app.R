@@ -234,7 +234,7 @@ simulate_obf_ordinal <- function(
   
   res_mat <- progressr::withProgressShiny(
     message = "Running simulations...",
-    detail  = "Processing...",
+    #detail  = "Processing...",
     value   = 0,
     {
       p <- progressr::progressor(along = idx)
