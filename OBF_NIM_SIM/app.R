@@ -290,10 +290,10 @@ simulate_obf_ordinal <- function(
 }
 
 ############################################################
-# Summary table
+# Summary table (UPDATED with MSE and RMSE)
 ############################################################
 
-sim_table <- function(sim) {
+sim_table <- function(sim, COR_true) {
   
   safe_summ_ext <- function(x) {
     x <- x[is.finite(x)]
@@ -302,27 +302,97 @@ sim_table <- function(sim) {
     c(N=length(x), Min=min(x), Max=max(x), Mean=mean(x), Median=q[2], `2.5%`=q[1], `97.5%`=q[3])
   }
   
+  # Helper: MSE & RMSE on the **log(COR)** scale
+  safe_mse_rmse_log <- function(est_log, true_log) {
+    valid <- is.finite(est_log)
+    if (sum(valid) == 0) return(c(MSE_log = NA_real_, RMSE_log = NA_real_))
+    err  <- est_log[valid] - true_log
+    mse  <- mean(err^2)
+    rmse <- sqrt(mse)
+    c(MSE_log = round(mse, 4), RMSE_log = round(rmse, 4))
+  }
+  
+  # Summaries of the COR values themselves (kept for reference)
   fut      <- safe_summ_ext(sim$COR_fut_all[sim$stop_fut])
   ia_suc   <- safe_summ_ext(sim$COR1_all[sim$stop_ia])
   ia_lowcp <- safe_summ_ext(sim$COR1_all[sim$stop_fut_low_cp])
   fin      <- safe_summ_ext(sim$COR2_all[sim$stop_final])
   
+  # MSE / RMSE on log scale using the stored logCOR_paths
+  log_true <- log(COR_true)
+  
+  mse_fut_log      <- safe_mse_rmse_log(sim$logCOR_paths[sim$stop_fut, "fut"],   log_true)
+  mse_ia_suc_log   <- safe_mse_rmse_log(sim$logCOR_paths[sim$stop_ia,  "ia"],   log_true)
+  mse_ia_lowcp_log <- safe_mse_rmse_log(sim$logCOR_paths[sim$stop_fut_low_cp, "ia"], log_true)
+  mse_fin_log      <- safe_mse_rmse_log(sim$logCOR_paths[sim$stop_final, "final"], log_true)
+  
   data.frame(
-    Stage  = c("IA1 Futility stop", "IA2 success stop", "IA2 low-CP futility", "Final success stop"),
-    N      = c(fut["N"], ia_suc["N"], ia_lowcp["N"], fin["N"]),
-    Min    = c(fut["Min"], ia_suc["Min"], ia_lowcp["Min"], fin["Min"]),
-    Mean   = c(fut["Mean"], ia_suc["Mean"], ia_lowcp["Mean"], fin["Mean"]),
-    Median = c(fut["Median"], ia_suc["Median"], ia_lowcp["Median"], fin["Median"]),
-    `2.5%` = c(fut["2.5%"], ia_suc["2.5%"], ia_lowcp["2.5%"], fin["2.5%"]),
-    `97.5%`= c(fut["97.5%"], ia_suc["97.5%"], ia_lowcp["97.5%"], fin["97.5%"]),
-    Max    = c(fut["Max"], ia_suc["Max"], ia_lowcp["Max"], fin["Max"]),
+    Stage      = c("IA1 Futility stop", "IA2 success stop", "IA2 low-CP futility", "Final success stop"),
+    N          = c(fut["N"], ia_suc["N"], ia_lowcp["N"], fin["N"]),
+    Min        = c(fut["Min"], ia_suc["Min"], ia_lowcp["Min"], fin["Min"]),
+    Mean       = c(fut["Mean"], ia_suc["Mean"], ia_lowcp["Mean"], fin["Mean"]),
+    Median     = c(fut["Median"], ia_suc["Median"], ia_lowcp["Median"], fin["Median"]),
+    `2.5%`     = c(fut["2.5%"], ia_suc["2.5%"], ia_lowcp["2.5%"], fin["2.5%"]),
+    `97.5%`    = c(fut["97.5%"], ia_suc["97.5%"], ia_lowcp["97.5%"], fin["97.5%"]),
+    Max        = c(fut["Max"], ia_suc["Max"], ia_lowcp["Max"], fin["Max"]),
+    MSE_log    = c(mse_fut_log["MSE_log"],   mse_ia_suc_log["MSE_log"],   
+                   mse_ia_lowcp_log["MSE_log"],   mse_fin_log["MSE_log"]),
+    RMSE_log   = c(mse_fut_log["RMSE_log"],  mse_ia_suc_log["RMSE_log"],  
+                   mse_ia_lowcp_log["RMSE_log"],  mse_fin_log["RMSE_log"]),
     check.names = FALSE
   ) |>
     mutate(
       N = as.integer(round(N)),
-      across(-c(Stage, N), ~ round(as.numeric(.x), 3))
+      across(c(Min, Mean, Median, `2.5%`, `97.5%`, Max, MSE_log, RMSE_log), ~ round(.x, 3))
     )
 }
+
+# sim_table <- function(sim, COR_true) {
+#   
+#   safe_summ_ext <- function(x) {
+#     x <- x[is.finite(x)]
+#     if (length(x) == 0) return(c(N=0L, Min=NA, Max=NA, Mean=NA, Median=NA, `2.5%`=NA, `97.5%`=NA))
+#     q <- quantile(x, c(0.025, 0.5, 0.975), names = FALSE)
+#     c(N=length(x), Min=min(x), Max=max(x), Mean=mean(x), Median=q[2], `2.5%`=q[1], `97.5%`=q[3])
+#   }
+#   
+#   safe_mse_rmse <- function(est, true_val) {
+#     valid <- is.finite(est)
+#     if (sum(valid) == 0) return(c(MSE = NA_real_, RMSE = NA_real_))
+#     err  <- est[valid] - true_val
+#     mse  <- mean(err^2)
+#     rmse <- sqrt(mse)
+#     c(MSE = round(mse, 4), RMSE = round(rmse, 4))
+#   }
+#   
+#   fut      <- safe_summ_ext(sim$COR_fut_all[sim$stop_fut])
+#   ia_suc   <- safe_summ_ext(sim$COR1_all[sim$stop_ia])
+#   ia_lowcp <- safe_summ_ext(sim$COR1_all[sim$stop_fut_low_cp])
+#   fin      <- safe_summ_ext(sim$COR2_all[sim$stop_final])
+#   
+#   mse_fut      <- safe_mse_rmse(sim$COR_fut_all[sim$stop_fut],      COR_true)
+#   mse_ia_suc   <- safe_mse_rmse(sim$COR1_all[sim$stop_ia],          COR_true)
+#   mse_ia_lowcp <- safe_mse_rmse(sim$COR1_all[sim$stop_fut_low_cp],  COR_true)
+#   mse_fin      <- safe_mse_rmse(sim$COR2_all[sim$stop_final],       COR_true)
+#   
+#   data.frame(
+#     Stage      = c("IA1 Futility stop", "IA2 success stop", "IA2 low-CP futility", "Final success stop"),
+#     N          = c(fut["N"], ia_suc["N"], ia_lowcp["N"], fin["N"]),
+#     Min        = c(fut["Min"], ia_suc["Min"], ia_lowcp["Min"], fin["Min"]),
+#     Mean       = c(fut["Mean"], ia_suc["Mean"], ia_lowcp["Mean"], fin["Mean"]),
+#     Median     = c(fut["Median"], ia_suc["Median"], ia_lowcp["Median"], fin["Median"]),
+#     `2.5%`     = c(fut["2.5%"], ia_suc["2.5%"], ia_lowcp["2.5%"], fin["2.5%"]),
+#     `97.5%`    = c(fut["97.5%"], ia_suc["97.5%"], ia_lowcp["97.5%"], fin["97.5%"]),
+#     Max        = c(fut["Max"], ia_suc["Max"], ia_lowcp["Max"], fin["Max"]),
+#     MSE        = c(mse_fut["MSE"],   mse_ia_suc["MSE"],   mse_ia_lowcp["MSE"],   mse_fin["MSE"]),
+#     RMSE       = c(mse_fut["RMSE"],  mse_ia_suc["RMSE"],  mse_ia_lowcp["RMSE"],  mse_fin["RMSE"]),
+#     check.names = FALSE
+#   ) |>
+#     mutate(
+#       N = as.integer(round(N)),
+#       across(c(Min, Mean, Median, `2.5%`, `97.5%`, Max, MSE, RMSE), ~ round(.x, 3))
+#     )
+#}
 
 ############################################################
 # Plots (selection_boxplot and cp_selection_boxplot unchanged)
@@ -797,6 +867,62 @@ ui <- page_sidebar(
       tabPanel("Cumulative Odds Ratio Distributions",
                verbatimTextOutput("status"),
                tableOutput("summary_table"),
+               # tags$small(
+               #   tags$i(
+               #     "MSE_log and RMSE_log are computed on the log(Cumulative Odds Ratio) scale, ",
+               #     "i.e. mean( (log(estimated COR) - log(true COR))^2 ) and its square root. ",
+               #     "This scale is generally preferred because it gives a more consistent (multiplicative) ",
+               #     "interpretation of precision across different effect sizes."
+               #   )
+               # ),
+               tabPanel("Cumulative Odds Ratio Distributions",
+                        verbatimTextOutput("status"),
+                        tableOutput("summary_table"),
+                        
+                        # ← Put the explanation here
+                        tags$div(
+                          style = "font-size: 0.9em; color: #555; margin-top: 10px; padding: 8px; border-left: 3px solid #ccc;",
+                          tags$p(
+                            tags$strong("Understanding RMSE_log (precision on the log(COR) scale):"),
+                            tags$br(),
+                            "RMSE_log tells you the typical size of error in log(estimated COR). ",
+                            "Because we exponentiate to get back to the COR scale, this error becomes a ",
+                            tags$strong("multiplicative factor"), " around the true value."
+                          ),
+                          tags$p(
+                            "Examples of what different RMSE_log values mean in practice:"
+                          ),
+                          tags$ul(
+                            style = "margin-left: 20px; margin-top: 6px; line-height: 1.5;",
+                            tags$li(
+                              tags$strong("RMSE_log = 0.10"), " → typical range: ×", tags$strong("0.90 – 1.11"),
+                              " (most estimates are within about ±10–11% of the true COR)"
+                            ),
+                            tags$li(
+                              tags$strong("RMSE_log = 0.25"), " → typical range: ×", tags$strong("0.78 – 1.28"),
+                              " (estimates usually fall within ±22–28% of the true COR — moderate/wide)"
+                            ),
+                            tags$li(
+                              tags$strong("RMSE_log = 0.50"), " → typical range: ×", tags$strong("0.61 – 1.65"),
+                              " (estimates can easily be 40% lower or 65% higher than true — very imprecise)"
+                            ),
+                            tags$li(
+                              tags$strong("RMSE_log = 0.75"), " → typical range: ×", tags$strong("0.47 – 2.12"),
+                              " (estimates may be half or more than double the true value — extremely wide uncertainty)"
+                            )
+                          ),
+                          tags$p(
+                            tags$small(
+                              "These intervals approximate a 68% range assuming roughly normal errors on the log scale. ",
+                              "Smaller RMSE_log = tighter, more reliable estimates."
+                            )
+                          )
+                        ),
+                        
+                        # hr(),
+                        # h5("rpact Design & Nominal P-values"),
+                        # verbatimTextOutput("rpact_info")
+               ),
                hr(),
                h5("rpact Design & Nominal P-values"),
                verbatimTextOutput("rpact_info")),
@@ -1082,7 +1208,7 @@ server <- function(input, output, session) {
            legend = c("Fitted RCS", "95% pointwise CI", "Observed CP", "Input COR", "Knots (if custom)"),
            col = c("blue3", rgb(0.75,0.88,1,0.7), rgb(0,0,0,0.4), "red2", "darkorange"),
            lwd = c(3, NA, NA, 2, 1.4), lty = c(1, NA, NA, 2, 3),
-           pch = c(NA, 22, 16, NA, NA), pt.bg = c(NA, rgb(0.75,0.88,1,0.7), NA, NA, NA))
+           pch = c(NA, NA, 16, NA, NA), pt.bg = c(NA, rgb(0.75,0.88,1,0.7), NA, NA, NA))
   })
   
   output$cp_prediction <- renderPrint({
@@ -1153,7 +1279,7 @@ server <- function(input, output, session) {
   
   output$summary_table <- renderTable({
     req(sim())
-    sim_table(sim())
+    sim_table(sim(), COR_true = input$COR_true)
   }, digits = 3)
   
   output$ess_breakdown <- renderTable({
