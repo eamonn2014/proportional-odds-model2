@@ -815,7 +815,7 @@ ui <- page_sidebar(
                
                fluidRow(
                  column(4,
-                        numericInput("cor_input",              # ← changed ID
+                        numericInput("cor_input",
                                      "Input COR for prediction (e.g. 0.6, 1.0, 1.6)",
                                      value = 1.0,
                                      min = 0.01, step = 0.05)
@@ -830,7 +830,7 @@ ui <- page_sidebar(
                  textInput(
                    "custom_knots_logcor",
                    label = "Knot percentiles (of observed log(COR) at IA)",
-                   value = "25,50,75,90,95,97,99",          # ← this becomes the default
+                   value = "25,50,75,90,95,97,99",
                    placeholder = "e.g. 25,50,75,90,95,97,99 or -2,-1,0,1,2   (blank = auto quantiles)"
                  )
                ),
@@ -839,11 +839,7 @@ ui <- page_sidebar(
                
                hr(),
                h5("Predicted CP for Input log(COR)"),
-               verbatimTextOutput("cp_prediction"),
-               
-               # hr(),
-               # h5("Average OR for different CP thresholds (among sims with CP < threshold at IA)"),
-               # tableOutput("cp_table")
+               verbatimTextOutput("cp_prediction")
       ),
       
       tabPanel("Wiki",
@@ -945,20 +941,17 @@ server <- function(input, output, session) {
     actual_df <- df_val
     
     if (use_custom) {
-      # Try to parse as percentiles first (common pattern: 5,35,50,65,95)
       perc_vals <- suppressWarnings(as.numeric(unlist(strsplit(knots_text, "[, ]+"))))
       
       if (all(is.finite(perc_vals)) && all(perc_vals >= 0) && all(perc_vals <= 100) &&
           length(perc_vals) >= 3 && length(perc_vals) <= 7 &&
           length(unique(perc_vals)) == length(perc_vals)) {
         
-        # Treat as percentiles → compute quantiles
         perc_sorted <- sort(perc_vals / 100)
         knots <- quantile(df$logCOR, probs = perc_sorted, names = FALSE)
         knots_source <- sprintf("custom percentiles: %s", paste(perc_vals, collapse = ", "))
         
       } else {
-        # Treat as direct log(COR) knot locations
         knots <- as.numeric(unlist(strsplit(knots_text, "[, ]+")))
         
         if (any(!is.finite(knots)) || length(knots) < 2 ||
@@ -988,15 +981,13 @@ server <- function(input, output, session) {
       }
     }
     
-    # ── Build formula and fit ────────────────────────────────────────────────
-    dd <- datadist(df)
+    # ── Critical fix using <<- to place dd in global environment ─────────────
+    dd <<- datadist(df)
     options(datadist = "dd")
     
     if (!is.null(knots) && use_custom) {
-      # Custom knots (direct positions or from percentiles)
       fmla <- CP ~ rcs(logCOR, parms = knots)
     } else {
-      # Automatic quantiles
       nk <- df_val + 1L
       fmla <- as.formula(sprintf("CP ~ rcs(logCOR, %d)", nk))
     }
@@ -1021,7 +1012,6 @@ server <- function(input, output, session) {
     )
   })
   
- 
   output$cp_rcs_plot <- renderPlot({
     input$spline_df          # trigger
     input$custom_knots_logcor # trigger
@@ -1100,9 +1090,8 @@ server <- function(input, output, session) {
     req(obj, obj$fit)
     
     cor_input    <- input$cor_input
-    logcor_input <- log(cor_input)   # convert behind the scenes
+    logcor_input <- log(cor_input)
     
-    # Safety check for invalid input
     if (!is.finite(logcor_input) || cor_input <= 0) {
       cat("Invalid COR value (must be positive)\n")
       return()
@@ -1195,7 +1184,7 @@ server <- function(input, output, session) {
       pnorm(-d$criticalValues[2])
     ))
   })
-   
+  
   output$download_plot <- downloadHandler(
     filename = function() {
       paste0("Simulation_Results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".jpg")
