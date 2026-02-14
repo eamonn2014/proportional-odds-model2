@@ -621,7 +621,13 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
             if (grepl("low CP", nm))                rgb(0.6, 0.0, 0.8, 0.35) else
               rgb(0.3, 0.3, 0.3, 0.25)
     
-    points(vals, ii + jitter_y, pch = 19, cex = 0.6, col = col_p)
+    # Dynamic point size: bigger when few simulations
+    n_total_sims <- sim$nSims
+    cex_base <- ifelse(n_total_sims <= 100, 1.4,
+                       ifelse(n_total_sims <= 300, 1.1,
+                              ifelse(n_total_sims <= 800, 0.8, 0.6)))
+    
+    points(vals, ii + jitter_y, pch = 19, cex = cex_base, col = col_p)
     
     if (length(vals) >= 3) {
       q <- quantile(vals, c(0.25, 0.5, 0.75))
