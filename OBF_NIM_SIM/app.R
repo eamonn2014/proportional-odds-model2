@@ -882,44 +882,44 @@ ui <- page_sidebar(
   tableOutput("summary_table"),
   uiOutput("success_precision_note"),
   # ← Put the explanation here
-  tags$div(
-    style = "font-size: 0.9em; color: #555; margin-top: 10px; padding: 8px; border-left: 3px solid #ccc;",
-    tags$p(
-      tags$strong("Understanding RMSE_log (precision on the log(COR) scale):"),
-      tags$br(),
-      "RMSE_log tells you the typical size of error in log(estimated COR). ",
-      "Because we exponentiate to get back to the COR scale, this error becomes a ",
-      tags$strong("multiplicative factor"), " around the true value."
-    ),
-    tags$p(
-      "Examples of what different RMSE_log values mean in practice:"
-    ),
-    tags$ul(
-      style = "margin-left: 20px; margin-top: 6px; line-height: 1.5;",
-      tags$li(
-        tags$strong("RMSE_log = 0.10"), " → typical range: ×", tags$strong("0.90 – 1.11"),
-        " (most estimates are within about ±10–11% of the true COR)"
-      ),
-      tags$li(
-        tags$strong("RMSE_log = 0.25"), " → typical range: ×", tags$strong("0.78 – 1.28"),
-        " (estimates usually fall within ±22–28% of the true COR — moderate/wide)"
-      ),
-      tags$li(
-        tags$strong("RMSE_log = 0.50"), " → typical range: ×", tags$strong("0.61 – 1.65"),
-        " (estimates can easily be 40% lower or 65% higher than true — very imprecise)"
-      ),
-      tags$li(
-        tags$strong("RMSE_log = 0.75"), " → typical range: ×", tags$strong("0.47 – 2.12"),
-        " (estimates may be half or more than double the true value — extremely wide uncertainty)"
-      )
-    ),
-    tags$p(
-      tags$small(
-        "These intervals approximate a 68% range assuming roughly normal errors on the log scale. ",
-        "Smaller RMSE_log = tighter, more reliable estimates."
-      )
-    )
-  ),
+ # tags$div(
+  #  style = "font-size: 0.9em; color: #555; margin-top: 10px; padding: 8px; border-left: 3px solid #ccc;",
+    # tags$p(
+    #   tags$strong("Understanding RMSE_log (precision on the log(COR) scale):"),
+    #   tags$br(),
+    #   "RMSE_log tells you the typical size of error in log(estimated COR). ",
+    #   "Because we exponentiate to get back to the COR scale, this error becomes a ",
+    #   tags$strong("multiplicative factor"), " around the true value."
+    # ),
+    # tags$p(
+    #   "Examples of what different RMSE_log values mean in practice:"
+    # ),
+    # tags$ul(
+    #   style = "margin-left: 20px; margin-top: 6px; line-height: 1.5;",
+    #   tags$li(
+    #     tags$strong("RMSE_log = 0.10"), " → typical range: ×", tags$strong("0.90 – 1.11"),
+    #     " (most estimates are within about ±10–11% of the true COR)"
+    #   ),
+    #   tags$li(
+    #     tags$strong("RMSE_log = 0.25"), " → typical range: ×", tags$strong("0.78 – 1.28"),
+    #     " (estimates usually fall within ±22–28% of the true COR — moderate/wide)"
+    #   ),
+    #   tags$li(
+    #     tags$strong("RMSE_log = 0.50"), " → typical range: ×", tags$strong("0.61 – 1.65"),
+    #     " (estimates can easily be 40% lower or 65% higher than true — very imprecise)"
+    #   ),
+    #   tags$li(
+    #     tags$strong("RMSE_log = 0.75"), " → typical range: ×", tags$strong("0.47 – 2.12"),
+    #     " (estimates may be half or more than double the true value — extremely wide uncertainty)"
+    #   )
+    # ),
+    # tags$p(
+    #   tags$small(
+    #     "These intervals approximate a 68% range assuming roughly normal errors on the log scale. ",
+    #     "Smaller RMSE_log = tighter, more reliable estimates."
+    #   )
+    # )
+  #),
   
   hr(),
   h5("rpact Design & Nominal P-values"),
@@ -1290,8 +1290,31 @@ server <- function(input, output, session) {
     
     if (is.na(rmse_ia) && is.na(rmse_fin)) return(NULL)
     
+    # Helper to get relative % and qualitative description
+    get_rel_range_label <- function(rmse) {
+      if (is.na(rmse)) return("")
+      
+      pct <- round(rmse * 100)  # rough % for display
+      
+      low_mult  <- exp(-rmse)
+      high_mult <- exp(rmse)
+      pct_low   <- round((1 - low_mult)  * 100)
+      pct_high  <- round((high_mult - 1) * 100)
+      
+      range_str <- sprintf("-%d%% to +%d%%", pct_low, pct_high)
+      
+      # Qualitative label (tuned to typical simulation contexts)
+      qual <- if (rmse <= 0.10)          "small"
+      else if (rmse <= 0.15)     "moderate"
+      else if (rmse <= 0.25)     "wide"
+      else                       "very wide"
+      
+      sprintf(" (estimates usually fall within %s of the true COR — %s)", 
+              range_str, qual)
+    }
+    
     tags$div(
-      style = "font-size: 0.92em; color: #444; margin-top: 12px; padding: 8px 12px; background: #f8f9fa; border-left: 4px solid #6c757d;",
+    #  style = "font-size: 0.92em; color: #444; margin-top: 12px; padding: 8px 12px; background: #f8f9fa; border-left: 4px solid #6c757d;",
       tags$p(
         tags$strong("Precision in successful arms (log-scale):")
       ),
@@ -1299,16 +1322,16 @@ server <- function(input, output, session) {
         low  <- round(exp(-rmse_ia), 2)
         high <- round(exp(rmse_ia), 2)
         tags$p(
-          sprintf("• IA2 success stop: RMSE_log = %.3f → typical range ≈ ×%.2f – ×%.2f", 
-                  rmse_ia, low, high)
+          sprintf("IA2 success stop: RMSE_log = %.3f → typical range ≈ ×%.2f to ×%.2f%s",
+                  rmse_ia, low, high, get_rel_range_label(rmse_ia))
         )
       },
       if (!is.na(rmse_fin)) {
         low  <- round(exp(-rmse_fin), 2)
         high <- round(exp(rmse_fin), 2)
         tags$p(
-          sprintf("• Final success stop: RMSE_log = %.3f → typical range ≈ ×%.2f – ×%.2f", 
-                  rmse_fin, low, high)
+          sprintf("Final success stop: RMSE_log = %.3f → typical range ≈ ×%.2f to ×%.2f%s",
+                  rmse_fin, low, high, get_rel_range_label(rmse_fin))
         )
       },
       tags$small("(≈ 68% interval assuming roughly normal errors on the log scale)")
