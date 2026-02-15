@@ -723,7 +723,7 @@ ui <- page_sidebar(
       numericInput("COR_NI",   "Non inferiority margin COR",       value = 1.6, step = 0.1),
       
       numericInput("futility_p",    "Futility p-value threshold IA1", value = 0.70),
-      numericInput("cp_threshold",  "CP futility threshold at IA2",   value = 0.1, min = 0, max = 1, step = 0.05),
+      numericInput("cp_threshold",  "Cond. Prob. futility threshold at IA2",   value = 0.1, min = 0, max = 1, step = 0.05),
       
       sliderInput("futility_frac", "Futility look fraction", min = 0.2, max = 0.7,  value = 0.5),
       sliderInput("info_frac",     "Interim look fraction",  min = 0.5, max = 0.95, value = 0.80),
@@ -750,7 +750,7 @@ ui <- page_sidebar(
       
       hr(),
       
-      downloadButton("download_report", "Download Full PDF Report (with TOC & sessionInfo)",
+      downloadButton("download_report", "Download PDF Report",
                      class = "btn-success", style = "width: 100%;")
     )
   ),
