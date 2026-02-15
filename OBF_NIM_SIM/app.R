@@ -106,7 +106,7 @@ simulate_obf_ordinal <- function(
   z_fut <- qnorm(futility_p)
   
   trt_fut <- factor(c(rep("C", s_fut["nC"]), rep("T", s_fut["nT"])), levels = c("C","T"))
-  trt_ia  <- factor(c(rep("C", s_ia["nC"]), rep("T", s_ia["nT"])), levels = c("C","T"))
+  trt_ia  <- factor(c(rep("C", s_ia["nC"]),  rep("T", s_ia["nT"])),  levels = c("C","T"))
   trt_tot <- factor(c(rep("C", s_tot["nC"]), rep("T", s_tot["nT"])), levels = c("C","T"))
   
   fit_logCOR_vec <- function(y_int, trt_fac) {
@@ -277,9 +277,9 @@ sim_table <- function(sim, COR_true) {
     RMSE_log   = c(mse_fut_log["RMSE_log"], mse_ia_suc_log["RMSE_log"], mse_ia_lowcp_log["RMSE_log"], mse_fin_log["RMSE_log"]),
     check.names = FALSE
   ) |>
-    mutate(
+    dplyr::mutate(
       N = as.integer(round(N)),
-      across(c(Min, Mean, Median, `2.5%`, `97.5%`, Max, MSE_log, RMSE_log), ~ round(.x, 3))
+      dplyr::across(c(Min, Mean, Median, `2.5%`, `97.5%`, Max, MSE_log, RMSE_log), ~ round(.x, 3))
     )
   
   list(
@@ -602,7 +602,7 @@ cp_selection_boxplot <- function(sim, COR_true, COR_NI,
   n_points <- length(vals)
   n_at_ia  <- sim$n_at_ia
   
-  main <- sprintf("%s\n(%d trials reaching IA2, N/trial = %d)", 
+  main <- sprintf("%s\n(%d trials reaching IA2, N/trial = %d)",
                   main_prefix, n_points, n_at_ia)
   
   if (n_points == 0) {
@@ -878,6 +878,8 @@ server <- function(input, output, session) {
     
   }, ignoreInit = TRUE)
   
+  # ===== PDF REPORT (FIXED CLIPPING + PAGE NUMBERS + WRAPPED sessionInfo) =====
+  
   output$download_report <- downloadHandler(
     filename = function() {
       paste0("Ordinal_NI_Simulation_Report_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".pdf")
@@ -885,20 +887,44 @@ server <- function(input, output, session) {
     content = function(file) {
       req(sim())
       
-      pdf(file, width = 11, height = 8.5)
+      total_pages <- 6
       
-      # ── PAGE 1: Title + Table of Contents ───────────────────────────────────
+      pdf(file, width = 11, height = 8.5, onefile = TRUE)
+      on.exit(dev.off(), add = TRUE)
+      
+      # Reserve outer margin for footer (page numbers)
+      footer_oma <- c(1.2, 0.6, 0.8, 0.6)
+      par(oma = footer_oma)
+      
+      ensure_oma <- function() {
+        # keep current mar etc, but ensure oma persists for outer footer
+        par(oma = footer_oma)
+      }
+      
+      add_footer <- function(i) {
+        ensure_oma()
+        mtext(sprintf("Page %d of %d", i, total_pages),
+              side = 1, outer = TRUE, line = 0.25,
+              cex = 0.9, col = "gray45")
+      }
+      
+      # ── PAGE 1: Title + Table of Contents (NO TOP CLIPPING) ───────────────
+      par(mar = c(2.5, 2.5, 2.0, 2.0))
       plot.new()
-      title(main = "Ordinal Non-Inferiority\nGroup Sequential Trial Simulator", 
-            line = 4, cex.main = 2.2, font.main = 2)
       
-      mtext("v4.0 – Ordinal Endpoint NI Trial with Futility & Conditional Power Stopping", 
-            side = 3, line = 1.5, cex = 1.3)
+      text(0.5, 0.86,
+           "Ordinal Non-Inferiority\nGroup Sequential Trial Simulator",
+           cex = 2.2, font = 2)
       
-      mtext(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), 
-            side = 3, line = 0, cex = 1.1, col = "gray50")
+      text(0.5, 0.74,
+           "v4.0 – Ordinal Endpoint NI Trial with Futility & Conditional Power Stopping",
+           cex = 1.25)
       
-      text(0.5, 0.65, "Table of Contents", adj = 0.5, cex = 1.5, font = 2)
+      text(0.5, 0.69,
+           format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+           cex = 1.05, col = "gray50")
+      
+      text(0.5, 0.58, "Table of Contents", adj = 0.5, cex = 1.5, font = 2)
       
       toc_text <- paste0(
         "Page 2: Operating Characteristics Plot\n",
@@ -907,13 +933,15 @@ server <- function(input, output, session) {
         "Page 5: Expected Sample Size & Stopping Probabilities\n",
         "Page 6: R Session Information"
       )
+      text(0.12, 0.50, toc_text, adj = c(0, 1), cex = 1.1, family = "mono")
       
-      text(0.1, 0.55, toc_text, adj = c(0,1), cex = 1.1, family = "mono")
-      
-      text(0.5, 0.05, "Generated with Shiny • For exploratory / educational use only", 
+      text(0.5, 0.08,
+           "Generated with Shiny • For exploratory / educational use only",
            adj = 0.5, cex = 0.9, col = "gray50")
       
-      # ── PAGE 2: Operating Characteristics ───────────────────────────────────
+      add_footer(1)
+      
+      # ── PAGE 2: Operating Characteristics ─────────────────────────────────
       selection_boxplot(
         sim(),
         COR_true = input$COR_true,
@@ -926,8 +954,9 @@ server <- function(input, output, session) {
         xlim_log_low      = input$xlim_log_low,
         xlim_log_high     = input$xlim_log_high
       )
+      add_footer(2)
       
-      # ── PAGE 3: Inputs + rpact design ───────────────────────────────────────
+      # ── PAGE 3: Inputs + rpact design ─────────────────────────────────────
       par(mar = c(4, 4, 4, 2))
       plot.new()
       title(main = "Simulation Inputs & rpact Design", line = 2.5, cex.main = 1.4)
@@ -960,7 +989,9 @@ server <- function(input, output, session) {
              "   Final = ", round(d$alphaSpent[2], 6)
            ))
       
-      # ── PAGE 4: COR distributions + explanation ─────────────────────────────
+      add_footer(3)
+      
+      # ── PAGE 4: COR distributions + explanation ───────────────────────────
       plot.new()
       title(main = "Cumulative Odds Ratio Distributions by Stopping Stage", line = 2.5, cex.main = 1.4)
       
@@ -996,7 +1027,9 @@ server <- function(input, output, session) {
       text(x = 0.05, y = 0.10, adj = c(0,0), cex = 0.95, family = "mono",
            labels = explanation)
       
-      # ── PAGE 5: Expected Sample Size ────────────────────────────────────────
+      add_footer(4)
+      
+      # ── PAGE 5: Expected Sample Size ──────────────────────────────────────
       plot.new()
       title(main = "Expected Sample Size & Stopping Probabilities", line = 2.5, cex.main = 1.4)
       
@@ -1012,17 +1045,23 @@ server <- function(input, output, session) {
            labels = sprintf("Overall Expected Sample Size (ESS) = %.1f", sum(ess_tab$Contribution)),
            cex = 1.3, font = 2)
       
-      # ── PAGE 6: sessionInfo ─────────────────────────────────────────────────
+      add_footer(5)
+      
+      # ── PAGE 6: sessionInfo (WRAPPED TO AVOID RIGHT CLIP) ─────────────────
+      par(mar = c(1.8, 1.2, 3.2, 1.2))
       plot.new()
-      title(main = "R Session Information", line = 2.5, cex.main = 1.4)
+      title(main = "R Session Information", line = 1.2, cex.main = 1.4)
       
       si <- capture.output(sessionInfo())
-      si_text <- paste(si, collapse = "\n")
       
-      text(x = 0.02, y = 0.98, adj = c(0,1), cex = 0.75, family = "mono",
-           labels = si_text)
+      # Wrap long lines so they don't run off the page
+      si_wrapped <- unlist(lapply(si, function(x) strwrap(x, width = 110)))
       
-      dev.off()
+      text(x = 0.01, y = 0.95, adj = c(0,1),
+           cex = 0.62, family = "mono",
+           labels = paste(si_wrapped, collapse = "\n"))
+      
+      add_footer(6)
     }
   )
   
@@ -1074,7 +1113,6 @@ server <- function(input, output, session) {
     
     get_rel_range_label <- function(rmse) {
       if (is.na(rmse)) return("")
-      pct <- round(rmse * 100)
       low_mult  <- exp(-rmse)
       high_mult <- exp(rmse)
       pct_low   <- round((1 - low_mult)  * 100)
@@ -1148,7 +1186,7 @@ server <- function(input, output, session) {
       logCOR = s$logCOR_paths[, "ia"],
       CP     = s$CP_after_ia_to_final_obs
     ) %>%
-      filter(is.finite(logCOR) & is.finite(CP) & CP >= 0 & CP <= 1)
+      dplyr::filter(is.finite(logCOR) & is.finite(CP) & CP >= 0 & CP <= 1)
     
     output$rcs_debug <- renderText({
       n <- nrow(df)
@@ -1302,10 +1340,10 @@ server <- function(input, output, session) {
     lwr  <- pred_df$lower
     upr  <- pred_df$upper
     
-    cat(sprintf("Input COR           = %.3f\n", cor_input))
-    cat(sprintf("Corresponding log(COR) = %.3f\n", logcor_input))
-    cat(sprintf("Predicted CP        : %.3f\n", est))
-    cat(sprintf("95%% CI for CP       : %.3f – %.3f\n", max(0, lwr), min(1, upr)))
+    cat(sprintf("Input COR              = %.3f\n", cor_input))
+    cat(sprintf("Corresponding log(COR)  = %.3f\n", logcor_input))
+    cat(sprintf("Predicted CP           : %.3f\n", est))
+    cat(sprintf("95%% CI for CP          : %.3f – %.3f\n", max(0, lwr), min(1, upr)))
     cat(sprintf("(based on %d simulations reaching IA2)\n", obj$n_valid))
   })
   
