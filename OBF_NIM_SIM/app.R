@@ -1,9 +1,9 @@
 ###############################################################################
 # Ordinal NI Group Sequential Trial Simulator (Shiny) v5.0
-# PDF layout:
+# PDF layout (REVISED):
 #   Page 1: Title page + Table of Contents
-#   Page 2: Operating Characteristics plot (RASTERIZED to reduce PDF size)
-#   Page 3: Simulation Inputs & rpact Design
+#   Page 2: Simulation Inputs & rpact Design
+#   Page 3: Operating Characteristics plot (RASTERIZED)
 #   Page 4: Cumulative Odds Ratio Distributions by Stage + precision note
 #   Page 5: Expected Sample Size & Stopping Probabilities
 #   Page 6: R Session Information
@@ -67,10 +67,11 @@ expected_n_breakdown <- function(sim) {
   p_final      <- mean(!(sim$stop_fut | sim$stop_ia | sim$stop_fut_low_cp), na.rm = TRUE)
   
   data.frame(
-    Stage       = c("IA1 Futility", "IA2 Success", "IA2 Low-CP Futility", "Final"),
-    Probability = round(c(p_fut, p_ia_success, p_low_cp, p_final), 3),
-    N_at_stage  = as.integer(round(c(sim$n_at_fut, sim$n_at_ia, sim$n_at_ia, sim$n_total))),
-    Contribution = round(c(p_fut, p_ia_success, p_low_cp, p_final) * c(sim$n_at_fut, sim$n_at_ia, sim$n_at_ia, sim$n_total), 1)
+    Stage        = c("IA1 Futility", "IA2 Success", "IA2 Low-CP Futility", "Final"),
+    Probability  = round(c(p_fut, p_ia_success, p_low_cp, p_final), 3),
+    N_at_stage   = as.integer(round(c(sim$n_at_fut, sim$n_at_ia, sim$n_at_ia, sim$n_total))),
+    Contribution = round(c(p_fut, p_ia_success, p_low_cp, p_final) *
+                           c(sim$n_at_fut, sim$n_at_ia, sim$n_at_ia, sim$n_total), 1)
   )
 }
 
@@ -283,8 +284,8 @@ sim_table <- function(sim, COR_true) {
     )
   
   list(
-    table             = df,
-    rmse_ia_success   = mse_ia_suc_log["RMSE_log"],
+    table              = df,
+    rmse_ia_success    = mse_ia_suc_log["RMSE_log"],
     rmse_final_success = mse_fin_log["RMSE_log"]
   )
 }
@@ -878,7 +879,7 @@ server <- function(input, output, session) {
     
   }, ignoreInit = TRUE)
   
-  # ===== PDF REPORT (PAGE 2 RASTERIZED) =====
+  # ===== PDF REPORT (REVISED ORDER + PAGE 3 RASTERIZED) =====
   
   output$download_report <- downloadHandler(
     filename = function() {
@@ -907,7 +908,7 @@ server <- function(input, output, session) {
               cex = 0.9, col = "gray45")
       }
       
-      # ── PAGE 1: Title + Table of Contents ────────────────────────────────
+      # ── PAGE 1: Title + Table of Contents ───────────────────────────────
       par(mar = c(2.5, 2.5, 2.0, 2.0))
       plot.new()
       
@@ -926,8 +927,8 @@ server <- function(input, output, session) {
       text(0.5, 0.58, "Table of Contents", adj = 0.5, cex = 1.5, font = 2)
       
       toc_text <- paste0(
-        "Page 2: Operating Characteristics Plot\n",
-        "Page 3: Simulation Inputs & rpact Design\n",
+        "Page 2: Simulation Inputs & rpact Design\n",
+        "Page 3: Operating Characteristics Plot\n",
         "Page 4: Cumulative Odds Ratio Distributions by Stopping Stage\n",
         "Page 5: Expected Sample Size & Stopping Probabilities\n",
         "Page 6: R Session Information"
@@ -940,34 +941,7 @@ server <- function(input, output, session) {
       
       add_footer(1)
       
-      # ── PAGE 2: Operating Characteristics (RASTERIZED) ───────────────────
-      # Render the heavy base graphics page to PNG, then embed into the PDF.
-      tmp_png <- tempfile(fileext = ".png")
-      
-      grDevices::png(tmp_png, width = 11, height = 8.5, units = "in", res = 250, type = "cairo-png")
-      selection_boxplot(
-        sim(),
-        COR_true = input$COR_true,
-        COR_NI   = input$COR_NI,
-        futility_frac = input$futility_frac,
-        info_frac     = input$info_frac,
-        show_traj_success = input$show_traj_success,
-        show_traj_fail    = input$show_traj_fail,
-        use_cor_scale     = input$use_cor_scale,
-        xlim_log_low      = input$xlim_log_low,
-        xlim_log_high     = input$xlim_log_high
-      )
-      dev.off()
-      
-      # New PDF page: draw the PNG full-bleed
-      par(mar = c(0, 0, 0, 0))
-      plot.new()
-      img <- png::readPNG(tmp_png)
-      grid::grid.raster(img, width = grid::unit(1, "npc"), height = grid::unit(1, "npc"))
-      
-      add_footer(2)
-      
-      # ── PAGE 3: Inputs + rpact design ────────────────────────────────────
+      # ── PAGE 2: Inputs + rpact design ───────────────────────────────────
       par(mar = c(4, 4, 4, 2))
       plot.new()
       title(main = "Simulation Inputs & rpact Design", line = 2.5, cex.main = 1.4)
@@ -1000,7 +974,36 @@ server <- function(input, output, session) {
              "   Final = ", round(d$alphaSpent[2], 6)
            ))
       
+      add_footer(2)
+      
+      # ── PAGE 3: Operating Characteristics (RASTERIZED) ───────────────────
+      tmp_png <- tempfile(fileext = ".png")
+      
+      grDevices::png(tmp_png, width = 11, height = 8.5, units = "in", res = 250, type = "cairo-png")
+      selection_boxplot(
+        sim(),
+        COR_true = input$COR_true,
+        COR_NI   = input$COR_NI,
+        futility_frac = input$futility_frac,
+        info_frac     = input$info_frac,
+        show_traj_success = input$show_traj_success,
+        show_traj_fail    = input$show_traj_fail,
+        use_cor_scale     = input$use_cor_scale,
+        xlim_log_low      = input$xlim_log_low,
+        xlim_log_high     = input$xlim_log_high
+      )
+      dev.off()
+      
+      par(mar = c(0, 0, 0, 0))
+      plot.new()
+      img <- png::readPNG(tmp_png)
+      grid::grid.raster(img, width = grid::unit(1, "npc"), height = grid::unit(1, "npc"))
+      unlink(tmp_png)
+      
       add_footer(3)
+      
+      # Reset margins after full-bleed raster page (prevents clipping on later pages)
+      par(mar = c(4, 4, 4, 2))
       
       # ── PAGE 4: COR distributions + explanation ──────────────────────────
       plot.new()
@@ -1186,68 +1189,7 @@ server <- function(input, output, session) {
   })
   
   # CP RCS plot with debug ----------------------------------------------------
-  
-  # cp_rcs_fit <- reactive({
-  #   s <- sim()
-  #   req(s)
-  #   
-  #   df <- data.frame(
-  #     logCOR = s$logCOR_paths[, "ia"],
-  #     CP     = s$CP_after_ia_to_final_obs
-  #   ) %>%
-  #     dplyr::filter(is.finite(logCOR) & is.finite(CP) & CP >= 0 & CP <= 1)
-  #   
-  #   output$rcs_debug <- renderText({
-  #     n <- nrow(df)
-  #     if (n < 30) {
-  #       sprintf("Too few valid IA2 points (%d). Need ≥30 for stable RCS fit.", n)
-  #     } else {
-  #       "Data ready – fitting RCS..."
-  #     }
-  #   })
-  #   
-  #   shiny::validate(need(nrow(df) >= 30, "Insufficient valid IA2 data for RCS"))
-  #   
-  #   df_val <- max(3L, min(8L, as.integer(input$spline_df %||% 4)))
-  #   
-  #   knots_text <- trimws(input$custom_knots_logcor %||% "")
-  #   use_custom <- nzchar(knots_text)
-  #   
-  #   knots <- NULL
-  #   knots_source <- "auto (quantiles)"
-  #   
-  #   if (use_custom) {
-  #     perc_vals <- suppressWarnings(as.numeric(unlist(strsplit(knots_text, "[, ]+"))))
-  #     if (all(is.finite(perc_vals)) && all(perc_vals >= 0 & perc_vals <= 100) &&
-  #         length(perc_vals) >= 3 && length(perc_vals) <= 7 && length(unique(perc_vals)) == length(perc_vals)) {
-  #       perc_sorted <- sort(perc_vals / 100)
-  #       knots <- quantile(df$logCOR, probs = perc_sorted, names = FALSE)
-  #       knots_source <- sprintf("custom percentiles: %s", paste(perc_vals, collapse = ", "))
-  #     }
-  #   }
-  #   
-  #   dd <- datadist(df)
-  #   options(datadist = "dd")
-  #   
-  #   fmla <- if (!is.null(knots)) {
-  #     CP ~ rcs(logCOR, parms = knots)
-  #   } else {
-  #     as.formula(sprintf("CP ~ rcs(logCOR, %d)", df_val + 1L))
-  #   }
-  #   
-  #   fit <- tryCatch(
-  #     ols(fmla, data = df, x = TRUE, y = TRUE),
-  #     error = function(e) {
-  #       output$rcs_debug <- renderText(sprintf("RCS fit failed: %s", e$message))
-  #       NULL
-  #     }
-  #   )
-  #   
-  #   req(fit, "RCS model did not converge")
-  #   
-  #   list(fit = fit, data = df, n_valid = nrow(df), knots = knots, knots_source = knots_source)
-  # })
-  
+  # FIXED: Ensure datadist object is findable by rms (no more "dd not found")
   
   cp_rcs_fit <- reactive({
     s <- sim()
@@ -1285,14 +1227,13 @@ server <- function(input, output, session) {
           length(perc_vals) >= 3 &&
           length(perc_vals) <= 7 &&
           length(unique(perc_vals)) == length(perc_vals)) {
-        
         perc_sorted <- sort(perc_vals / 100)
         knots <- quantile(df$logCOR, probs = perc_sorted, names = FALSE)
         knots_source <- sprintf("custom percentiles: %s", paste(perc_vals, collapse = ", "))
       }
     }
     
-    # ---- FIX: make datadist visible where rms expects it ----
+    # ---- datadist scope fix for rms ----
     old_datadist <- getOption("datadist")
     on.exit({
       options(datadist = old_datadist)
@@ -1301,7 +1242,7 @@ server <- function(input, output, session) {
     dd_obj <- datadist(df)
     assign("dd", dd_obj, envir = .GlobalEnv)
     options(datadist = "dd")
-    # --------------------------------------------------------
+    # -----------------------------------
     
     fmla <- if (!is.null(knots)) {
       CP ~ rcs(logCOR, parms = knots)
@@ -1321,7 +1262,6 @@ server <- function(input, output, session) {
     
     list(fit = fit, data = df, n_valid = nrow(df), knots = knots, knots_source = knots_source)
   })
-  
   
   output$cp_rcs_plot <- renderPlot({
     obj <- cp_rcs_fit()
