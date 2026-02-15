@@ -1,110 +1,29 @@
 ###############################################################################
-# INFORMATION BOX (QA / TRACEABILITY)
-#
-# Script Name   : Ordinal NI Group Sequential Trial Simulator (Shiny) v4.0
-# Purpose       : Simulate an ordinal endpoint non-inferiority (NI) group sequential
-#                trial with:
-#                  1) IA1 futility stop using p-value threshold (futility_p)
-#                  2) IA2 success stop using O’Brien–Fleming critical value (rpact)
-#                  3) IA2 optional futility stop using conditional power (cp_threshold)
-#                  4) Final analysis if not stopped earlier
-#
-# Primary Method: Proportional odds model fit at each stage using MASS::polr
-#                (logistic link) to estimate log(COR) and SE; Z-statistics built vs
-#                NI margin on the log(COR) scale.
-#
-# Key Inputs (UI):
-#   - n_sims, seed, chunk_size           : Simulation control & reproducibility
-#   - n_total (1:1 randomization)        : Maximum total sample size
-#   - futility_frac                      : IA1 information fraction (N at futility look)
-#   - info_frac                          : IA2 information fraction (N at IA2 look)
-#   - COR_true                           : True cumulative odds ratio (treatment vs control)
-#   - COR_NI                             : NI margin on COR scale (converted to log scale)
-#   - futility_p                         : One-sided p-value threshold for IA1 futility
-#   - cp_threshold                       : Conditional power threshold for IA2 futility
-#   - p_control_txt                      : Control category probabilities (must sum to 1)
-#
-# Key Outputs:
-#   - Empirical Power                    : P(IA2 success OR Final success)
-#   - ESS (Expected Sample Size)         : Avg N accounting for early stopping
-#   - Stage-wise stop probabilities       : IA1 futility / IA2 success / IA2 low-CP / Final
-#   - Estimation summaries by stage       : COR distribution + MSE/RMSE on log(COR) scale
-#   - Conditional power diagnostics       : CP after IA2 to final + RCS fit curve (rms::rcs)
-#
-# Reproducibility:
-#   - set.seed(seed) used before simulation dispatch
-#   - future.apply::future_lapply(..., future.seed = TRUE) for parallel-safe RNG
-#   - Note: changing workers/plan may cause different RNG streams if not controlled.
-#
-# Assumptions / Model Notes:
-#   - Ordinal outcomes generated from proportional odds structure using theta thresholds
-#     derived from control PMF; treatment effect applied via beta_true = log(COR_true).
-#   - NI hypothesis evaluated on log(COR) scale against beta_NI = log(COR_NI).
-#   - IA2 and Final efficacy boundaries use rpact group sequential OF design
-#     (one-sided alpha=0.025; informationRates=c(info_frac,1)).
-#
-# Validation / Defensive Checks (QA):
-#   - validate_probs(): numeric, >=3 categories, all >0, sums to 1 (±1e-6)
-#   - polr fit guarded with try(); returns NULL on failures / non-finite SE
-#   - conditional_power_ni_cp(): checks finite inputs and monotone information (I_T >= I_i)
-#   - cp_rcs_fit(): requires >=30 valid IA2 observations for stable spline fit
-#
-# Known Limitations / Points to Watch:
-#   - MASS::polr may fail or return unstable SE for extreme probabilities / small samples.
-#   - Conditional power depends on observed interim effect; can be noisy early.
-#   - “CP” here is computed using an information-based normal approximation.
-#   - IA1 futility uses a p-value rule (pragmatic) and is not an error-spending boundary.
-#
-# QA Checklist Suggestions:
-#   1) Run with fixed seed and confirm identical results across repeated runs (same plan).
-#   2) Stress test extreme p_control (near 0) and verify validate_probs() catches issues.
-#   3) Verify boundary signs: zcrit1/zcrit2 usage is consistent with NI direction.
-#   4) Confirm ESS breakdown sums to reported ESS and probabilities sum to ~1.
-#   5) Confirm rpact nominal p-values match printed criticalValues.
+# Ordinal NI Group Sequential Trial Simulator (Shiny) v4.0
+# PDF layout:
+#   Page 1: Title page + Table of Contents
+#   Page 2: Operating Characteristics plot
+#   Page 3: Simulation Inputs & rpact Design
+#   Page 4: Cumulative Odds Ratio Distributions by Stage + precision note
+#   Page 5: Expected Sample Size & Stopping Probabilities
+#   Page 6: R Session Information
 ###############################################################################
 
-# notes CP at true cor =1 assumption, 100K sims IA2 80% of info
-# 35,50,75,90,95,97,98.8  knot locations
-# 1.2826  = 10% 
-# 1.2175  = 30%
-# 1.1758  = 50%
-# 1.1107  = 80%
-
-#comparison of IA2 timing 100K simulation
-
-# IA n   pow  lrmseIA lrmsefinal
-# 70 487 85.0 0.173 0.089 wide small
-# 75 494 85.3 0.158 0.094 wide small
-# 80 507 85.3 0.147 0.100 mod small   # I have tyoe I error sims too
-# 85 525 85.6 0.140 0.108 mod mod
-
-
-# Vector of required packages
+# Packages
 pkgs <- c(
-  "shiny",
-  "shinyWidgets",
-  "MASS",
-  "dplyr",
-  "bslib",
-  "rpact",
-  "future",
-  "future.apply",
-  "progressr",
-  "rms"
+  "shiny", "shinyWidgets", "shinyjs", "MASS", "dplyr", "bslib",
+  "rpact", "future", "future.apply", "progressr", "rms",
+  "grid", "gridExtra"
 )
 
-# Install missing packages
 installed <- pkgs %in% rownames(installed.packages())
 if (any(!installed)) {
   install.packages(pkgs[!installed], dependencies = TRUE)
 }
 
-# Load packages
 invisible(lapply(pkgs, library, character.only = TRUE))
 
-############################################################
-# Helpers
-############################################################
+# Helpers ---------------------------------------------------------------------
 
 ilogit <- function(z) 1 / (1 + exp(-z))
 
@@ -133,15 +52,9 @@ pmf_from_beta <- function(theta, beta, x = 1) {
 
 conditional_power_ni_cp <- function(Z_i, I_i, I_T, theta_margin_adj, zcrit_T) {
   if (!is.finite(Z_i) || !is.finite(I_i) || !is.finite(I_T) ||
-      !is.finite(theta_margin_adj) || !is.finite(zcrit_T)) {
-    return(NA_real_)
-  }
+      !is.finite(theta_margin_adj) || !is.finite(zcrit_T)) return(NA_real_)
   if (I_T <= 0 || I_i < 0 || I_T < I_i) return(NA_real_)
-  
-  if (abs(I_T - I_i) < 1e-12) {
-    return(as.numeric(Z_i <= zcrit_T))
-  }
-  
+  if (abs(I_T - I_i) < 1e-12) return(as.numeric(Z_i <= zcrit_T))
   I_rem <- I_T - I_i
   arg <- (zcrit_T * sqrt(I_T) - Z_i * sqrt(I_i) - theta_margin_adj * I_rem) / sqrt(I_rem)
   pnorm(arg)
@@ -153,26 +66,15 @@ expected_n_breakdown <- function(sim) {
   p_low_cp     <- mean(sim$stop_fut_low_cp, na.rm = TRUE)
   p_final      <- mean(!(sim$stop_fut | sim$stop_ia | sim$stop_fut_low_cp), na.rm = TRUE)
   
-  df <- data.frame(
-    Stage       = c("IA1 Futility stop", "IA2 success stop", "IA2 low-CP futility stop", "Final analysis"),
-    Probability = c(p_fut, p_ia_success, p_low_cp, p_final),
-    N_at_stage  = c(sim$n_at_fut, sim$n_at_ia, sim$n_at_ia, sim$n_total),
-    check.names = FALSE
+  data.frame(
+    Stage       = c("IA1 Futility", "IA2 Success", "IA2 Low-CP Futility", "Final"),
+    Probability = round(c(p_fut, p_ia_success, p_low_cp, p_final), 3),
+    N_at_stage  = as.integer(round(c(sim$n_at_fut, sim$n_at_ia, sim$n_at_ia, sim$n_total))),
+    Contribution = round(c(p_fut, p_ia_success, p_low_cp, p_final) * c(sim$n_at_fut, sim$n_at_ia, sim$n_at_ia, sim$n_total), 1)
   )
-  
-  df$Contribution <- df$Probability * df$N_at_stage
-  
-  df |>
-    mutate(
-      N_at_stage   = as.integer(round(N_at_stage)),
-      Probability  = round(Probability, 3),
-      Contribution = round(Contribution, 1)
-    )
 }
 
-############################################################
-# Simulator
-############################################################
+# Simulator -------------------------------------------------------------------
 
 simulate_obf_ordinal <- function(
     COR_true, COR_NI, n_total, futility_frac, info_frac,
@@ -204,27 +106,18 @@ simulate_obf_ordinal <- function(
   z_fut <- qnorm(futility_p)
   
   trt_fut <- factor(c(rep("C", s_fut["nC"]), rep("T", s_fut["nT"])), levels = c("C","T"))
-  trt_ia  <- factor(c(rep("C", s_ia ["nC"]), rep("T", s_ia ["nT"])), levels = c("C","T"))
+  trt_ia  <- factor(c(rep("C", s_ia["nC"]), rep("T", s_ia["nT"])), levels = c("C","T"))
   trt_tot <- factor(c(rep("C", s_tot["nC"]), rep("T", s_tot["nT"])), levels = c("C","T"))
   
   fit_logCOR_vec <- function(y_int, trt_fac) {
-    dat <- list(
-      y   = factor(y_int, ordered = TRUE, levels = y_levels),
-      trt = trt_fac
-    )
-    
-    fit <- try(
-      MASS::polr(y ~ trt, data = dat, Hess = TRUE, model = FALSE, method = "logistic"),
-      silent = TRUE
-    )
+    dat <- list(y = factor(y_int, ordered = TRUE, levels = y_levels), trt = trt_fac)
+    fit <- try(MASS::polr(y ~ trt, data = dat, Hess = TRUE, model = FALSE, method = "logistic"), silent = TRUE)
     if (inherits(fit, "try-error") || is.null(fit$coefficients)) return(NULL)
     if (!("trtT" %in% names(fit$coefficients))) return(NULL)
-    
     logCOR_hat <- unname(fit$coefficients[["trtT"]])
     v <- vcov(fit)
     se <- sqrt(v["trtT","trtT"])
     if (!is.finite(se) || se < 1e-8) return(NULL)
-    
     list(logCOR_hat = logCOR_hat, se = se)
   }
   
@@ -238,68 +131,46 @@ simulate_obf_ordinal <- function(
     
     fit_f <- fit_logCOR_vec(y_fut, trt_fut)
     
-    I_fut <- theta_fut <- NA_real_
     if (!is.null(fit_f)) {
       out[11] <- fit_f$logCOR_hat
       out[1]  <- (fit_f$logCOR_hat - beta_NI) / fit_f$se
       out[2]  <- exp(fit_f$logCOR_hat)
-      
       I_fut     <- 1 / (fit_f$se^2)
       theta_fut <- fit_f$logCOR_hat - beta_NI
-      
       if (out[1] > z_fut) { out[7] <- 1; return(out) }
     }
     
     n_add_iaC <- s_ia["nC"] - s_fut["nC"]
     n_add_iaT <- s_ia["nT"] - s_fut["nT"]
-    
     if (n_add_iaC > 0) yCf <- c(yCf, sample.int(K + 1, n_add_iaC, TRUE, pi_control) - 1L)
     if (n_add_iaT > 0) yTf <- c(yTf, sample.int(K + 1, n_add_iaT, TRUE, pi_treat)   - 1L)
     
     y_ia <- c(yCf, yTf)
     fit1 <- fit_logCOR_vec(y_ia, trt_ia)
     
-    I_ia <- theta_ia <- NA_real_
     if (!is.null(fit1)) {
       out[12] <- fit1$logCOR_hat
       out[3]  <- (fit1$logCOR_hat - beta_NI) / fit1$se
       out[4]  <- exp(fit1$logCOR_hat)
-      
       I_ia     <- 1 / (fit1$se^2)
       theta_ia <- fit1$logCOR_hat - beta_NI
       
       if (is.finite(out[1]) && is.finite(I_fut) && n_fut > 0) {
-        I_ia_plan_from_fut <- I_fut * (n1 / n_fut)
-        out[14] <- conditional_power_ni_cp(
-          Z_i              = out[1],
-          I_i              = I_fut,
-          I_T              = I_ia_plan_from_fut,
-          theta_margin_adj = theta_fut,
-          zcrit_T          = zcrit1
-        )
+        I_ia_plan <- I_fut * (n1 / n_fut)
+        out[14] <- conditional_power_ni_cp(out[1], I_fut, I_ia_plan, theta_fut, zcrit1)
       }
       
       if (is.finite(I_ia) && n1 > 0) {
         I_final_plan <- I_ia * (n_total / n1)
-        out[15] <- conditional_power_ni_cp(
-          Z_i              = out[3],
-          I_i              = I_ia,
-          I_T              = I_final_plan,
-          theta_margin_adj = theta_ia,
-          zcrit_T          = zcrit2
-        )
+        out[15] <- conditional_power_ni_cp(out[3], I_ia, I_final_plan, theta_ia, zcrit2)
       }
       
       if (out[3] <= zcrit1) { out[8] <- 1; return(out) }
-      
-      if (is.finite(out[15]) && out[15] < cp_threshold) {
-        out[10] <- 1; return(out)
-      }
+      if (is.finite(out[15]) && out[15] < cp_threshold) { out[10] <- 1; return(out) }
     }
     
     n_add_finC <- s_tot["nC"] - s_ia["nC"]
     n_add_finT <- s_tot["nT"] - s_ia["nT"]
-    
     if (n_add_finC > 0) yCf <- c(yCf, sample.int(K + 1, n_add_finC, TRUE, pi_control) - 1L)
     if (n_add_finT > 0) yTf <- c(yTf, sample.int(K + 1, n_add_finT, TRUE, pi_treat)   - 1L)
     
@@ -322,35 +193,24 @@ simulate_obf_ordinal <- function(
   
   res_mat <- progressr::withProgressShiny(
     message = "Running simulations...",
-    #detail  = "Processing...",
     value   = 0,
     {
       p <- progressr::progressor(along = idx)
-      
-      chunks <- future.apply::future_lapply(
-        idx,
-        FUN = function(ii) {
-          block <- vapply(ii, one_sim, FUN.VALUE = numeric(15))
-          p()
-          t(block)
-        },
-        future.seed = TRUE
-      )
-      
+      chunks <- future.apply::future_lapply(idx, function(ii) {
+        block <- vapply(ii, one_sim, numeric(15))
+        p()
+        t(block)
+      }, future.seed = TRUE)
       do.call(rbind, chunks)
     }
   )
   
-  stop_fut        <- as.logical(res_mat[, 7])
-  stop_ia         <- as.logical(res_mat[, 8])
-  stop_final      <- as.logical(res_mat[, 9])
+  stop_fut        <- as.logical(res_mat[,7])
+  stop_ia         <- as.logical(res_mat[,8])
+  stop_final      <- as.logical(res_mat[,9])
   stop_fut_low_cp <- as.logical(res_mat[,10])
   
-  logCOR_paths <- cbind(
-    fut   = res_mat[,11],
-    ia    = res_mat[,12],
-    final = res_mat[,13]
-  )
+  logCOR_paths <- cbind(fut = res_mat[,11], ia = res_mat[,12], final = res_mat[,13])
   
   list(
     Z_fut_all   = res_mat[,1],
@@ -359,29 +219,20 @@ simulate_obf_ordinal <- function(
     COR1_all    = res_mat[,4],
     Z2_all      = res_mat[,5],
     COR2_all    = res_mat[,6],
-    
     stop_fut        = stop_fut,
     stop_ia         = stop_ia,
     stop_final      = stop_final,
     stop_fut_low_cp = stop_fut_low_cp,
-    
     logCOR_paths = logCOR_paths,
-    
     CP_after_fut_to_ia_obs   = res_mat[,14],
     CP_after_ia_to_final_obs = res_mat[,15],
-    
     n_at_fut = n_fut, n_at_ia = n1, n_total = n_total, nSims = nSims,
     z_fut = z_fut, zcrit1 = zcrit1, zcrit2 = zcrit2,
-    
     rpact_design = NULL
   )
 }
 
-############################################################
-# Summary table (UPDATED with MSE and RMSE)
-############################################################
-
-
+# Summary table ---------------------------------------------------------------
 
 sim_table <- function(sim, COR_true) {
   
@@ -392,31 +243,27 @@ sim_table <- function(sim, COR_true) {
     c(N=length(x), Min=min(x), Max=max(x), Mean=mean(x), Median=q[2], `2.5%`=q[1], `97.5%`=q[3])
   }
   
-  # Helper: MSE & RMSE **on the log(COR) scale**
   safe_mse_rmse_log <- function(est_log, true_log) {
     valid <- is.finite(est_log)
     if (sum(valid) == 0) return(c(MSE_log = NA_real_, RMSE_log = NA_real_))
-    err  <- est_log[valid] - true_log
-    mse  <- mean(err^2)
+    err <- est_log[valid] - true_log
+    mse <- mean(err^2)
     rmse <- sqrt(mse)
     c(MSE_log = round(mse, 4), RMSE_log = round(rmse, 4))
   }
   
-  # Summaries of COR values (for display columns)
   fut      <- safe_summ_ext(sim$COR_fut_all[sim$stop_fut])
   ia_suc   <- safe_summ_ext(sim$COR1_all[sim$stop_ia])
   ia_lowcp <- safe_summ_ext(sim$COR1_all[sim$stop_fut_low_cp])
   fin      <- safe_summ_ext(sim$COR2_all[sim$stop_final])
   
-  # MSE / RMSE on log scale using stored logCOR_paths
   log_true <- log(COR_true)
   
-  mse_fut_log      <- safe_mse_rmse_log(sim$logCOR_paths[sim$stop_fut,     "fut"],   log_true)
-  mse_ia_suc_log   <- safe_mse_rmse_log(sim$logCOR_paths[sim$stop_ia,      "ia"],   log_true)
+  mse_fut_log      <- safe_mse_rmse_log(sim$logCOR_paths[sim$stop_fut, "fut"], log_true)
+  mse_ia_suc_log   <- safe_mse_rmse_log(sim$logCOR_paths[sim$stop_ia, "ia"], log_true)
   mse_ia_lowcp_log <- safe_mse_rmse_log(sim$logCOR_paths[sim$stop_fut_low_cp, "ia"], log_true)
-  mse_fin_log      <- safe_mse_rmse_log(sim$logCOR_paths[sim$stop_final,   "final"], log_true)
+  mse_fin_log      <- safe_mse_rmse_log(sim$logCOR_paths[sim$stop_final, "final"], log_true)
   
-  # Build the main display table
   df <- data.frame(
     Stage      = c("IA1 Futility stop", "IA2 success stop", "IA2 low-CP futility", "Final success stop"),
     N          = c(fut["N"], ia_suc["N"], ia_lowcp["N"], fin["N"]),
@@ -426,10 +273,8 @@ sim_table <- function(sim, COR_true) {
     `2.5%`     = c(fut["2.5%"], ia_suc["2.5%"], ia_lowcp["2.5%"], fin["2.5%"]),
     `97.5%`    = c(fut["97.5%"], ia_suc["97.5%"], ia_lowcp["97.5%"], fin["97.5%"]),
     Max        = c(fut["Max"], ia_suc["Max"], ia_lowcp["Max"], fin["Max"]),
-    MSE_log    = c(mse_fut_log["MSE_log"],   mse_ia_suc_log["MSE_log"],   
-                   mse_ia_lowcp_log["MSE_log"],   mse_fin_log["MSE_log"]),
-    RMSE_log   = c(mse_fut_log["RMSE_log"],  mse_ia_suc_log["RMSE_log"],  
-                   mse_ia_lowcp_log["RMSE_log"],  mse_fin_log["RMSE_log"]),
+    MSE_log    = c(mse_fut_log["MSE_log"], mse_ia_suc_log["MSE_log"], mse_ia_lowcp_log["MSE_log"], mse_fin_log["MSE_log"]),
+    RMSE_log   = c(mse_fut_log["RMSE_log"], mse_ia_suc_log["RMSE_log"], mse_ia_lowcp_log["RMSE_log"], mse_fin_log["RMSE_log"]),
     check.names = FALSE
   ) |>
     mutate(
@@ -437,18 +282,14 @@ sim_table <- function(sim, COR_true) {
       across(c(Min, Mean, Median, `2.5%`, `97.5%`, Max, MSE_log, RMSE_log), ~ round(.x, 3))
     )
   
-  # Return both the table and the success-stage RMSE values for footnote use
   list(
     table             = df,
     rmse_ia_success   = mse_ia_suc_log["RMSE_log"],
     rmse_final_success = mse_fin_log["RMSE_log"]
   )
 }
- 
 
-############################################################
-# Plots (selection_boxplot and cp_selection_boxplot unchanged)
-############################################################
+# Operating Characteristics Plot ----------------------------------------------
 
 selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
                               show_traj_success = FALSE, show_traj_fail = FALSE,
@@ -628,10 +469,6 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
       }
       
       if (length(path_x) >= 2) {
-        # col_line <- if (is_success) rgb(0, 0.7, 0, 0.18)
-        # else if (is_low_cp) rgb(0.6, 0, 0.8, 0.22)
-        # else rgb(0.9, 0.1, 0.1, 0.18)
-        
         col_line <- if (is_success) rgb(0, 0.7, 0, 0.50)
         else if (is_low_cp) rgb(0.6, 0, 0.8, 0.50)
         else rgb(0.9, 0.1, 0.1, 0.50)
@@ -664,7 +501,6 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
             if (grepl("low CP", nm))                rgb(0.6, 0.0, 0.8, 0.35) else
               rgb(0.3, 0.3, 0.3, 0.25)
     
-    # Dynamic point size: bigger when few simulations
     n_total_sims <- sim$nSims
     cex_base <- ifelse(n_total_sims <= 100, 1.4,
                        ifelse(n_total_sims <= 300, 1.1,
@@ -742,7 +578,7 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
 cp_selection_boxplot <- function(sim, COR_true, COR_NI,
                                  use_cor_scale = FALSE,
                                  xlim_log_low = -3, xlim_log_high = 4,
-                                 main_prefix = "'2 All @ interim' stage– coloured by conditional probability") {
+                                 main_prefix = "'2 All @ interim' stage – coloured by conditional probability") {
   
   log_min_nice <- xlim_log_low
   log_max_nice <- xlim_log_high
@@ -846,7 +682,7 @@ cp_selection_boxplot <- function(sim, COR_true, COR_NI,
          col = colramp[i], border = NA)
   }
   
-  text(0.5, 0.90, "", adj = 0.5, font = 2, cex = 1.1) #Conditional Power
+  text(0.5, 0.90, "Conditional Power", adj = 0.5, font = 2, cex = 1.1)
   text(0.5, 0.10, "0", adj = 0.5, cex = 1.0)
   text(0.5, 0.90, "1", adj = 0.5, cex = 1.0)
   text(0.5, 0.50, "0.5", adj = 0.5, cex = 1.0)
@@ -855,12 +691,9 @@ cp_selection_boxplot <- function(sim, COR_true, COR_NI,
   arrows(0.25, 0.88, 0.25, 0.95, length = 0.08, col = "gray40")
   
   par(op)
-  
 }
 
-############################################################
-# UI
-############################################################
+# UI --------------------------------------------------------------------------
 
 ui <- page_sidebar(
   title = "Ordinal Endpoint, Non Inferiority, Group Sequential Trial Simulator v4.0",
@@ -916,7 +749,7 @@ ui <- page_sidebar(
       
       hr(),
       
-      downloadButton("download_plot", "Download Superb JPEG",
+      downloadButton("download_report", "Download Full PDF Report (with TOC & sessionInfo)",
                      class = "btn-success", style = "width: 100%;")
     )
   ),
@@ -927,15 +760,12 @@ ui <- page_sidebar(
                plotOutput("boxplot", height = "750px")),
       
       tabPanel("Cumulative Odds Ratio Distributions",
-  verbatimTextOutput("status"),
-  tableOutput("summary_table"),
-  uiOutput("success_precision_note"),
-
-  
-  hr(),
-  h5("rpact Design & Nominal P-values"),
-  verbatimTextOutput("rpact_info")
-),
+               verbatimTextOutput("status"),
+               tableOutput("summary_table"),
+               uiOutput("success_precision_note"),
+               hr(),
+               h5("rpact Design & Nominal P-values"),
+               verbatimTextOutput("rpact_info")),
       
       tabPanel("Expected Sample Size",
                tableOutput("ess_breakdown"),
@@ -943,7 +773,6 @@ ui <- page_sidebar(
                verbatimTextOutput("ess_total_note")),
       
       tabPanel("Conditional Probability",
-               
                plotOutput("cp_boxplot", height = "600px"),
                
                hr(),
@@ -972,6 +801,7 @@ ui <- page_sidebar(
                ),
                
                plotOutput("cp_rcs_plot", height = "500px"),
+               verbatimTextOutput("rcs_debug"),
                
                hr(),
                h5("Predicted CP for Input log(COR)"),
@@ -1011,9 +841,7 @@ ui <- page_sidebar(
   )
 )
 
-############################################################
-# Server
-############################################################
+# Server ----------------------------------------------------------------------
 
 server <- function(input, output, session) {
   
@@ -1050,6 +878,268 @@ server <- function(input, output, session) {
     
   }, ignoreInit = TRUE)
   
+  output$download_report <- downloadHandler(
+    filename = function() {
+      paste0("Ordinal_NI_Simulation_Report_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".pdf")
+    },
+    content = function(file) {
+      req(sim())
+      
+      pdf(file, width = 11, height = 8.5)
+      
+      # ── PAGE 1: Title + Table of Contents ───────────────────────────────────
+      plot.new()
+      title(main = "Ordinal Non-Inferiority\nGroup Sequential Trial Simulator", 
+            line = 4, cex.main = 2.2, font.main = 2)
+      
+      mtext("v4.0 – Ordinal Endpoint NI Trial with Futility & Conditional Power Stopping", 
+            side = 3, line = 1.5, cex = 1.3)
+      
+      mtext(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), 
+            side = 3, line = 0, cex = 1.1, col = "gray50")
+      
+      text(0.5, 0.65, "Table of Contents", adj = 0.5, cex = 1.5, font = 2)
+      
+      toc_text <- paste0(
+        "Page 2: Operating Characteristics Plot\n",
+        "Page 3: Simulation Inputs & rpact Design\n",
+        "Page 4: Cumulative Odds Ratio Distributions by Stopping Stage\n",
+        "Page 5: Expected Sample Size & Stopping Probabilities\n",
+        "Page 6: R Session Information"
+      )
+      
+      text(0.1, 0.55, toc_text, adj = c(0,1), cex = 1.1, family = "mono")
+      
+      text(0.5, 0.05, "Generated with Shiny • For exploratory / educational use only", 
+           adj = 0.5, cex = 0.9, col = "gray50")
+      
+      # ── PAGE 2: Operating Characteristics ───────────────────────────────────
+      selection_boxplot(
+        sim(),
+        COR_true = input$COR_true,
+        COR_NI   = input$COR_NI,
+        futility_frac = input$futility_frac,
+        info_frac     = input$info_frac,
+        show_traj_success = input$show_traj_success,
+        show_traj_fail    = input$show_traj_fail,
+        use_cor_scale     = input$use_cor_scale,
+        xlim_log_low      = input$xlim_log_low,
+        xlim_log_high     = input$xlim_log_high
+      )
+      
+      # ── PAGE 3: Inputs + rpact design ───────────────────────────────────────
+      par(mar = c(4, 4, 4, 2))
+      plot.new()
+      title(main = "Simulation Inputs & rpact Design", line = 2.5, cex.main = 1.4)
+      
+      text(x = 0.05, y = 0.92, adj = c(0,1), cex = 1.0, family = "mono",
+           labels = paste0(
+             "Simulation run: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n",
+             "Seed:           ", input$seed, "\n",
+             "Number of sims: ", input$n_sims, "\n\n",
+             "Total N:        ", input$n_total, " (1:1 randomization)\n",
+             "Futility look:  ", round(input$futility_frac * 100), "%   (N ≈ ", sim()$n_at_fut, ")\n",
+             "IA2 look:       ", round(input$info_frac * 100),   "%   (N ≈ ", sim()$n_at_ia, ")\n\n",
+             "True COR:       ", input$COR_true, "\n",
+             "NI margin COR:  ", input$COR_NI, "\n\n",
+             "IA1 futility p-value threshold: ", input$futility_p, "\n",
+             "IA2 conditional power futility threshold: ", input$cp_threshold, "\n\n",
+             "Control category probabilities: ", input$p_control_txt
+           ))
+      
+      d <- sim()$rpact_design
+      text(x = 0.05, y = 0.38, adj = c(0,1), cex = 1.0, family = "mono",
+           labels = paste0(
+             "\n--- rpact O'Brien-Fleming Design (1-sided α = 0.025) ---\n",
+             "Information rates:     ", paste(round(d$informationRates * 100), collapse = "% → "), "%\n",
+             "Critical values (Z):   IA2 = ", round(d$criticalValues[1], 4),
+             "   Final = ", round(d$criticalValues[2], 4), "\n",
+             "Nominal p-values:      IA2 = ", sprintf("%.6f", pnorm(-d$criticalValues[1])),
+             "   Final = ", sprintf("%.6f", pnorm(-d$criticalValues[2])), "\n",
+             "Alpha spent:           IA2 = ", round(d$alphaSpent[1], 6),
+             "   Final = ", round(d$alphaSpent[2], 6)
+           ))
+      
+      # ── PAGE 4: COR distributions + explanation ─────────────────────────────
+      plot.new()
+      title(main = "Cumulative Odds Ratio Distributions by Stopping Stage", line = 2.5, cex.main = 1.4)
+      
+      tab <- sim_table(sim(), input$COR_true)$table
+      if (nrow(tab) > 0) {
+        gridExtra::grid.table(
+          tab,
+          rows = NULL,
+          theme = gridExtra::ttheme_minimal(base_size = 10),
+          vp = grid::viewport(x = 0.5, y = 0.58, width = 0.92, height = 0.70)
+        )
+      }
+      
+      rmse_ia  <- sim_table(sim(), input$COR_true)$rmse_ia_success
+      rmse_fin <- sim_table(sim(), input$COR_true)$rmse_final_success
+      
+      explanation <- paste0(
+        "\nPrecision in successful arms (log-scale):\n",
+        if (!is.na(rmse_ia)) {
+          low  <- round(exp(-rmse_ia), 2)
+          high <- round(exp(rmse_ia), 2)
+          sprintf("IA2 success stop: RMSE_log = %.3f → typical range ≈ ×%.2f to ×%.2f\n", rmse_ia, low, high)
+        } else "",
+        if (!is.na(rmse_fin)) {
+          low  <- round(exp(-rmse_fin), 2)
+          high <- round(exp(rmse_fin), 2)
+          sprintf("Final success stop: RMSE_log = %.3f → typical range ≈ ×%.2f to ×%.2f\n", rmse_fin, low, high)
+        } else "",
+        "(≈ 68% interval assuming roughly normal errors on the log scale)\n",
+        "Lower RMSE indicates more precise estimates around the true COR in successful trials."
+      )
+      
+      text(x = 0.05, y = 0.10, adj = c(0,0), cex = 0.95, family = "mono",
+           labels = explanation)
+      
+      # ── PAGE 5: Expected Sample Size ────────────────────────────────────────
+      plot.new()
+      title(main = "Expected Sample Size & Stopping Probabilities", line = 2.5, cex.main = 1.4)
+      
+      ess_tab <- expected_n_breakdown(sim())
+      gridExtra::grid.table(
+        ess_tab,
+        rows = NULL,
+        theme = gridExtra::ttheme_minimal(base_size = 11),
+        vp = grid::viewport(x = 0.5, y = 0.55, width = 0.85, height = 0.70)
+      )
+      
+      text(x = 0.5, y = 0.15, adj = c(0.5, 0),
+           labels = sprintf("Overall Expected Sample Size (ESS) = %.1f", sum(ess_tab$Contribution)),
+           cex = 1.3, font = 2)
+      
+      # ── PAGE 6: sessionInfo ─────────────────────────────────────────────────
+      plot.new()
+      title(main = "R Session Information", line = 2.5, cex.main = 1.4)
+      
+      si <- capture.output(sessionInfo())
+      si_text <- paste(si, collapse = "\n")
+      
+      text(x = 0.02, y = 0.98, adj = c(0,1), cex = 0.75, family = "mono",
+           labels = si_text)
+      
+      dev.off()
+    }
+  )
+  
+  output$boxplot <- renderPlot({
+    req(sim())
+    selection_boxplot(
+      sim(),
+      COR_true = input$COR_true,
+      COR_NI   = input$COR_NI,
+      futility_frac = input$futility_frac,
+      info_frac     = input$info_frac,
+      show_traj_success = input$show_traj_success,
+      show_traj_fail    = input$show_traj_fail,
+      use_cor_scale     = input$use_cor_scale,
+      xlim_log_low      = input$xlim_log_low,
+      xlim_log_high     = input$xlim_log_high
+    )
+  })
+  
+  output$cp_boxplot <- renderPlot({
+    req(sim())
+    cp_selection_boxplot(
+      sim(),
+      COR_true = input$COR_true,
+      COR_NI   = input$COR_NI,
+      use_cor_scale     = input$use_cor_scale,
+      xlim_log_low      = input$xlim_log_low,
+      xlim_log_high     = input$xlim_log_high
+    )
+  })
+  
+  output$status <- renderText({
+    if (is.null(sim())) "Click 'Run' to start." else "Complete."
+  })
+  
+  output$summary_table <- renderTable({
+    req(sim())
+    sim_table(sim(), COR_true = input$COR_true)$table
+  }, digits = 3)
+  
+  output$success_precision_note <- renderUI({
+    req(sim())
+    res <- sim_table(sim(), COR_true = input$COR_true)
+    
+    rmse_ia  <- res$rmse_ia_success
+    rmse_fin <- res$rmse_final_success
+    
+    if (is.na(rmse_ia) && is.na(rmse_fin)) return(NULL)
+    
+    get_rel_range_label <- function(rmse) {
+      if (is.na(rmse)) return("")
+      pct <- round(rmse * 100)
+      low_mult  <- exp(-rmse)
+      high_mult <- exp(rmse)
+      pct_low   <- round((1 - low_mult)  * 100)
+      pct_high  <- round((high_mult - 1) * 100)
+      range_str <- sprintf("-%d%% to +%d%%", pct_low, pct_high)
+      qual <- if (rmse <= 0.10) "small"
+      else if (rmse <= 0.15) "moderate"
+      else if (rmse <= 0.25) "wide"
+      else "very wide"
+      sprintf(" (estimates usually fall within %s of the true COR — %s)", range_str, qual)
+    }
+    
+    tags$div(
+      tags$p(tags$strong("Precision in successful arms (log-scale):")),
+      if (!is.na(rmse_ia)) {
+        low  <- round(exp(-rmse_ia), 2)
+        high <- round(exp(rmse_ia), 2)
+        tags$p(
+          sprintf("IA2 success stop: RMSE_log = %.3f → typical range ≈ ×%.2f to ×%.2f%s",
+                  rmse_ia, low, high, get_rel_range_label(rmse_ia))
+        )
+      },
+      if (!is.na(rmse_fin)) {
+        low  <- round(exp(-rmse_fin), 2)
+        high <- round(exp(rmse_fin), 2)
+        tags$p(
+          sprintf("Final success stop: RMSE_log = %.3f → typical range ≈ ×%.2f to ×%.2f%s",
+                  rmse_fin, low, high, get_rel_range_label(rmse_fin))
+        )
+      },
+      tags$small("(≈ 68% interval assuming roughly normal errors on the log scale)")
+    )
+  })
+  
+  output$ess_breakdown <- renderTable({
+    req(sim())
+    expected_n_breakdown(sim())
+  }, digits = 4)
+  
+  output$ess_total_note <- renderPrint({
+    req(sim())
+    df <- expected_n_breakdown(sim())
+    cat(sprintf("ESS (Average Sample Size) = %.1f\n", sum(df$Contribution)))
+  })
+  
+  output$rpact_info <- renderPrint({
+    req(sim())
+    d <- sim()$rpact_design
+    
+    cat(sprintf(
+      "Total One-sided Alpha: %.4f\nAlpha Spent Stage 1 (IA): %.4f\nAlpha Spent Stage 2 (Final): %.4f\n",
+      d$alpha, d$alphaSpent[1], d$alphaSpent[2]
+    ))
+    
+    cat("\n--- Nominal Stage-wise P-values (1-sided) ---\n")
+    
+    cat(sprintf(
+      "Nominal p at Stage 1: %.6f\nNominal p at Stage 2: %.6f\n",
+      pnorm(-d$criticalValues[1]),
+      pnorm(-d$criticalValues[2])
+    ))
+  })
+  
+  # CP RCS plot with debug ----------------------------------------------------
+  
   cp_rcs_fit <- reactive({
     s <- sim()
     req(s)
@@ -1060,12 +1150,16 @@ server <- function(input, output, session) {
     ) %>%
       filter(is.finite(logCOR) & is.finite(CP) & CP >= 0 & CP <= 1)
     
-    shiny::validate(
-      need(nrow(df) >= 30,
-           paste0("Only ", nrow(df), " valid IA2 observations.\n",
-                  "Need ≥30 for reliable spline fit.\n",
-                  "Try: COR_true closer to NI margin, higher futility_p, more sims"))
-    )
+    output$rcs_debug <- renderText({
+      n <- nrow(df)
+      if (n < 30) {
+        sprintf("Too few valid IA2 points (%d). Need ≥30 for stable RCS fit.", n)
+      } else {
+        "Data ready – fitting RCS..."
+      }
+    })
+    
+    shiny::validate(need(nrow(df) >= 30, "Insufficient valid IA2 data for RCS"))
     
     df_val <- max(3L, min(8L, as.integer(input$spline_df %||% 4)))
     
@@ -1074,84 +1168,40 @@ server <- function(input, output, session) {
     
     knots <- NULL
     knots_source <- "auto (quantiles)"
-    actual_df <- df_val
     
     if (use_custom) {
       perc_vals <- suppressWarnings(as.numeric(unlist(strsplit(knots_text, "[, ]+"))))
-      
-      if (all(is.finite(perc_vals)) && all(perc_vals >= 0) && all(perc_vals <= 100) &&
-          length(perc_vals) >= 3 && length(perc_vals) <= 7 &&
-          length(unique(perc_vals)) == length(perc_vals)) {
-        
+      if (all(is.finite(perc_vals)) && all(perc_vals >= 0 & perc_vals <= 100) &&
+          length(perc_vals) >= 3 && length(perc_vals) <= 7 && length(unique(perc_vals)) == length(perc_vals)) {
         perc_sorted <- sort(perc_vals / 100)
         knots <- quantile(df$logCOR, probs = perc_sorted, names = FALSE)
         knots_source <- sprintf("custom percentiles: %s", paste(perc_vals, collapse = ", "))
-        
-      } else {
-        knots <- as.numeric(unlist(strsplit(knots_text, "[, ]+")))
-        
-        if (any(!is.finite(knots)) || length(knots) < 2 ||
-            any(diff(sort(knots)) <= 0)) {
-          showNotification(
-            "Invalid knots. Use comma-separated increasing numbers (direct log(COR)) or percentiles (0–100).",
-            type = "error"
-          )
-          knots <- NULL
-          use_custom <- FALSE
-        } else {
-          knots_source <- sprintf("custom log(COR): %s", paste(round(knots, 2), collapse = ", "))
-        }
-      }
-      
-      if (!is.null(knots)) {
-        actual_df <- length(knots) - 1L
-        if (actual_df < 2 || actual_df > 7) {
-          showNotification(
-            sprintf("With %d knots → df = %d (must be 2–7). Using automatic instead.", length(knots), actual_df),
-            type = "warning"
-          )
-          knots <- NULL
-          use_custom <- FALSE
-          actual_df <- df_val
-        }
       }
     }
     
-    # ── Critical fix using <<- to place dd in global environment ─────────────
-    dd <<- datadist(df)
+    dd <- datadist(df)
     options(datadist = "dd")
     
-    if (!is.null(knots) && use_custom) {
-      fmla <- CP ~ rcs(logCOR, parms = knots)
+    fmla <- if (!is.null(knots)) {
+      CP ~ rcs(logCOR, parms = knots)
     } else {
-      nk <- df_val + 1L
-      fmla <- as.formula(sprintf("CP ~ rcs(logCOR, %d)", nk))
+      as.formula(sprintf("CP ~ rcs(logCOR, %d)", df_val + 1L))
     }
     
     fit <- tryCatch(
       ols(fmla, data = df, x = TRUE, y = TRUE),
       error = function(e) {
-        showNotification(paste("Spline fit failed:", e$message), type = "error")
+        output$rcs_debug <- renderText(sprintf("RCS fit failed: %s", e$message))
         NULL
       }
     )
     
-    req(fit, "Restricted cubic spline did not converge")
+    req(fit, "RCS model did not converge")
     
-    list(
-      fit         = fit,
-      data        = df,
-      n_valid     = nrow(df),
-      df          = actual_df,
-      knots       = knots,
-      knots_source = knots_source
-    )
+    list(fit = fit, data = df, n_valid = nrow(df), knots = knots, knots_source = knots_source)
   })
   
   output$cp_rcs_plot <- renderPlot({
-    input$spline_df          # trigger
-    input$custom_knots_logcor # trigger
-    
     obj <- cp_rcs_fit()
     req(obj, obj$fit, obj$data)
     
@@ -1166,12 +1216,22 @@ server <- function(input, output, session) {
     pad <- 0.08 * diff(rng)
     log_seq <- seq(rng[1] - pad, rng[2] + pad, length.out = 250)
     
-    pred <- Predict(fit, logCOR = log_seq, conf.int = 0.95)
+    pred <- tryCatch(
+      Predict(fit, logCOR = log_seq, conf.int = 0.95),
+      error = function(e) {
+        output$rcs_debug <- renderText(sprintf("Predict failed: %s", e$message))
+        NULL
+      }
+    )
+    
+    req(pred, "Prediction failed")
+    
     pred <- pred[order(pred$logCOR), ]
     
     ok <- is.finite(pred$yhat) & is.finite(pred$lower) & is.finite(pred$upper)
     if (sum(ok) < 30) {
-      plot(0, type = "n", main = "Prediction range invalid – check knots / data")
+      output$rcs_debug <- renderText("Prediction range invalid – check knots / data")
+      plot(0, type = "n", main = "Prediction range invalid")
       return()
     }
     
@@ -1180,12 +1240,6 @@ server <- function(input, output, session) {
     lwr     <- pred$lower[ok]
     upr     <- pred$upper[ok]
     
-    knot_txt <- if (!is.null(obj$knots)) {
-      paste(round(obj$knots, 2), collapse = ", ")
-    } else {
-      "auto quantiles"
-    }
-    
     plot(
       range(log_seq), c(0, 1),
       type = "n",
@@ -1193,7 +1247,7 @@ server <- function(input, output, session) {
       ylab = "Conditional Power to final analysis",
       main = sprintf(
         "RCS fit to observed CP at IA2\n(n = %d reaching IA2, effective df = %d)\nKnots: %s\nResidual SE = %.4f   MSE = %.4f",
-        obj$n_valid, obj$df, obj$knots_source, rse, mse
+        obj$n_valid, length(obj$knots %||% numeric(0)) + 1, obj$knots_source, rse, mse
       ),
       las = 1, cex.main = 1.05, cex.lab = 1.1
     )
@@ -1255,151 +1309,7 @@ server <- function(input, output, session) {
     cat(sprintf("(based on %d simulations reaching IA2)\n", obj$n_valid))
   })
   
-  output$boxplot <- renderPlot({
-    req(sim())
-    selection_boxplot(
-      sim(),
-      COR_true = input$COR_true,
-      COR_NI   = input$COR_NI,
-      futility_frac = input$futility_frac,
-      info_frac     = input$info_frac,
-      show_traj_success = input$show_traj_success,
-      show_traj_fail    = input$show_traj_fail,
-      use_cor_scale     = input$use_cor_scale,
-      xlim_log_low      = input$xlim_log_low,
-      xlim_log_high     = input$xlim_log_high
-    )
-  })
-  
-  output$cp_boxplot <- renderPlot({
-    req(sim())
-    cp_selection_boxplot(
-      sim(),
-      COR_true = input$COR_true,
-      COR_NI   = input$COR_NI,
-      use_cor_scale     = input$use_cor_scale,
-      xlim_log_low      = input$xlim_log_low,
-      xlim_log_high     = input$xlim_log_high
-    )
-  })
-  
-  output$status <- renderText({
-    if (is.null(sim())) "Click 'Run' to start." else "Complete."
-  })
-  
-  output$summary_table <- renderTable({
-    req(sim())
-    sim_table(sim(), COR_true = input$COR_true)$table
-  }, digits = 3)
-  
-  output$success_precision_note <- renderUI({
-    req(sim())
-    res <- sim_table(sim(), COR_true = input$COR_true)
-    
-    rmse_ia  <- res$rmse_ia_success
-    rmse_fin <- res$rmse_final_success
-    
-    if (is.na(rmse_ia) && is.na(rmse_fin)) return(NULL)
-    
-    # Helper to get relative % and qualitative description
-    get_rel_range_label <- function(rmse) {
-      if (is.na(rmse)) return("")
-      
-      pct <- round(rmse * 100)  # rough % for display
-      
-      low_mult  <- exp(-rmse)
-      high_mult <- exp(rmse)
-      pct_low   <- round((1 - low_mult)  * 100)
-      pct_high  <- round((high_mult - 1) * 100)
-      
-      range_str <- sprintf("-%d%% to +%d%%", pct_low, pct_high)
-      
-      # Qualitative label (tuned to typical simulation contexts)
-      qual <- if (rmse <= 0.10)          "small"
-      else if (rmse <= 0.15)     "moderate"
-      else if (rmse <= 0.25)     "wide"
-      else                       "very wide"
-      
-      sprintf(" (estimates usually fall within %s of the true COR — %s)", 
-              range_str, qual)
-    }
-    
-    tags$div(
-    #  style = "font-size: 0.92em; color: #444; margin-top: 12px; padding: 8px 12px; background: #f8f9fa; border-left: 4px solid #6c757d;",
-      tags$p(
-        tags$strong("Precision in successful arms (log-scale):")
-      ),
-      if (!is.na(rmse_ia)) {
-        low  <- round(exp(-rmse_ia), 2)
-        high <- round(exp(rmse_ia), 2)
-        tags$p(
-          sprintf("IA2 success stop: RMSE_log = %.3f → typical range ≈ ×%.2f to ×%.2f%s",
-                  rmse_ia, low, high, get_rel_range_label(rmse_ia))
-        )
-      },
-      if (!is.na(rmse_fin)) {
-        low  <- round(exp(-rmse_fin), 2)
-        high <- round(exp(rmse_fin), 2)
-        tags$p(
-          sprintf("Final success stop: RMSE_log = %.3f → typical range ≈ ×%.2f to ×%.2f%s",
-                  rmse_fin, low, high, get_rel_range_label(rmse_fin))
-        )
-      },
-      tags$small("(≈ 68% interval assuming roughly normal errors on the log scale)")
-    )
-  })
-  
-  output$ess_breakdown <- renderTable({
-    req(sim())
-    expected_n_breakdown(sim())
-  }, digits = 4)
-  
-  output$ess_total_note <- renderPrint({
-    req(sim())
-    df <- expected_n_breakdown(sim())
-    cat(sprintf("ESS (Average Sample Size) = %.1f\n", sum(df$Contribution)))
-  })
-  
-  output$rpact_info <- renderPrint({
-    req(sim())
-    d <- sim()$rpact_design
-    
-    cat(sprintf(
-      "Total One-sided Alpha: %.4f\nAlpha Spent Stage 1 (IA): %.4f\nAlpha Spent Stage 2 (Final): %.4f\n",
-      d$alpha, d$alphaSpent[1], d$alphaSpent[2]
-    ))
-    
-    cat("\n--- Nominal Stage-wise P-values (1-sided) ---\n")
-    
-    cat(sprintf(
-      "Nominal p at Stage 1: %.6f\nNominal p at Stage 2: %.6f\n",
-      pnorm(-d$criticalValues[1]),
-      pnorm(-d$criticalValues[2])
-    ))
-  })
-  
-  output$download_plot <- downloadHandler(
-    filename = function() {
-      paste0("Simulation_Results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".jpg")
-    },
-    content = function(file) {
-      req(sim())
-      jpeg(file, width = 12, height = 10, units = "in", res = 300, quality = 100)
-      selection_boxplot(
-        sim(),
-        COR_true = input$COR_true,
-        COR_NI   = input$COR_NI,
-        futility_frac = input$futility_frac,
-        info_frac     = input$info_frac,
-        show_traj_success = input$show_traj_success,
-        show_traj_fail    = input$show_traj_fail,
-        use_cor_scale     = input$use_cor_scale,
-        xlim_log_low      = input$xlim_log_low,
-        xlim_log_high     = input$xlim_log_high
-      )
-      dev.off()
-    }
-  )
+  output$rcs_debug <- renderText("Waiting for simulation...")
 }
 
 shinyApp(ui, server)
