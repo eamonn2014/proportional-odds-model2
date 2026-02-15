@@ -917,7 +917,7 @@ server <- function(input, output, session) {
            cex = 2.2, font = 2)
       
       text(0.5, 0.74,
-           "v4.0 – Ordinal Endpoint NI Trial with Futility & Conditional Power Stopping",
+           "v5.0 – Ordinal Endpoint NI Trial with Futility & Conditional Power Stopping",
            cex = 1.25)
       
       text(0.5, 0.69,
