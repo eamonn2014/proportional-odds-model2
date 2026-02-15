@@ -1,5 +1,5 @@
 ###############################################################################
-# Ordinal NI Group Sequential Trial Simulator (Shiny) v4.0
+# Ordinal NI Group Sequential Trial Simulator (Shiny) v5.0
 # PDF layout:
 #   Page 1: Title page + Table of Contents
 #   Page 2: Operating Characteristics plot
@@ -696,7 +696,7 @@ cp_selection_boxplot <- function(sim, COR_true, COR_NI,
 # UI --------------------------------------------------------------------------
 
 ui <- page_sidebar(
-  title = "Ordinal Endpoint, Non Inferiority, Group Sequential Trial Simulator v4.0",
+  title = "Ordinal Endpoint, Non Inferiority, Group Sequential Trial Simulator v5.0",
   sidebar = sidebar(
     width = 350,
     
