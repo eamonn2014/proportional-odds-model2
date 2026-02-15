@@ -244,13 +244,22 @@ sim_table <- function(sim, COR_true) {
     c(N=length(x), Min=min(x), Max=max(x), Mean=mean(x), Median=q[2], `2.5%`=q[1], `97.5%`=q[3])
   }
   
-  safe_mse_rmse_log <- function(est_log, true_log) {
+  # Updated helper: now computes mean error + MSE + RMSE
+  safe_error_metrics_log <- function(est_log, true_log) {
     valid <- is.finite(est_log)
-    if (sum(valid) == 0) return(c(MSE_log = NA_real_, RMSE_log = NA_real_))
+    if (sum(valid) == 0) {
+      return(c(
+        Mean_log_error = NA_real_,
+        MSE_log        = NA_real_,
+        RMSE_log       = NA_real_
+      ))
+    }
     err <- est_log[valid] - true_log
-    mse <- mean(err^2)
-    rmse <- sqrt(mse)
-    c(MSE_log = round(mse, 4), RMSE_log = round(rmse, 4))
+    c(
+      Mean_log_error = round(mean(err), 4),
+      MSE_log        = round(mean(err^2), 4),
+      RMSE_log       = round(sqrt(mean(err^2)), 4)
+    )
   }
   
   fut      <- safe_summ_ext(sim$COR_fut_all[sim$stop_fut])
@@ -260,33 +269,44 @@ sim_table <- function(sim, COR_true) {
   
   log_true <- log(COR_true)
   
-  mse_fut_log      <- safe_mse_rmse_log(sim$logCOR_paths[sim$stop_fut, "fut"], log_true)
-  mse_ia_suc_log   <- safe_mse_rmse_log(sim$logCOR_paths[sim$stop_ia, "ia"], log_true)
-  mse_ia_lowcp_log <- safe_mse_rmse_log(sim$logCOR_paths[sim$stop_fut_low_cp, "ia"], log_true)
-  mse_fin_log      <- safe_mse_rmse_log(sim$logCOR_paths[sim$stop_final, "final"], log_true)
+  err_fut_log      <- safe_error_metrics_log(sim$logCOR_paths[sim$stop_fut,        "fut"],   log_true)
+  err_ia_suc_log   <- safe_error_metrics_log(sim$logCOR_paths[sim$stop_ia,        "ia"],    log_true)
+  err_ia_lowcp_log <- safe_error_metrics_log(sim$logCOR_paths[sim$stop_fut_low_cp,"ia"],    log_true)
+  err_fin_log      <- safe_error_metrics_log(sim$logCOR_paths[sim$stop_final,     "final"], log_true)
   
   df <- data.frame(
-    Stage      = c("IA1 Futility stop", "IA2 success stop", "IA2 low-CP futility", "Final success stop"),
-    N          = c(fut["N"], ia_suc["N"], ia_lowcp["N"], fin["N"]),
-    Min        = c(fut["Min"], ia_suc["Min"], ia_lowcp["Min"], fin["Min"]),
-    Mean       = c(fut["Mean"], ia_suc["Mean"], ia_lowcp["Mean"], fin["Mean"]),
-    Median     = c(fut["Median"], ia_suc["Median"], ia_lowcp["Median"], fin["Median"]),
-    `2.5%`     = c(fut["2.5%"], ia_suc["2.5%"], ia_lowcp["2.5%"], fin["2.5%"]),
-    `97.5%`    = c(fut["97.5%"], ia_suc["97.5%"], ia_lowcp["97.5%"], fin["97.5%"]),
-    Max        = c(fut["Max"], ia_suc["Max"], ia_lowcp["Max"], fin["Max"]),
-    MSE_log    = c(mse_fut_log["MSE_log"], mse_ia_suc_log["MSE_log"], mse_ia_lowcp_log["MSE_log"], mse_fin_log["MSE_log"]),
-    RMSE_log   = c(mse_fut_log["RMSE_log"], mse_ia_suc_log["RMSE_log"], mse_ia_lowcp_log["RMSE_log"], mse_fin_log["RMSE_log"]),
+    Stage          = c("IA1 Futility stop", "IA2 success stop", "IA2 low-CP futility", "Final success stop"),
+    N              = c(fut["N"], ia_suc["N"], ia_lowcp["N"], fin["N"]),
+    Min            = c(fut["Min"], ia_suc["Min"], ia_lowcp["Min"], fin["Min"]),
+    Mean           = c(fut["Mean"], ia_suc["Mean"], ia_lowcp["Mean"], fin["Mean"]),
+    Median         = c(fut["Median"], ia_suc["Median"], ia_lowcp["Median"], fin["Median"]),
+    `2.5%`         = c(fut["2.5%"], ia_suc["2.5%"], ia_lowcp["2.5%"], fin["2.5%"]),
+    `97.5%`        = c(fut["97.5%"], ia_suc["97.5%"], ia_lowcp["97.5%"], fin["97.5%"]),
+    Max            = c(fut["Max"], ia_suc["Max"], ia_lowcp["Max"], fin["Max"]),
+    Mean_log_error = c(err_fut_log["Mean_log_error"],
+                       err_ia_suc_log["Mean_log_error"],
+                       err_ia_lowcp_log["Mean_log_error"],
+                       err_fin_log["Mean_log_error"]),
+    MSE_log        = c(err_fut_log["MSE_log"],
+                       err_ia_suc_log["MSE_log"],
+                       err_ia_lowcp_log["MSE_log"],
+                       err_fin_log["MSE_log"]),
+    RMSE_log       = c(err_fut_log["RMSE_log"],
+                       err_ia_suc_log["RMSE_log"],
+                       err_ia_lowcp_log["RMSE_log"],
+                       err_fin_log["RMSE_log"]),
     check.names = FALSE
   ) |>
     dplyr::mutate(
       N = as.integer(round(N)),
-      dplyr::across(c(Min, Mean, Median, `2.5%`, `97.5%`, Max, MSE_log, RMSE_log), ~ round(.x, 3))
+      dplyr::across(c(Min, Mean, Median, `2.5%`, `97.5%`, Max,
+                      Mean_log_error, MSE_log, RMSE_log), ~ round(.x, 3))
     )
   
   list(
     table              = df,
-    rmse_ia_success    = mse_ia_suc_log["RMSE_log"],
-    rmse_final_success = mse_fin_log["RMSE_log"]
+    rmse_ia_success    = err_ia_suc_log["RMSE_log"],
+    rmse_final_success = err_fin_log["RMSE_log"]
   )
 }
 
@@ -741,7 +761,7 @@ ui <- page_sidebar(
       
       checkboxInput("use_cor_scale", "Display on COR scale (instead of log)", value = FALSE),
       sliderInput("xlim_log_low",  "X-axis lower limit (log scale)", min = -6, max = 0, value = -1, step = 0.1),
-      sliderInput("xlim_log_high", "X-axis upper limit (log scale)", min = 0,  max = 7, value = 2,  step = 0.1),
+      sliderInput("xlim_log_high", "X-axis upper limit (log scale)", min = 0,  max = 7, value = 1,  step = 0.1),
       
       hr(style = "margin: 1.2em 0; border-top: 1px dashed #ccc;"),
       tags$strong("Show trajectories"),
@@ -1002,7 +1022,7 @@ server <- function(input, output, session) {
       
       add_footer(3)
       
-      # Reset margins after full-bleed raster page (prevents clipping on later pages)
+      # Reset margins after full-bleed raster page
       par(mar = c(4, 4, 4, 2))
       
       # ── PAGE 4: COR distributions + explanation ──────────────────────────
@@ -1189,7 +1209,6 @@ server <- function(input, output, session) {
   })
   
   # CP RCS plot with debug ----------------------------------------------------
-  # FIXED: Ensure datadist object is findable by rms (no more "dd not found")
   
   cp_rcs_fit <- reactive({
     s <- sim()
@@ -1233,7 +1252,7 @@ server <- function(input, output, session) {
       }
     }
     
-    # ---- datadist scope fix for rms ----
+    # datadist scope fix for rms
     old_datadist <- getOption("datadist")
     on.exit({
       options(datadist = old_datadist)
@@ -1242,7 +1261,6 @@ server <- function(input, output, session) {
     dd_obj <- datadist(df)
     assign("dd", dd_obj, envir = .GlobalEnv)
     options(datadist = "dd")
-    # -----------------------------------
     
     fmla <- if (!is.null(knots)) {
       CP ~ rcs(logCOR, parms = knots)
