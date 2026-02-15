@@ -1,18 +1,106 @@
-############################################
-# Ordinal NI Group Sequential Trial Simulator
-# Using rms::rcs for conditional power curve + fit quality in title
-############################################
+###############################################################################
+# INFORMATION BOX (QA / TRACEABILITY)
+#
+# Script Name   : Ordinal NI Group Sequential Trial Simulator (Shiny) v4.0
+# Purpose       : Simulate an ordinal endpoint non-inferiority (NI) group sequential
+#                trial with:
+#                  1) IA1 futility stop using p-value threshold (futility_p)
+#                  2) IA2 success stop using O’Brien–Fleming critical value (rpact)
+#                  3) IA2 optional futility stop using conditional power (cp_threshold)
+#                  4) Final analysis if not stopped earlier
+#
+# Primary Method: Proportional odds model fit at each stage using MASS::polr
+#                (logistic link) to estimate log(COR) and SE; Z-statistics built vs
+#                NI margin on the log(COR) scale.
+#
+# Key Inputs (UI):
+#   - n_sims, seed, chunk_size           : Simulation control & reproducibility
+#   - n_total (1:1 randomization)        : Maximum total sample size
+#   - futility_frac                      : IA1 information fraction (N at futility look)
+#   - info_frac                          : IA2 information fraction (N at IA2 look)
+#   - COR_true                           : True cumulative odds ratio (treatment vs control)
+#   - COR_NI                             : NI margin on COR scale (converted to log scale)
+#   - futility_p                         : One-sided p-value threshold for IA1 futility
+#   - cp_threshold                       : Conditional power threshold for IA2 futility
+#   - p_control_txt                      : Control category probabilities (must sum to 1)
+#
+# Key Outputs:
+#   - Empirical Power                    : P(IA2 success OR Final success)
+#   - ESS (Expected Sample Size)         : Avg N accounting for early stopping
+#   - Stage-wise stop probabilities       : IA1 futility / IA2 success / IA2 low-CP / Final
+#   - Estimation summaries by stage       : COR distribution + MSE/RMSE on log(COR) scale
+#   - Conditional power diagnostics       : CP after IA2 to final + RCS fit curve (rms::rcs)
+#
+# Reproducibility:
+#   - set.seed(seed) used before simulation dispatch
+#   - future.apply::future_lapply(..., future.seed = TRUE) for parallel-safe RNG
+#   - Note: changing workers/plan may cause different RNG streams if not controlled.
+#
+# Assumptions / Model Notes:
+#   - Ordinal outcomes generated from proportional odds structure using theta thresholds
+#     derived from control PMF; treatment effect applied via beta_true = log(COR_true).
+#   - NI hypothesis evaluated on log(COR) scale against beta_NI = log(COR_NI).
+#   - IA2 and Final efficacy boundaries use rpact group sequential OF design
+#     (one-sided alpha=0.025; informationRates=c(info_frac,1)).
+#
+# Validation / Defensive Checks (QA):
+#   - validate_probs(): numeric, >=3 categories, all >0, sums to 1 (±1e-6)
+#   - polr fit guarded with try(); returns NULL on failures / non-finite SE
+#   - conditional_power_ni_cp(): checks finite inputs and monotone information (I_T >= I_i)
+#   - cp_rcs_fit(): requires >=30 valid IA2 observations for stable spline fit
+#
+# Known Limitations / Points to Watch:
+#   - MASS::polr may fail or return unstable SE for extreme probabilities / small samples.
+#   - Conditional power depends on observed interim effect; can be noisy early.
+#   - “CP” here is computed using an information-based normal approximation.
+#   - IA1 futility uses a p-value rule (pragmatic) and is not an error-spending boundary.
+#
+# QA Checklist Suggestions:
+#   1) Run with fixed seed and confirm identical results across repeated runs (same plan).
+#   2) Stress test extreme p_control (near 0) and verify validate_probs() catches issues.
+#   3) Verify boundary signs: zcrit1/zcrit2 usage is consistent with NI direction.
+#   4) Confirm ESS breakdown sums to reported ESS and probabilities sum to ~1.
+#   5) Confirm rpact nominal p-values match printed criticalValues.
+###############################################################################
 
-library(shiny)
-library(shinyWidgets)
-library(MASS)
-library(dplyr)
-library(bslib)
-library(rpact)
-library(future)
-library(future.apply)
-library(progressr)
-library(rms)
+# notes CP at true cor =1 assumption, 100K sims IA2 80% of info
+# 35,50,75,90,95,97,98.8  knot locations
+# 1.2826  = 10% 
+# 1.2175  = 30%
+# 1.1758  = 50%
+# 1.1107  = 80%
+
+#comparison of IA2 timing 100K simulation
+
+# IA n   pow  lrmseIA lrmsefinal
+# 70 487 85.0 0.173 0.089 wide small
+# 75 494 85.3 0.158 0.094 wide small
+# 80 507 85.3 0.147 0.100 mod small   # I have tyoe I error sims too
+# 85 525 85.6 0.140 0.108 mod mod
+
+
+# Vector of required packages
+pkgs <- c(
+  "shiny",
+  "shinyWidgets",
+  "MASS",
+  "dplyr",
+  "bslib",
+  "rpact",
+  "future",
+  "future.apply",
+  "progressr",
+  "rms"
+)
+
+# Install missing packages
+installed <- pkgs %in% rownames(installed.packages())
+if (any(!installed)) {
+  install.packages(pkgs[!installed], dependencies = TRUE)
+}
+
+# Load packages
+invisible(lapply(pkgs, library, character.only = TRUE))
 
 ############################################################
 # Helpers
@@ -356,56 +444,7 @@ sim_table <- function(sim, COR_true) {
     rmse_final_success = mse_fin_log["RMSE_log"]
   )
 }
-
-
-#}
-
-# sim_table <- function(sim, COR_true) {
-#   
-#   safe_summ_ext <- function(x) {
-#     x <- x[is.finite(x)]
-#     if (length(x) == 0) return(c(N=0L, Min=NA, Max=NA, Mean=NA, Median=NA, `2.5%`=NA, `97.5%`=NA))
-#     q <- quantile(x, c(0.025, 0.5, 0.975), names = FALSE)
-#     c(N=length(x), Min=min(x), Max=max(x), Mean=mean(x), Median=q[2], `2.5%`=q[1], `97.5%`=q[3])
-#   }
-#   
-#   safe_mse_rmse <- function(est, true_val) {
-#     valid <- is.finite(est)
-#     if (sum(valid) == 0) return(c(MSE = NA_real_, RMSE = NA_real_))
-#     err  <- est[valid] - true_val
-#     mse  <- mean(err^2)
-#     rmse <- sqrt(mse)
-#     c(MSE = round(mse, 4), RMSE = round(rmse, 4))
-#   }
-#   
-#   fut      <- safe_summ_ext(sim$COR_fut_all[sim$stop_fut])
-#   ia_suc   <- safe_summ_ext(sim$COR1_all[sim$stop_ia])
-#   ia_lowcp <- safe_summ_ext(sim$COR1_all[sim$stop_fut_low_cp])
-#   fin      <- safe_summ_ext(sim$COR2_all[sim$stop_final])
-#   
-#   mse_fut      <- safe_mse_rmse(sim$COR_fut_all[sim$stop_fut],      COR_true)
-#   mse_ia_suc   <- safe_mse_rmse(sim$COR1_all[sim$stop_ia],          COR_true)
-#   mse_ia_lowcp <- safe_mse_rmse(sim$COR1_all[sim$stop_fut_low_cp],  COR_true)
-#   mse_fin      <- safe_mse_rmse(sim$COR2_all[sim$stop_final],       COR_true)
-#   
-#   data.frame(
-#     Stage      = c("IA1 Futility stop", "IA2 success stop", "IA2 low-CP futility", "Final success stop"),
-#     N          = c(fut["N"], ia_suc["N"], ia_lowcp["N"], fin["N"]),
-#     Min        = c(fut["Min"], ia_suc["Min"], ia_lowcp["Min"], fin["Min"]),
-#     Mean       = c(fut["Mean"], ia_suc["Mean"], ia_lowcp["Mean"], fin["Mean"]),
-#     Median     = c(fut["Median"], ia_suc["Median"], ia_lowcp["Median"], fin["Median"]),
-#     `2.5%`     = c(fut["2.5%"], ia_suc["2.5%"], ia_lowcp["2.5%"], fin["2.5%"]),
-#     `97.5%`    = c(fut["97.5%"], ia_suc["97.5%"], ia_lowcp["97.5%"], fin["97.5%"]),
-#     Max        = c(fut["Max"], ia_suc["Max"], ia_lowcp["Max"], fin["Max"]),
-#     MSE        = c(mse_fut["MSE"],   mse_ia_suc["MSE"],   mse_ia_lowcp["MSE"],   mse_fin["MSE"]),
-#     RMSE       = c(mse_fut["RMSE"],  mse_ia_suc["RMSE"],  mse_ia_lowcp["RMSE"],  mse_fin["RMSE"]),
-#     check.names = FALSE
-#   ) |>
-#     mutate(
-#       N = as.integer(round(N)),
-#       across(c(Min, Mean, Median, `2.5%`, `97.5%`, Max, MSE, RMSE), ~ round(.x, 3))
-#     )
-#}
+ 
 
 ############################################################
 # Plots (selection_boxplot and cp_selection_boxplot unchanged)
@@ -589,9 +628,13 @@ selection_boxplot <- function(sim, COR_true, COR_NI, futility_frac, info_frac,
       }
       
       if (length(path_x) >= 2) {
-        col_line <- if (is_success) rgb(0, 0.7, 0, 0.18)
-        else if (is_low_cp) rgb(0.6, 0, 0.8, 0.22)
-        else rgb(0.9, 0.1, 0.1, 0.18)
+        # col_line <- if (is_success) rgb(0, 0.7, 0, 0.18)
+        # else if (is_low_cp) rgb(0.6, 0, 0.8, 0.22)
+        # else rgb(0.9, 0.1, 0.1, 0.18)
+        
+        col_line <- if (is_success) rgb(0, 0.7, 0, 0.50)
+        else if (is_low_cp) rgb(0.6, 0, 0.8, 0.50)
+        else rgb(0.9, 0.1, 0.1, 0.50)
         
         lines(x_transform(path_x), path_y, col = col_line, lwd = 1)
       }
@@ -887,45 +930,7 @@ ui <- page_sidebar(
   verbatimTextOutput("status"),
   tableOutput("summary_table"),
   uiOutput("success_precision_note"),
-  # ← Put the explanation here
- # tags$div(
-  #  style = "font-size: 0.9em; color: #555; margin-top: 10px; padding: 8px; border-left: 3px solid #ccc;",
-    # tags$p(
-    #   tags$strong("Understanding RMSE_log (precision on the log(COR) scale):"),
-    #   tags$br(),
-    #   "RMSE_log tells you the typical size of error in log(estimated COR). ",
-    #   "Because we exponentiate to get back to the COR scale, this error becomes a ",
-    #   tags$strong("multiplicative factor"), " around the true value."
-    # ),
-    # tags$p(
-    #   "Examples of what different RMSE_log values mean in practice:"
-    # ),
-    # tags$ul(
-    #   style = "margin-left: 20px; margin-top: 6px; line-height: 1.5;",
-    #   tags$li(
-    #     tags$strong("RMSE_log = 0.10"), " → typical range: ×", tags$strong("0.90 – 1.11"),
-    #     " (most estimates are within about ±10–11% of the true COR)"
-    #   ),
-    #   tags$li(
-    #     tags$strong("RMSE_log = 0.25"), " → typical range: ×", tags$strong("0.78 – 1.28"),
-    #     " (estimates usually fall within ±22–28% of the true COR — moderate/wide)"
-    #   ),
-    #   tags$li(
-    #     tags$strong("RMSE_log = 0.50"), " → typical range: ×", tags$strong("0.61 – 1.65"),
-    #     " (estimates can easily be 40% lower or 65% higher than true — very imprecise)"
-    #   ),
-    #   tags$li(
-    #     tags$strong("RMSE_log = 0.75"), " → typical range: ×", tags$strong("0.47 – 2.12"),
-    #     " (estimates may be half or more than double the true value — extremely wide uncertainty)"
-    #   )
-    # ),
-    # tags$p(
-    #   tags$small(
-    #     "These intervals approximate a 68% range assuming roughly normal errors on the log scale. ",
-    #     "Smaller RMSE_log = tighter, more reliable estimates."
-    #   )
-    # )
-  #),
+
   
   hr(),
   h5("rpact Design & Nominal P-values"),
