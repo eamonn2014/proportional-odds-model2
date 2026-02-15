@@ -2,7 +2,7 @@
 # Ordinal NI Group Sequential Trial Simulator (Shiny) v5.0
 # PDF layout:
 #   Page 1: Title page + Table of Contents
-#   Page 2: Operating Characteristics plot
+#   Page 2: Operating Characteristics plot (RASTERIZED to reduce PDF size)
 #   Page 3: Simulation Inputs & rpact Design
 #   Page 4: Cumulative Odds Ratio Distributions by Stage + precision note
 #   Page 5: Expected Sample Size & Stopping Probabilities
@@ -13,7 +13,7 @@
 pkgs <- c(
   "shiny", "shinyWidgets", "shinyjs", "MASS", "dplyr", "bslib",
   "rpact", "future", "future.apply", "progressr", "rms",
-  "grid", "gridExtra"
+  "grid", "gridExtra", "png"
 )
 
 installed <- pkgs %in% rownames(installed.packages())
@@ -878,7 +878,7 @@ server <- function(input, output, session) {
     
   }, ignoreInit = TRUE)
   
-  # ===== PDF REPORT (FIXED CLIPPING + PAGE NUMBERS + WRAPPED sessionInfo) =====
+  # ===== PDF REPORT (PAGE 2 RASTERIZED) =====
   
   output$download_report <- downloadHandler(
     filename = function() {
@@ -897,7 +897,6 @@ server <- function(input, output, session) {
       par(oma = footer_oma)
       
       ensure_oma <- function() {
-        # keep current mar etc, but ensure oma persists for outer footer
         par(oma = footer_oma)
       }
       
@@ -908,7 +907,7 @@ server <- function(input, output, session) {
               cex = 0.9, col = "gray45")
       }
       
-      # ── PAGE 1: Title + Table of Contents (NO TOP CLIPPING) ───────────────
+      # ── PAGE 1: Title + Table of Contents ────────────────────────────────
       par(mar = c(2.5, 2.5, 2.0, 2.0))
       plot.new()
       
@@ -941,7 +940,11 @@ server <- function(input, output, session) {
       
       add_footer(1)
       
-      # ── PAGE 2: Operating Characteristics ─────────────────────────────────
+      # ── PAGE 2: Operating Characteristics (RASTERIZED) ───────────────────
+      # Render the heavy base graphics page to PNG, then embed into the PDF.
+      tmp_png <- tempfile(fileext = ".png")
+      
+      grDevices::png(tmp_png, width = 11, height = 8.5, units = "in", res = 250, type = "cairo-png")
       selection_boxplot(
         sim(),
         COR_true = input$COR_true,
@@ -954,9 +957,17 @@ server <- function(input, output, session) {
         xlim_log_low      = input$xlim_log_low,
         xlim_log_high     = input$xlim_log_high
       )
+      dev.off()
+      
+      # New PDF page: draw the PNG full-bleed
+      par(mar = c(0, 0, 0, 0))
+      plot.new()
+      img <- png::readPNG(tmp_png)
+      grid::grid.raster(img, width = grid::unit(1, "npc"), height = grid::unit(1, "npc"))
+      
       add_footer(2)
       
-      # ── PAGE 3: Inputs + rpact design ─────────────────────────────────────
+      # ── PAGE 3: Inputs + rpact design ────────────────────────────────────
       par(mar = c(4, 4, 4, 2))
       plot.new()
       title(main = "Simulation Inputs & rpact Design", line = 2.5, cex.main = 1.4)
@@ -991,7 +1002,7 @@ server <- function(input, output, session) {
       
       add_footer(3)
       
-      # ── PAGE 4: COR distributions + explanation ───────────────────────────
+      # ── PAGE 4: COR distributions + explanation ──────────────────────────
       plot.new()
       title(main = "Cumulative Odds Ratio Distributions by Stopping Stage", line = 2.5, cex.main = 1.4)
       
@@ -1029,7 +1040,7 @@ server <- function(input, output, session) {
       
       add_footer(4)
       
-      # ── PAGE 5: Expected Sample Size ──────────────────────────────────────
+      # ── PAGE 5: Expected Sample Size ─────────────────────────────────────
       plot.new()
       title(main = "Expected Sample Size & Stopping Probabilities", line = 2.5, cex.main = 1.4)
       
@@ -1047,14 +1058,12 @@ server <- function(input, output, session) {
       
       add_footer(5)
       
-      # ── PAGE 6: sessionInfo (WRAPPED TO AVOID RIGHT CLIP) ─────────────────
+      # ── PAGE 6: sessionInfo (WRAPPED) ────────────────────────────────────
       par(mar = c(1.8, 1.2, 3.2, 1.2))
       plot.new()
       title(main = "R Session Information", line = 1.2, cex.main = 1.4)
       
       si <- capture.output(sessionInfo())
-      
-      # Wrap long lines so they don't run off the page
       si_wrapped <- unlist(lapply(si, function(x) strwrap(x, width = 110)))
       
       text(x = 0.01, y = 0.95, adj = c(0,1),
@@ -1178,6 +1187,68 @@ server <- function(input, output, session) {
   
   # CP RCS plot with debug ----------------------------------------------------
   
+  # cp_rcs_fit <- reactive({
+  #   s <- sim()
+  #   req(s)
+  #   
+  #   df <- data.frame(
+  #     logCOR = s$logCOR_paths[, "ia"],
+  #     CP     = s$CP_after_ia_to_final_obs
+  #   ) %>%
+  #     dplyr::filter(is.finite(logCOR) & is.finite(CP) & CP >= 0 & CP <= 1)
+  #   
+  #   output$rcs_debug <- renderText({
+  #     n <- nrow(df)
+  #     if (n < 30) {
+  #       sprintf("Too few valid IA2 points (%d). Need ≥30 for stable RCS fit.", n)
+  #     } else {
+  #       "Data ready – fitting RCS..."
+  #     }
+  #   })
+  #   
+  #   shiny::validate(need(nrow(df) >= 30, "Insufficient valid IA2 data for RCS"))
+  #   
+  #   df_val <- max(3L, min(8L, as.integer(input$spline_df %||% 4)))
+  #   
+  #   knots_text <- trimws(input$custom_knots_logcor %||% "")
+  #   use_custom <- nzchar(knots_text)
+  #   
+  #   knots <- NULL
+  #   knots_source <- "auto (quantiles)"
+  #   
+  #   if (use_custom) {
+  #     perc_vals <- suppressWarnings(as.numeric(unlist(strsplit(knots_text, "[, ]+"))))
+  #     if (all(is.finite(perc_vals)) && all(perc_vals >= 0 & perc_vals <= 100) &&
+  #         length(perc_vals) >= 3 && length(perc_vals) <= 7 && length(unique(perc_vals)) == length(perc_vals)) {
+  #       perc_sorted <- sort(perc_vals / 100)
+  #       knots <- quantile(df$logCOR, probs = perc_sorted, names = FALSE)
+  #       knots_source <- sprintf("custom percentiles: %s", paste(perc_vals, collapse = ", "))
+  #     }
+  #   }
+  #   
+  #   dd <- datadist(df)
+  #   options(datadist = "dd")
+  #   
+  #   fmla <- if (!is.null(knots)) {
+  #     CP ~ rcs(logCOR, parms = knots)
+  #   } else {
+  #     as.formula(sprintf("CP ~ rcs(logCOR, %d)", df_val + 1L))
+  #   }
+  #   
+  #   fit <- tryCatch(
+  #     ols(fmla, data = df, x = TRUE, y = TRUE),
+  #     error = function(e) {
+  #       output$rcs_debug <- renderText(sprintf("RCS fit failed: %s", e$message))
+  #       NULL
+  #     }
+  #   )
+  #   
+  #   req(fit, "RCS model did not converge")
+  #   
+  #   list(fit = fit, data = df, n_valid = nrow(df), knots = knots, knots_source = knots_source)
+  # })
+  
+  
   cp_rcs_fit <- reactive({
     s <- sim()
     req(s)
@@ -1209,16 +1280,28 @@ server <- function(input, output, session) {
     
     if (use_custom) {
       perc_vals <- suppressWarnings(as.numeric(unlist(strsplit(knots_text, "[, ]+"))))
-      if (all(is.finite(perc_vals)) && all(perc_vals >= 0 & perc_vals <= 100) &&
-          length(perc_vals) >= 3 && length(perc_vals) <= 7 && length(unique(perc_vals)) == length(perc_vals)) {
+      if (all(is.finite(perc_vals)) &&
+          all(perc_vals >= 0 & perc_vals <= 100) &&
+          length(perc_vals) >= 3 &&
+          length(perc_vals) <= 7 &&
+          length(unique(perc_vals)) == length(perc_vals)) {
+        
         perc_sorted <- sort(perc_vals / 100)
         knots <- quantile(df$logCOR, probs = perc_sorted, names = FALSE)
         knots_source <- sprintf("custom percentiles: %s", paste(perc_vals, collapse = ", "))
       }
     }
     
-    dd <- datadist(df)
+    # ---- FIX: make datadist visible where rms expects it ----
+    old_datadist <- getOption("datadist")
+    on.exit({
+      options(datadist = old_datadist)
+    }, add = TRUE)
+    
+    dd_obj <- datadist(df)
+    assign("dd", dd_obj, envir = .GlobalEnv)
     options(datadist = "dd")
+    # --------------------------------------------------------
     
     fmla <- if (!is.null(knots)) {
       CP ~ rcs(logCOR, parms = knots)
@@ -1238,6 +1321,7 @@ server <- function(input, output, session) {
     
     list(fit = fit, data = df, n_valid = nrow(df), knots = knots, knots_source = knots_source)
   })
+  
   
   output$cp_rcs_plot <- renderPlot({
     obj <- cp_rcs_fit()
